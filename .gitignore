@@ -30,6 +30,7 @@
 *.pdf
 *.ps
 *.nlo
+*.nls
 
 # Mac IDE files
 *.swp
