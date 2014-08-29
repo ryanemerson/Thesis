@@ -122,8 +122,26 @@ The main advantage of the Chubby system is its focus on high availability and re
 
 %\section{Transactions}
 
+\section{In-memory Databases}
+%\citep{Infinispan, Hazelcast, GridGain}
+In-memory databases (REF) are database systems that aim to provide scalable, low-latency data storage.  Data is stored in RAM to provide fast data access, and is partitioned across multiple nodes in a cluster for scalability.  In order to provide availability in the presence of node failures, each partition is replicated across distinct nodes; the number of nodes utilised is the \emph{Replication Factor} ($RF$).  Storing data in RAM provides superior read/write performance to traditional disk-based databases, whilst the distributed nature of the database allows it to elastically scale by simply adding additional nodes to store data partitions.  
+
+The emergence of simpler NoSQL based data models, such as key/value pairs, has enabled in-memory databases to become a reality.  Previously, RDBMS services were the de facto standard for database solutions, however their rigid structure greatly limits their ability to elastically scale due to the difficulty of maintaining table structures and distributing records across multiple nodes \citep{Cattell:2011:SSN:1978915.1978919, Cooper:2010:BCS:1807128.1807152}. Distributing data across many nodes is essential for in-memory databases, not only to provide availability, but to provide sufficient storage capacity for a database system; RAM per node is typically measured in gigabytes, whereas disk based storage is measured in terabytes.  
+
+Finally, due to RAM being a volatile storage medium (i.e its state is lost when power is lost) it is common for in-memory databases to provide a means for persistent storage in the event of power-loss or node crashes.  Typically, this is achieved through asynchronous write-requests to a persistent database that utilises the same data model as the in-memory database.  However, in some deployments, such as distributed caches, this is forsaken in order to provide applications with the lowest possible response time.  
+    
+    \subsection{Replication Schemes}
+	Typically, in-memory databases offer two types of replication schemes: \emph{full} and \emph{partial} replication.  
+	
+	In a \emph{full} replication scheme, each data partition is replicated on every distinct node in the cluster, $RF = \left\vert nodes \right\vert$.  This greatly limits the scalability of the database, as the total number of RPCs required to update each key/value pair increases when additional nodes are added to the cluster.  Furthermore, the maximum storage capacity of the database will always be equal to the RAM size of the least capable node in the cluster.  The advantages of using \emph{full} replication is that it can provide high availability, with only a few cluster nodes, as well as providing high-performance when workloads are read dominant; full replication is extremely effective for creating highly-available distributed cache that sits between the application and a persistent database.  
+	
+	\emph{Partial} replication is a data scheme, where each data partition is replicated across a subset of nodes in the cluster, $RF < \left\vert nodes \right\vert$; no node holds all replicas of a given partition nor the entire database.  The advantage of this partial replication, is the total size of the database is not limited by the weakest node, rather the collective memory pool of all nodes in the cluster and the $RF$ configured by the system administrator.  Therefore, elastic scalability is possible as the database's capacity can be increased by simply adding an additional node to the cluster.  However, the scalability of a database is inherently linked with the size of $RF$; a high $RF$ value ($RF > 3$) will provide high levels of availability and fault-tolerance at the expense of write latency (as all $RF$ replicas need to be updated); whereas too low a value will provide low-latency writes at the expense of fault-tolerance and availability.   
+	
+	The total capacity of a partially replicated database can be expressed as $\frac{Mem - S.Res}{RF}$: where $Mem$ is the total amount of RAM available across the cluster, $S.Res$ is the RAM required by other system resources (operating system etc.) and $RF$ is the configured \emph{replication factor}.  
+
+%Persistence is typically provided through asynchronous write-requests, however performance can be improved further by utilising a purely in-memory solution.  tx logs, sacrifice durability in ACID because of volatile nature
+
 \section{Infinispan}\label{sec:infinispan}
-	\subsection{What is Infinispan?}
 	\subsection{Infinispan Requirements}
 	\subsection{Atomic Broadcast > 2PC}
 		\subsubsection{Advantages of Atomic Broadcast}
