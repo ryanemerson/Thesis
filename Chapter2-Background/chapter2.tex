@@ -141,9 +141,21 @@ Finally, due to RAM being a volatile storage medium (i.e its state is lost when 
 %Persistence is typically provided through asynchronous write-requests, however performance can be improved further by utilising a purely in-memory solution.  tx logs, sacrifice durability in ACID because of volatile nature
 
 \section{Infinispan}\label{sec:infinispan}
-% Hashing
-% JGroups/Red Hat - Open source
+Infinispan \citep{Infinispan} is an open-source in-memory database system developed by Red Hat, Inc \citep{RedHat}. that provides users with a JSR-107 \citep{JSR-107} compliant, key/value data model.  It can be used as a distributed cache, or as a transactional NoSQL key/value store, and supports both full and partial replication.  From its inception Infinispan has been designed  to be highly-scalable, this section describes how Infinispan has approach the challenge of implementing scalable transactions, and the limitations of some of the existing solutions.  
 
+As previously stated, full replication is not scalable, therefore the rest of this document will focus on the challenges posed by partial replication schemes; henceforth any reference to key/value replication assumes partial replication.  
+
+    \subsection{Key Distribution}
+    A key challenge of implementing distributed data stores is ensuring that each node in the cluster is aware of where each data item is located, so that it is able to access it when required.  This problem is further exasperated by Infinispan's need to elastically scale.  
+    
+    A naive solution is for each node in the cluster to maintain meta-data about each key/value pair stored in the database, however the maintenance of such data would create a large overhead.  Not only would the database required additional space to store the meta-data, but it would also need to update the meta-data stored on each node in the cluster every time a node was added or removed from the cluster.  Clearly this is not a scalable solution.  
+    
+    Infinispan solves this problem, by utilising a modified consistent hashing algorithm \citep{Karger:1997:CHR:258533.258660, Infinispan, Ruivo:2011:ETO:2120967.2121604} to determine where key/value pairs should be stored; the algorithm utilises the key as a parameter for computing the hash.  The hashing algorithm divides the cluster into segments, with each hashed key mapping to a single segment, and associates $RF$ nodes with each segment. The nodes for each segment are stored in an ordered list, with the index of a node determining its replica status.  Nodes stored at index 0 are considered the \emph{primary} owner of all keys stored in that segment, and nodes with an index greater than 0 are considered \emph{backup} owners; \emph{primary} owners are used by Infinispan to coordinate various database operations; \emph{backup} owners store data purely for fault-tolerance.  
+ 
+    Therefore it is possible for a node to determine the \emph{primary} and \emph{backup} location of any key $k$ in the cluster, simply by calling $hash(k)$. This enables any node in the cluster to deterministically calculate the storage location of any key/value in the database without a single RPC, therefore reducing RPCs and aiding scalability.  
+    
+    A consequence of utilising a consistent hash function is that Infinispan users cannot specify where data should be stored in the database. This can be advantageous when the user knows that a small set of keys will commonly be read together.  In such cases, it could be beneficial to store the keys across the same range of \emph{primary} and \emph{backup} owners in order to reduce the number of RPCs required.  Infinispan circumvents this problem by allowing users to generate keys, using a modified version of the hash function, whose owners will be the same as a specified key.  
+    
     \subsection{Transactions}
         %ACID, D is sacrified
         %Consistency criteria
