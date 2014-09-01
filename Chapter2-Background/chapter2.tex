@@ -141,11 +141,28 @@ Finally, due to RAM being a volatile storage medium (i.e its state is lost when 
 %Persistence is typically provided through asynchronous write-requests, however performance can be improved further by utilising a purely in-memory solution.  tx logs, sacrifice durability in ACID because of volatile nature
 
 \section{Infinispan}\label{sec:infinispan}
-	\subsection{Infinispan Requirements}
-	\subsection{Atomic Broadcast > 2PC}
-		\subsubsection{Advantages of Atomic Broadcast}
-		\subsubsection{Current Protocol}
-		\subsubsection{Limitations of Existing Protocol}
+% Hashing
+% JGroups/Red Hat - Open source
+
+    \subsection{Transactions}
+        %ACID, D is sacrified
+        %Consistency criteria
+        
+    \subsection{Two-phase Commit Protocol}
+        %How it works
+        \subsubsection{Limitations}
+        
+    \subsection{Atomic Broadcast Transactions}
+        %How it works
+        
+        \subsubsection{TOA}
+            %How it works
+        \subsubsection{Limitations of TOA}
+            %Blocking
+            %Overlapping Subset Problem
+        \subsubsection{Requirements of a new protocol}
+            %Non-Blocking, reduce N->1 communication
+
 
 %\section{RMSys}
 %RMSys is a probabilistic broadcast protocol developed by Ezhilchelvan et al.~\cite{rmsys} that utilises the probabilistic synchronous model. It aims to provide the application with probabilistic guarantees on end-to-end message delivery and latency. These guarantees are calculated by RMSys’s Evaluation Component (EC) based upon the recent performance of the network and the requirements of the application. The recent performance of the network is periodically assessed by the Network Measurement Component (NMC) in order to build a Cumulative Distribution Function (CDF) of message latencies. This CDF is delivered to the EC, which uses this data to calculate the probabilistic guarantees that are delivered to the application.  
