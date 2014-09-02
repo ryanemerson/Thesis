@@ -129,7 +129,7 @@ The emergence of simpler NoSQL based data models, such as key/value pairs, has e
 
 Finally, due to RAM being a volatile storage medium (i.e its state is lost when power is lost) it is common for in-memory databases to provide a means for persistent storage in the event of power-loss or node crashes.  Typically, this is achieved through asynchronous write-requests to a persistent database that utilises the same data model as the in-memory database.  However, in some deployments, such as distributed caches, this is forsaken in order to provide applications with the lowest possible response time.  
     
-    \subsection{Replication Schemes}
+    \subsection{Replication Schemes}\label{replication_schemes}
 	Typically, in-memory databases offer two types of replication schemes: \emph{full} and \emph{partial} replication.  
 	
 	In a \emph{full} replication scheme, each data partition is replicated on every distinct node in the cluster, $RF = \left\vert nodes \right\vert$.  This greatly limits the scalability of the database, as the total number of RPCs required to update each key/value pair increases when additional nodes are added to the cluster.  Furthermore, the maximum storage capacity of the database will always be equal to the RAM size of the least capable node in the cluster.  The advantages of using \emph{full} replication is that it can provide high availability, with only a few cluster nodes, as well as providing high-performance when workloads are read dominant; full replication is extremely effective for creating highly-available distributed cache that sits between the application and a persistent database.  
@@ -143,7 +143,7 @@ Finally, due to RAM being a volatile storage medium (i.e its state is lost when 
 \section{Infinispan}\label{sec:infinispan}
 Infinispan \citep{Infinispan} is an open-source in-memory database system developed by Red Hat, Inc \citep{RedHat}. that provides users with a JSR-107 \citep{JSR-107} compliant, key/value data model.  It can be used as a distributed cache, or as a transactional NoSQL key/value store, and supports both full and partial replication.  From its inception Infinispan has been designed  to be highly-scalable, this section describes how Infinispan has approach the challenge of implementing scalable transactions, and the limitations of some of the existing solutions.  
 
-As previously stated, full replication is not scalable, therefore the rest of this document will focus on the challenges posed by partial replication schemes; henceforth any reference to key/value replication assumes partial replication.  
+As previously stated ($\S$ \ref{replication_schemes}), full replication is not scalable, therefore the rest of this document will focus on the challenges posed by partial replication schemes; henceforth any reference to key/value replication assumes partial replication.  Furthermore, all references to read/write operations are assumed to be in the context of Infinispan transactions, non-transactional operations are not considered.  
 
     \subsection{Key Distribution}
     A key challenge of implementing distributed data stores is ensuring that each node in the cluster is aware of where each data item is located, so that it is able to access it when required.  This problem is further exasperated by Infinispan's need to elastically scale.  
