@@ -123,7 +123,7 @@ The main advantage of the Chubby system is its focus on high availability and re
 %\section{Transactions}
 
 \section{In-memory Databases}
-In-memory databases \citep{Infinispan, Hazelcast, GridGain} are database systems that aim to provide scalable, low-latency data storage.  Data is stored in RAM to provide fast data access, and is partitioned across multiple nodes in a cluster for scalability.  In order to provide availability in the presence of node failures, each partition is replicated across distinct nodes; the number of nodes utilised is the \emph{Replication Factor} ($RF$).  Storing data in RAM provides superior read/write performance to traditional disk-based databases, whilst the distributed nature of the database allows it to elastically scale by simply adding additional nodes to store data partitions.  
+In-memory databases \citep{Infinispan, Hazelcast, GridGain} are database systems that aim to provide scalable, low-latency data storage.  Data is stored in RAM to provide fast data access, and is partitioned across multiple nodes in a cluster for scalability.  In order to provide availability and durability in the presence of node failures, each partition is replicated across distinct nodes; the number of nodes utilised is the \emph{Replication Factor} ($RF$).  Storing data in RAM provides superior read/write performance to traditional disk-based databases, whilst the distributed nature of the database allows it to elastically scale by simply adding additional nodes to store data partitions.  
 
 The emergence of simpler NoSQL based data models, such as key/value pairs, has enabled in-memory databases to become a reality.  Previously, RDBMS services were the de facto standard for database solutions, however their rigid structure greatly limits their ability to elastically scale due to the difficulty of maintaining table structures and distributing records across multiple nodes \citep{Cattell:2011:SSN:1978915.1978919, Cooper:2010:BCS:1807128.1807152}. Distributing data across many nodes is essential for in-memory databases, not only to provide availability, but to provide sufficient storage capacity for a database system; RAM per node is typically measured in gigabytes, whereas disk based storage is measured in terabytes.  
 
@@ -157,23 +157,48 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
     A consequence of utilising a consistent hash function is that Infinispan users cannot specify where data should be stored in the database. This can be advantageous when the user knows that a small set of keys will commonly be read together.  In such cases, it could be beneficial to store the keys across the same range of \emph{primary} and \emph{backup} owners in order to reduce the number of RPCs required.  Infinispan circumvents this problem by allowing users to generate keys, using a modified version of the hash function, whose owners will be the same as a specified key.  
     
     \subsection{Transactions}
-        %ACID, D is sacrified
-        %Consistency criteria
+    %TODO? More info on optimistic and pessimistic transactions
+    Unlike many NoSQL databases, Infinispan is a fully transactional data-store, with both the JTA\citep{JTA} and XA\citep{XA} standards supported.  Both optimistic \citep{Kung:1981:OMC:319566.319567} and pessimistic transactions are supported, however optimistic transactions are used in the default Infinispan configuration in order to reduce contention and the chance of deadlock.  The traditional Two Phase Commit protocol (2PC) is utilised for implementing the locking strategy in both optimistic and pessimistic transactions.  In addition to the two traditional lock based transactions, Infinispan also offers a lock-free total order transaction scheme, that relies on an atomic broadcast protocol to coordinate transactions.  
+    
+    
+	    \subsubsection{Relaxed ACID}
+	    Infinispan transactions abide by the ACID\citep{Haerder:1983:PTD:289.291} properties, however the \emph{Consistency} and \emph{Durability} guarantees are more relaxed than those provided by traditional RDBMS transactions; Durability is relaxed as a consequence of RAM being volatile, and Consistency is relaxed in order to reduce the overhead of distributed transactions in a \emph{partially replicated} context.  
+	    
+		    \paragraph{Durability} \hspace{0pt} \\
+		    Infinispan provides two mechanisms for providing durabilty: the first is the use of redundant key backups, i.e. the \emph{replication factor}, and the second is an optional mechanism that allows key/value pairs to be persisted to a separate persistent database.  The latter is available in two different configurations, \emph{write-through} and \emph{write-beyond}. 
+		    
+		    Write-through is a synchronous operation, that ensures that an insert/update operation on an Infinispan key will not complete until the value has been updated in the cache and it has been updated at the persistent store.  This ensures that the contents of the cache will always be consistent with the persistent store, therefore guaranteeing that in the event of a system wide crash all committed key/value pairs will be preserved.  The disadvantage of this approach is that the users of the cache lose the performance benefits provided by in-memory storage as any update/insert operation will always take at as long as storing the pair in a persistent store.  Ultimately, write-through is only an appropriate solution in read-heavy workloads that require a strong emphasis on durability.  
+		    
+		    Conversely, write-beyond offers asynchronous persistence.  Key/value updates and inserts complete as soon as the operation has completed in the cache, and the values are persisted to the persistent data store in the background using a separate thread to the users request.  This ensures that the users operation is returned as quick as possible, and low-latency is maintained, however it presents a small window in which the cache is not consistent with the persistent data store.  Therefore, it is possible for the most recent key/value write operations to be lost if all nodes containing $RF$ backups simultaneously crashed or a system wide crash occurs.  
+    
+	        \paragraph{Consistency} \hspace{0pt} \\
+	        Infinispan does not provide support for 1-copy serialisability in its transactions, instead it provides two different isolation criteria: \emph{Read Committed (RC)} and \emph{Repeatable Read (RR)}.  
+	        
+	        \begin{itemize}
+	            \item[\textbf{RC} -] All calls to a key $get(k)$ return the last value of $k$ committed by a transaction.  
+	            \item[\textbf{RR} -] The value return by the first call to $get(k)$ will be used for all subsequent calls to $get(k)$ within the current transaction.
+	        \end{itemize}   
+	        
+	        RC is advantageous, as it ensures that all calls to $get(k)$ always return the latest value of $k$, however each call to $get(k)$ may require a RPC, as $k$ may not be stored on the local node due to $k$ only being partially replicated across the cluster. Thus RC can be detrimental to performance in transactions that consist of multiple reads to the same key.  If such transactions are prevalent in a workload, it may be advantageous to utilise RR isolation in order to reduce the total number of RPC required by a transaction.  Infinispan implements RR by storing the value return by $get(k)$, in the transaction manager's context, and simply returns the stored value for any subsequent calls to $get(k)$.  A consequence of RR is that the potential for stale values to be utilised increases, to detect such occurrences Infinispan provides an optional \emph{Write Skew Check (WSC)} for use with RR isolation.  
+	        
+	        The WSC determines whether a read $v = get(k)$ in a transaction $Tx$, has been invalidated by a concurrent transaction $Tx'$ committing a write $update(k, v')$ during the lifetime of $Tx$.  If $Tx'$ has performed a write on $k$ between $Tx$ performing $get(k)$ and $update(k, v+1)$, then the WSC will detect this anomaly allowing the transaction manager to abort $Tx$ so that the erroneous value $v+1$ is not committed.  
+
         
-    \subsection{Two-phase Commit Protocol}
-        %How it works
-        \subsubsection{Limitations}
-        
-    \subsection{Atomic Broadcast Transactions}
-        %How it works
-        
-        \subsubsection{TOA}
-            %How it works
-        \subsubsection{Limitations of TOA}
-            %Blocking
-            %Overlapping Subset Problem
-        \subsubsection{Requirements of a new protocol}
-            %Non-Blocking, reduce N->1 communication
+	    \subsubsection{Two-phase Commit Protocol}
+	        %How it works
+	        %Always acquire locks on the primary regardless of the origin
+	        %\subsubsection{Limitations}
+	        
+	    \subsubsection{Total Order Transactions}
+	        %How it works
+	        
+	        %\subsubsection{TOA}
+	            %How it works
+	        %\subsubsection{Limitations of TOA}
+	            %Blocking
+	            %Overlapping Subset Problem
+	        %\subsubsection{Requirements of a new protocol}
+	            %Non-Blocking, reduce N->1 communication
 
 
 %\section{RMSys}
