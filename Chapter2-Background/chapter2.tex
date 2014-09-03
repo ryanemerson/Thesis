@@ -158,8 +158,11 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
     
     \subsection{Transactions}
     %TODO? More info on optimistic and pessimistic transactions
-    Unlike many NoSQL databases, Infinispan is a fully transactional data-store, with both the JTA\citep{JTA} and XA\citep{XA} standards supported.  Both optimistic \citep{Kung:1981:OMC:319566.319567} and pessimistic transactions are supported, however optimistic transactions are used in the default Infinispan configuration in order to reduce contention and the chance of deadlock.  The traditional Two Phase Commit protocol (2PC) is utilised for implementing the locking strategy in both optimistic and pessimistic transactions.  In addition to the two traditional lock based transactions, Infinispan also offers a lock-free total order transaction scheme, that relies on an atomic broadcast protocol to coordinate transactions.  
+    Unlike many NoSQL databases, Infinispan is a fully transactional data-store, with both the JTA\citep{JTA} and XA\citep{XA} standards supported.  Both optimistic \citep{Kung:1981:OMC:319566.319567} and pessimistic transactions are supported, however optimistic transactions are used in the default Infinispan configuration in order to reduce contention and the chance of deadlock.  The traditional Two Phase Commit protocol (2PC) is utilised for implementing the locking strategy in both optimistic and pessimistic transactions.  
     
+    In addition to the two traditional lock based transactions, Infinispan also offers a lock-free total order transaction scheme, that relies on an atomic broadcast protocol to coordinate transactions.  
+    
+    This section details the relaxed ACID guarantees provided by Infinispan, before providing an in-depth analysis of how transactions are coordinated using locking (2PC) and lock-free (Total Order) schemes. 
     
 	    \subsubsection{Relaxed ACID}
 	    Infinispan transactions abide by the ACID\citep{Haerder:1983:PTD:289.291} properties, however the \emph{Consistency} and \emph{Durability} guarantees are more relaxed than those provided by traditional RDBMS transactions; Durability is relaxed as a consequence of RAM being volatile, and Consistency is relaxed in order to reduce the overhead of distributed transactions in a \emph{partially replicated} context.  
