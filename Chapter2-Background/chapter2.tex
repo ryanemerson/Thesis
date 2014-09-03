@@ -182,16 +182,55 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	            \item[\textbf{RR} -] The value return by the first call to $get(k)$ will be used for all subsequent calls to $get(k)$ within the current transaction.
 	        \end{itemize}   
 	        
-	        RC is advantageous, as it ensures that all calls to $get(k)$ always return the latest value of $k$, however each call to $get(k)$ may require a RPC, as $k$ may not be stored on the local node due to $k$ only being partially replicated across the cluster. Thus RC can be detrimental to performance in transactions that consist of multiple reads to the same key.  If such transactions are prevalent in a workload, it may be advantageous to utilise RR isolation in order to reduce the total number of RPC required by a transaction.  Infinispan implements RR by storing the value return by $get(k)$, in the transaction manager's context, and simply returns the stored value for any subsequent calls to $get(k)$.  A consequence of RR is that the potential for stale values to be utilised increases, to detect such occurrences Infinispan provides an optional \emph{Write Skew Check (WSC)} for use with RR isolation.  
+	        RC is advantageous, as it ensures that all calls to $get(k)$ always return the latest value of $k$, however each call to $get(k)$ may require a RPC, as $k$ may not be stored on the local node due to $k$ only being partially replicated across the cluster. Thus RC can be detrimental to performance in transactions that consist of multiple reads to the same key.  If such transactions are prevalent in a workload, it may be advantageous to utilise RR isolation in order to reduce the total number of RPC required by a transaction.  Infinispan implements RR by storing the value return by $get(k)$, in the transaction manager's context, and simply returns the stored value for any subsequent calls to $get(k)$.  A consequence of RR is that the potential for stale values to be utilised increases, to detect these so called \emph{write-skews}\label{write-skew} Infinispan provides an optional \emph{Write Skew Check (WSC)} for use with RR isolation.  
 	        
 	        The WSC determines whether a read $v = get(k)$ in a transaction $Tx$, has been invalidated by a concurrent transaction $Tx'$ committing a write $update(k, v')$ during the lifetime of $Tx$.  If $Tx'$ has performed a write on $k$ between $Tx$ performing $get(k)$ and $update(k, v+1)$, then the WSC will detect this anomaly allowing the transaction manager to abort $Tx$ so that the erroneous value $v+1$ is not committed.  
 
         
 	    \subsubsection{Two-phase Commit Protocol}
-	        %How it works
-	        %Always acquire locks on the primary regardless of the origin
-	        %\subsubsection{Limitations}
+	       The 2PC protocol is the traditional approach to coordinating distributed transactions, and as such its benefits and limitations are well understood.  Infinispan utilises the 2PC protocol for coordinating both optimistic and pessimistic transactions.  
+	       
+           \paragraph{Example Scenario} \hspace{0pt} \\	       
+           Consider the following scenario: a node $N_1$ executes a transaction $Tx$ that consists of a single write operation $update(k, v)$, however the primary and backup of $k$ are stored on $N_2$ and $N_3$ respectively, therefore it is necessary for $Tx$ to be committed at $N_1, N_2$ and $N_3$ ($Tx.dst = N_1, N_2, N_3$).  To ensure that all three nodes come to the same conclusion about the transaction, whether to commit or abort, the 2PC protocol is used.  
+	       
+	       \paragraph{Protocol Details} \hspace{0pt} \\
+	       The 2PC is leader-based consensus algorithm that is specifically designed for coordinating distributed transactions, as the name suggests the protocol consists of two distinct phases: \emph{voting} and \emph{commit}. 
+	       
+	       \textbf{\emph{Voting Phase.}} The transaction coordinator $Tx.c$, ($Tx.c = N_1$) sends a $prepare(Tx)$ message to all $Tx.dst$.  Upon receiving the $prepare(Tx)$ message, all members of $Tx.dst$ will validate $validate(Tx)$ the transaction and decide whether the $Tx$ should be committed or aborted.  Once a decision has been made by a node, it sends its vote $vote(Tx)$ to $Tx.c$, and awaits further instructions.  
+	       
+	       \textbf{\emph{Commit Phase.}}  Once the $Tx.c$ has sent $prepare(Tx)$ to all $Tx.dst$, and has validated $Tx$, it waits to receive a $vote(Tx)$ from all $Tx.dst$.  If all $Tx.dst$ respond with a commit verdict, then $Tx.c$ sends a final commit message $commit(Tx)$ to all $Tx.dst$, and commits $Tx$ locally.  However, if $Tx.c$ receives a single vote in favour of aborting $Tx$, then $Tx$ must be aborted, so $Tx.c$ sends a abort message $abort(Tx)$ to all $Tx.dst$; $Tx.c$ does not need to wait for all $vote(Tx)$ before issuing $abort(Tx)$, instead $abort(Tx)$ is issued as soon as the first abort vote has been received.  Finally, upon receiving a $commit(Tx)$ or $abort(Tx)$ each member of $Tx.dst$ will abort or commit $Tx$ locally.  
+	       	       
+
+	        \paragraph{Key Locking} \hspace{0pt} \\
+	        As previously stated, Infinispan has the notation of \emph{primary} and \emph{backup} owners of key/value pairs.  This is utilised by many functions within Infinispan, but one of the most important uses is for determining which data replica should be locked during write transactions.  Infinispan always locks the \emph{primary} owner of $k$ for write operations, never a \emph{backup}, therefore allowing each transaction to acquire a lock on $k$ at a single node.  Thus limiting the number of RPCs required to one, instead of $RF$ RPCs. For example in the previous scenario, if the \emph{primary} owner of $k$ was $N_2$, then the write lock for $k$ would only be acquired at $N_2$ instead of $N_2$ and $N_3$.  
 	        
+	        The time at which $k$'s lock is acquired is a defining characteristic of how transactions are handled.  Infinispan provides two different approaches, the more cautious Pessimistic transactions which utilise pessimistic locking, and Optimistic transactions that utilise optimistic locking.  Each approach is detail below along with the benefits and limitations of each approach.  
+	         
+            \textbf{Pessimistic Locking.}
+            When pessimistic locking is used, the lock on $k$ is acquired the first time that a write operation is performed on $k$ in $Tx$ and it is held until $Tx$ either commits or aborts.  
+	        
+	        \begin{equation*}
+		     \begin{aligned}
+		       & \text{\textsf{Tx.begin()}} \\
+		       & \text{\textsf{update(k,v)}   // Lock is acquired} \\
+		       & \text{\textsf{Tx.commit()}  // Lock is released} \\
+		     \end{aligned}
+		    \end{equation*}
+
+            This means that a RPC is issued for every write operation in the transaction, at the time the operation is encountered.  Not only does this result in an increase in network traffic, due to the number of RPCs required being equal to the number of write operations, but it also means that locks are held for a longer period of time, increasing the likelihood of deadlocks occurring.  
+            
+	        \textbf{Optimistic Locking.}
+	        When optimistic locking\citep{Kung:1981:OMC:319566.319567} is used, the lock on $k$ is only acquired during the $prepare(Tx)$ phase of the transaction.  This means that no additional RPCs are required for locking, instead the lock is acquired by $k$'s primary when it receives $prepare(Tx)$ from $Tx.c$ and processes $Tx$ locally.  The lock is then released by $k$'s primary when $Tx$ commits or aborts.  
+	        
+	        Acquiring locks during the prepare phase of a transaction means that is possible for a  \emph{write-skew} ($\S$ \ref{write-skew}) to occur, therefore an optimistic transaction can be aborted due to failing the WSC (if enabled).  However, acquiring the locks during the prepare phase also reduces the total number of RPCs required by a transaction, which can improve scalability and throughput.  
+	        
+	        Optimistic locking is the default locking strategy employed by Infinispan, henceforth all references to lock-based transactions in Infinispan assume optimistic locking.  
+	        
+	        \paragraph{2PC Limitations} \hspace{0pt} \\
+	        The key limitation of utilising the 2PC protocol with locking (both optimistic and pessimistic) is that it is susceptible to deadlocks.  Deadlocks occur when two concurrent transactions are trying to acquire a lock on the same set of keys.  Consider a situation where $Tx$ and $Tx'$ are executing concurrently, and both transactions want to write to key $k_1$ and $k_2$.  It is possible for $Tx$ to acquire a lock on $k_1$ with $update(k_1)$, and $Tx'$ to acquire $k_2$'s lock with $update(k_2)$.  In this scenario, it is impossible for either $Tx$ or $Tx'$ to progress as both are waiting to acquire the locks held by each other, hence deadlock.  
+	        
+	        Infinispan utilises timeouts in order to recover from deadlocks, with a default timeout of 10 seconds.  The transaction coordinator will wait a maximum of 10 seconds for $k$'s lock to become available, if $k$'s lock does not become available during this period, then the transaction coordinator aborts the transaction.  The limitations of this approach are that it is possible for \emph{false suspicions} to occur, as transactions can timeout due to over circumstances, such as high network load.  Furthermore, in workloads where high levels of contention are present, deadlock becomes increasingly likely, resulting in more transactions aborting, which ultimately leads to a drop in transaction throughput and Infinispan's request latency increasing.  
+
 	    \subsubsection{Total Order Transactions}
 	        %How it works
 	        
