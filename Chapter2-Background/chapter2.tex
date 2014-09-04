@@ -30,7 +30,7 @@ Solutions to distributed problems are commonly associated with one of two paradi
 Ezhilchelvan and Shrivastava~\cite{Ezhilchelvan:2010:LPR:1773912.1773927} introduce a new communication model, Probabilistic Synchronous Model, which aims to overcome the previously stated issues with asynchrony. The probabilistic synchronous model is based upon the assumption that, in datacentres and cluster-based environments, there is a correlation between the past and near future "performance" of the network; where performance is the probability distribution of delays. In the literature, the existence of this correlation is called stochastic patterns being stationary. The recent past performance of the network can then be used as an input parameter for distributed protocols, which utilise these values to calculate probabilistic guarantees. Monitoring the recent past performance of the network also enables protocols to utilise time outs that are considered accurate to a certain probability, enabling processes to distinguish between slow and crashed nodes. 
 
 
-\section{Atomic Broadcast Protocols}
+\section{Atomic Broadcast Protocols} \label{atomic_guarantees}
 Atomic broadcast protocols, \emph{abcast} for short, are message broadcasting protocols that provide specific guarantees on message delivery to ensure that messages are delivered reliably and in the same order at all destinations.  The following guarantees must be maintained to ensure that a broadcast is atomic, with regard to the delivery order and the set of destinations that deliver the message; where delivery is the passing of a message up the network stack to a higher level protocol or application.  
 
 \begin{itemize}
@@ -158,11 +158,14 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
     
     \subsection{Transactions}
     %TODO? More info on optimistic and pessimistic transactions
-    Unlike many NoSQL databases, Infinispan is a fully transactional data-store, with both the JTA\citep{JTA} and XA\citep{XA} standards supported.  Both optimistic \citep{Kung:1981:OMC:319566.319567} and pessimistic transactions are supported, however optimistic transactions are used in the default Infinispan configuration in order to reduce contention and the chance of deadlock.  The traditional Two Phase Commit protocol (2PC) is utilised for implementing the locking strategy in both optimistic and pessimistic transactions.  
+    Unlike many NoSQL databases, Infinispan is a fully transactional data-store, with both the JTA\citep{JTA} and XA\citep{XA} standards supported.  Both optimistic \citep{Kung:1981:OMC:319566.319567} and pessimistic transactions are supported, however optimistic transactions are used in the default Infinispan configuration in order to reduce contention and the chance of deadlock.  The traditional Two Phase Commit protocol (2PC) is utilised for implementing the locking strategy in both optimistic and pessimistic transactions.  In addition to the two traditional lock based transactions, Infinispan also offers a lock-free total order transaction scheme, that relies on an atomic broadcast protocol to coordinate transactions.  
+	    
+    This section details the topology of Infinispan transactions, then it explores the relaxed ACID guarantees provided by Infinispan, before providing an in-depth analysis of how transactions are coordinated using locking (2PC) and lock-free (Total Order) schemes. 
     
-    In addition to the two traditional lock based transactions, Infinispan also offers a lock-free total order transaction scheme, that relies on an atomic broadcast protocol to coordinate transactions.  
-    
-    This section details the relaxed ACID guarantees provided by Infinispan, before providing an in-depth analysis of how transactions are coordinated using locking (2PC) and lock-free (Total Order) schemes. 
+		\subsubsection{Transaction Topology}
+		For all transaction flavours offered by Infinispan, the following always applies.  A Transaction ($Tx$) is first executed locally by the transaction coordinator $Tx.c$, before a prepare $prepare(Tx)$ message is sent to all nodes $Tx.dst$ involved in $Tx$.  Only $get(k)$ operations are executed locally by $Tx.c$, and this involves sending a RPC to remote nodes if $k$ is not stored locally.  Once all $get()$ operations have been satisfied locally, the values of $k$ are appended to a $prepare(Tx)$ message that is sent to $Tx.dst$.  Each member of $Tx.dst$ then validates $Tx$ $validate(Tx)$, before committing $Tx$ $commit(Tx)$.  It is only during the $commit(Tx)$ operation that write operations are executed; write operations are only executed on nodes that host a key that is being inserted or updated.  For example if $k$ is stored on $N_1, N_2$ the operation $update(k, v)$ will only be executed by nodes $N_1, N_2$.  
+		
+		Note, Infinispan does offer some operations, such as \textsf{Map.put(k,v)}, that require a $get(k)$ to be executed locally by $Tx.c$ and a write operation by the host nodes, however for the sake of brevity it is assumed that all operations are exclusively read or write.  Furthermore, write operations are often executed on nodes other than the host of a key being updated so that they can be stored in a local cache in order to reduce the total number of RPCs, however this optimisation is not core to the Infinispan protocol and can be disabled, therefore this functionality is also omitted for the sake of brevity.  
     
 	    \subsubsection{Relaxed ACID}
 	    Infinispan transactions abide by the ACID\citep{Haerder:1983:PTD:289.291} properties, however the \emph{Consistency} and \emph{Durability} guarantees are more relaxed than those provided by traditional RDBMS transactions; Durability is relaxed as a consequence of RAM being volatile, and Consistency is relaxed in order to reduce the overhead of distributed transactions in a \emph{partially replicated} context.  
@@ -174,7 +177,7 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 		    
 		    Conversely, write-beyond offers asynchronous persistence.  Key/value updates and inserts complete as soon as the operation has completed in the cache, and the values are persisted to the persistent data store in the background using a separate thread to the users request.  This ensures that the users operation is returned as quick as possible, and low-latency is maintained, however it presents a small window in which the cache is not consistent with the persistent data store.  Therefore, it is possible for the most recent key/value write operations to be lost if all nodes containing $RF$ backups simultaneously crashed or a system wide crash occurs.  
     
-	        \paragraph{Consistency} \hspace{0pt} \\
+	        \paragraph{Consistency} \hspace{0pt} \\ \label{consistency}
 	        Infinispan does not provide support for 1-copy serialisability in its transactions, instead it provides two different isolation criteria: \emph{Read Committed (RC)} and \emph{Repeatable Read (RR)}.  
 	        
 	        \begin{itemize}
@@ -190,7 +193,7 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	    \subsubsection{Two-phase Commit Protocol}
 	       The 2PC protocol is the traditional approach to coordinating distributed transactions, and as such its benefits and limitations are well understood.  Infinispan utilises the 2PC protocol for coordinating both optimistic and pessimistic transactions.  
 	       
-           \paragraph{Example Scenario} \hspace{0pt} \\	       
+           \paragraph{Example Scenario} \label{transaction_scenario} \hspace{0pt} \\	       
            Consider the following scenario: a node $N_1$ executes a transaction $Tx$ that consists of a single write operation $update(k, v)$, however the primary and backup of $k$ are stored on $N_2$ and $N_3$ respectively, therefore it is necessary for $Tx$ to be committed at $N_1, N_2$ and $N_3$ ($Tx.dst = N_1, N_2, N_3$).  To ensure that all three nodes come to the same conclusion about the transaction, whether to commit or abort, the 2PC protocol is used.  
 	       
 	       \paragraph{Protocol Details} \hspace{0pt} \\
@@ -231,8 +234,15 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	        
 	        Infinispan utilises timeouts in order to recover from deadlocks, with a default timeout of 10 seconds.  The transaction coordinator will wait a maximum of 10 seconds for $k$'s lock to become available, if $k$'s lock does not become available during this period, then the transaction coordinator aborts the transaction.  The limitations of this approach are that it is possible for \emph{false suspicions} to occur, as transactions can timeout due to over circumstances, such as high network load.  Furthermore, in workloads where high levels of contention are present, deadlock becomes increasingly likely, resulting in more transactions aborting, which ultimately leads to a drop in transaction throughput and Infinispan's request latency increasing.  
 
-	    \subsubsection{Total Order Transactions}
-	        %How it works
+	    \subsubsection{Total Order Commit Protocol}
+	    In addition to the 2PC locking approach, Infinispan also provides a lock-free total order commit protocol.  Total order commits provide the exact same guarantees as 2PC (\emph{Read Committed}, or \emph{ Read Repeatable}), and allows for transactions to be committed in one phase when the WSC is not enabled.  The key benefit of a total order commit, is that it does not utilise locks to ensure ACIDity.  Instead it utilises the guarantees (G1-G4 $\S$ \ref{atomic_guarantees}) provided by \emph{abcast} protocols to ensure that transactions are processed sequentially and in the same total order at all destinations.  The absence of locks, removes the potential for distributed deadlocks, which reduces the total number of aborting transactions, therefore increasing transaction throughput\citep{Ruivo:2011:ETO:2120967.2121604}.  Furthermore, the use of total order commit allows transactions to be committed in only one phase when RC or RC consistency ($\S$ \ref{consistency}) is used.  
+	    
+	        \paragraph{How it works} \hspace{0pt} \\
+	        Consider the scenario in \ref{transaction_scenario}.  The transaction coordinator $Tx.c$, ($Tx.c = N_1$), executes the transaction locally (i.e. all $get(k)$ operations are resolved) and sends $prepare(Tx)$ using an atomic broadcast protocol to $Tx.dst$.  Because $prepare(Tx)$ is sent to $Tx.dst$ using an \emph{abcast} protocol, we can guarantee that all $Tx.dst$ will receive $prepare(Tx)$ in the same total order.  Therefore, if RR or RC is used each transaction can be committed as soon as it is received by a node without violating Infinispan's ACID properties.  
+	        
+	        If RR is utilised with WSC enabled, the total order commit becomes a two-phase protocol.  The first phase is the same as above, with $Tx.c$ sending $prepare(Tx)$ to all $Tx.dst$ using an \emph{abcast} protocol, however it is not possible to commit the transaction instantly, instead an additional voting stage is required.  All $Tx.dst$ validate the transaction based upon the WSC criteria and decide whether the transaction should be committed or aborted, this vote $vote(Tx)$ is then sent to $Tx.c$.  The $Tx.c$ waits to receive a $vote(Tx)$ from all $Tx.dst$, before sending a $commit(Tx)$ or $abort(Tx)$ to all $Tx.dst$.  Finally, upon receiving a $commit(Tx)$ or $abort(Tx)$ each member of $Tx.dst$ will abort or commit $Tx$ locally.  
+	        
+			The overhead of this additional phase is slightly reduced by two minor optimisations.  First, the $Tx.c$ does not have to receive a vote from all replicas of a key, just one, as the processing of a transaction is deterministic it is guaranteed that all replicas reach the same conclusion during WSC validation.  Secondly, like 2PC, as soon as a single $abort(Tx)$ vote is received by $Tx.c$ the transaction is aborted.  
 	        
 	        %\subsubsection{TOA}
 	            %How it works
