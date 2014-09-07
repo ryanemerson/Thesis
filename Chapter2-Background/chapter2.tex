@@ -207,7 +207,7 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
                 \centering    
                 \includegraphics[width=1.0\textwidth]{2PC}
                 \caption[Two-phase Commit Protocol]{2PC Sequence Diagram}
-                \label{fig:minion}
+                \label{fig:2PC}
             \end{figure}
             
 	        \paragraph{Key Locking} \hspace{0pt} \\
@@ -246,10 +246,24 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	        \paragraph{How it works} \hspace{0pt} \\
 	        Consider the scenario in \ref{transaction_scenario}.  The transaction coordinator $Tx.c$, ($Tx.c = N_1$), executes the transaction locally (i.e. all $get(k)$ operations are resolved) and sends $prepare(Tx)$ using an atomic broadcast protocol to $Tx.dst$.  Because $prepare(Tx)$ is sent to $Tx.dst$ using an \emph{abcast} protocol, we can guarantee that all $Tx.dst$ will receive $prepare(Tx)$ in the same total order.  Therefore, if RR or RC is used each transaction can be committed as soon as it is received by a node without violating Infinispan's ACID properties.  
 	        
-	        If RR is utilised with WSC enabled, the total order commit becomes a two-phase protocol.  The first phase is the same as above, with $Tx.c$ sending $prepare(Tx)$ to all $Tx.dst$ using an \emph{abcast} protocol, however it is not possible to commit the transaction instantly, instead an additional voting stage is required.  All $Tx.dst$ validate the transaction based upon the WSC criteria and decide whether the transaction should be committed or aborted, this vote $vote(Tx)$ is then sent to $Tx.c$.  The $Tx.c$ waits to receive a $vote(Tx)$ from all $Tx.dst$, before sending a $commit(Tx)$ or $abort(Tx)$ to all $Tx.dst$.  Finally, upon receiving a $commit(Tx)$ or $abort(Tx)$ each member of $Tx.dst$ will abort or commit $Tx$ locally.  
+            \begin{figure}[htbp!] 
+                \centering    
+                \includegraphics[width=1.0\textwidth]{1PC-Abcast}
+                \caption[Total Order One-phase Commit Protocol]{Total Order 1PC Sequence Diagram}
+                \label{fig:total_order_1PC}
+            \end{figure}	        
+	        
+	        If RR is utilised with WSC enabled, the total order commit becomes a two-phase protocol.  The first phase is the same as above, with $Tx.c$ sending $prepare(Tx)$ to all $Tx.dst$ using an \emph{abcast} protocol, however it is not possible to commit the transaction instantly, instead an additional voting stage is required.  All $Tx.dst$ validate the transaction based upon the WSC criteria and decide whether the transaction should be committed or aborted, this vote $vote(Tx)$ is then sent to $Tx.c$.  The $Tx.c$ waits to receive a $vote(Tx)$ from all $Tx.dst$, before sending a $commit(Tx)$ or $abort(Tx)$ to all $Tx.dst$.  Finally, upon receiving a $commit(Tx)$ or $abort(Tx)$ each member of $Tx.dst$ will abort or commit $Tx$ locally.          
 	        
 			The overhead of this additional phase is slightly reduced by two minor optimisations.  First, the $Tx.c$ does not have to receive a vote from all replicas of a key, just one, as the processing of a transaction is deterministic it is guaranteed that all replicas reach the same conclusion during WSC validation.  Secondly, like 2PC, as soon as a single $abort(Tx)$ vote is received by $Tx.c$ the transaction is aborted.  
 	        
+	        \begin{figure}[htbp!] 
+                \centering    
+                \includegraphics[width=1.0\textwidth]{WSC-Abcast}
+                \caption[Total Order Commit with Write Skew Check]{Total Order with WSC Sequence Diagram}
+                \label{fig:total_order_wsc}
+            \end{figure}	      	
+            
 	        %\subsubsection{TOA}
 	            %How it works
 	        %\subsubsection{Limitations of TOA}
