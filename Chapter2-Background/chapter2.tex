@@ -203,7 +203,13 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	       
 	       \textbf{\emph{Commit Phase.}}  Once the $Tx.c$ has sent $prepare(Tx)$ to all $Tx.dst$, and has validated $Tx$, it waits to receive a $vote(Tx)$ from all $Tx.dst$.  If all $Tx.dst$ respond with a commit verdict, then $Tx.c$ sends a final commit message $commit(Tx)$ to all $Tx.dst$, and commits $Tx$ locally.  However, if $Tx.c$ receives a single vote in favour of aborting $Tx$, then $Tx$ must be aborted, so $Tx.c$ sends a abort message $abort(Tx)$ to all $Tx.dst$; $Tx.c$ does not need to wait for all $vote(Tx)$ before issuing $abort(Tx)$, instead $abort(Tx)$ is issued as soon as the first abort vote has been received.  Finally, upon receiving a $commit(Tx)$ or $abort(Tx)$ each member of $Tx.dst$ will abort or commit $Tx$ locally.  
 	       	       
-
+            \begin{figure}[htbp!] 
+                \centering    
+                \includegraphics[width=1.0\textwidth]{2PC}
+                \caption[Two-phase Commit Protocol]{2PC Sequence Diagram}
+                \label{fig:minion}
+            \end{figure}
+            
 	        \paragraph{Key Locking} \hspace{0pt} \\
 	        As previously stated, Infinispan has the notation of \emph{primary} and \emph{backup} owners of key/value pairs.  This is utilised by many functions within Infinispan, but one of the most important uses is for determining which data replica should be locked during write transactions.  Infinispan always locks the \emph{primary} owner of $k$ for write operations, never a \emph{backup}, therefore allowing each transaction to acquire a lock on $k$ at a single node.  Thus limiting the number of RPCs required to one, instead of $RF$ RPCs. For example in the previous scenario, if the \emph{primary} owner of $k$ was $N_2$, then the write lock for $k$ would only be acquired at $N_2$ instead of $N_2$ and $N_3$.  
 	        
