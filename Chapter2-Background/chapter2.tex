@@ -242,12 +242,12 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	        
 	        Infinispan utilises timeouts in order to recover from deadlocks, with a default timeout of 10 seconds.  The transaction coordinator will wait a maximum of 10 seconds for $k$'s lock to become available, if $k$'s lock does not become available during this period, then the transaction coordinator aborts the transaction.  The limitations of this approach are that it is possible for \emph{false suspicions} to occur, as transactions can timeout due to over circumstances, such as high network load.  Furthermore, in workloads where high levels of contention are present, deadlock becomes increasingly likely, resulting in more transactions aborting, which ultimately leads to a drop in transaction throughput and Infinispan's request latency increasing.  
 
-	    \subsubsection{Total Order Commit Protocol}
+	    \subsubsection{Total Order Commit Protocol} \label{sec:to_commit}
 	    In addition to the 2PC locking approach, Infinispan also provides a lock-free total order commit protocol, that provides the same guarantees as 2PC (\emph{Read Committed}, or \emph{ Read Repeatable}) without locking key/values during write operations.  
 	    
 	    The key benefit of a total order commit, is that it does not utilise locks to ensure ACIDity.  Instead it utilises the guarantees (G1-G4 $\S$ \ref{atomic_guarantees}) provided by \emph{abcast} protocols to ensure that transactions are processed sequentially and in the same total order at all destinations.  The absence of locks, removes the potential for distributed deadlocks, which reduces the total number of aborting transactions, therefore increasing transaction throughput\citep{Ruivo:2011:ETO:2120967.2121604}.  Furthermore, the use of total order commit allows transactions to be committed in only one phase (1PC) when RC or RC consistency ($\S$ \ref{consistency}) is used.  
 	    
-	        \paragraph{How it works} \hspace{0pt} \\
+	        \paragraph{One-phase Commit} \hspace{0pt} \\
 	        Consider the scenario in \ref{transaction_scenario}.  The transaction coordinator $Tx.c$, ($Tx.c = N_1$), executes the transaction locally (i.e. all $get(k)$ operations are resolved) and sends $prepare(Tx)$ using an atomic broadcast protocol to $Tx.dst$.  Because $prepare(Tx)$ is sent to $Tx.dst$ using an \emph{abcast} protocol, we can guarantee that all $Tx.dst$ will receive $prepare(Tx)$ in the same total order.  Therefore, if RR or RC is used each transaction can be committed as soon as it is received by a node without violating Infinispan's ACID properties.  Figure \ref{fig:total_order_1PC} , below, shows the sequences involved in a 1PC transaction.  
 	        
             \begin{figure}[htbp!] 
@@ -257,6 +257,8 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
                 \label{fig:total_order_1PC}
             \end{figure}	        
 	        
+		        
+			\paragraph{Two-phase with WSC} \hspace{0pt} \\        
 	        If RR is utilised with WSC enabled, the total order commit becomes a two-phase protocol.  The first phase is the same as above, with $Tx.c$ sending $prepare(Tx)$ to all $Tx.dst$ using an \emph{abcast} protocol, however it is not possible to commit the transaction instantly, instead an additional voting stage is required.  All $Tx.dst$ validate the transaction based upon the WSC criteria and decide whether the transaction should be committed or aborted, this vote $vote(Tx)$ is then sent to $Tx.c$.  The $Tx.c$ waits to receive a $vote(Tx)$ from all $Tx.dst$, before sending a $commit(Tx)$ or $abort(Tx)$ to all $Tx.dst$.  Finally, upon receiving a $commit(Tx)$ or $abort(Tx)$ each member of $Tx.dst$ will abort or commit $Tx$ locally.          
 	        
 			The overhead of this additional phase is slightly reduced by two minor optimisations.  First, the $Tx.c$ does not have to receive a vote from all nodes hosting a key replica, just one, as the processing of a transaction is deterministic it is guaranteed that all replicas reach the same conclusion during WSC validation.  Secondly, like 2PC, as soon as a single $abort(Tx)$ vote is received by $Tx.c$ the transaction is aborted.  
@@ -269,14 +271,31 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
                 \caption[Total Order Commit with Write Skew Check]{Total Order with WSC Sequence Diagram}
                 \label{fig:total_order_wsc}
             \end{figure}	      	
-            
-	        %\subsubsection{TOA}
-	            %How it works
-	        %\subsubsection{Limitations of TOA}
-	            %Blocking
-	            %Overlapping Subset Problem
-	        %\subsubsection{Requirements of a new protocol}
-	            %Non-Blocking, reduce N->1 communication
+                        
+	        \subsubsection{Total Order Anycast - Atomic Broadcast Protocol}
+	        Total Order Anycast (TOA)\cite{Ruivo:2011:ETO:2120967.2121604} is the \emph{abcast} protocol currently utilised by Infinispan for coordinating Total Order transactions (\ref{sec:to_commit}).  It is a GM dependent protocol that, like Newtop\citep{Ezhilchelvan:1995:NFG:876885.880005}, utilises logical clocks and acknowledgements, to solve C1 and C2 (\ref{atomic_guarantees}) respectively.  
+	        
+			TOA's structure is very similar to the 2PC protocol, in that it consists of two distinct phases, both of which are required for a message $m$ to be delivered.  The \emph{ack phase} requires that all destinations in $m.dst$ acknowledge the message origin $m.o$, and the \emph{delivery phase} involves $m.o$ instructing all $m.dst$ to deliver $m$.  Thus the ack and delivery phases are the equivalent of the \emph{vote} and \emph{commit} phases, respectively.  
+	        
+			The ack phase consists of all $d' \in m.dst-\{m.o\}$ acknowledging $m$ by sending $ack_{d'}(m)$ to $m.o$.  Once $m.o$ has received all $ack_{d'}(m)$, the ack phase is complete, and C1 is guaranteed as all $m.dst$ are known to have received $m$.  
+			
+			The delivery phase is necessary so that all $m.dst$ know the final total order of $m$.  As in Newtop, TOA ensures C2 by piggybacking the timestamp of a logical clock onto all $m$, $ack(m)$ and $deliver(m)$ messages.  However, in TOA the timestamp of $m$ is always finalised by $m.o$ after the ack phase has completed, with the $deliver(m)$ message containing the final timestamp of $m$ in order to dictate the $m$'s total order to all $m.dst$.  
+			
+			The advantage of utilising $m.o$ as a central coordinator, opposed to all $m.dst$ acknowledging each other, is that the total number of messages involved in a single \emph{abcast} is reduced as $\left\vert m.dst \right\vert$ increases.  The total remote message cost for TOA and Newtop is expressed below:
+			
+			\begin{equation*}
+		     \begin{aligned}
+		       x &= \left\vert m.dst-\{m.o\} \right\vert \\
+		       TOA & = 3x \\
+		       Newtop & = x + x^2
+		     \end{aligned}
+		    \end{equation*}
+
+	        \paragraph{TOA Limitations} \hspace{0pt} \\
+			The TOA protocol suffers from the same limitations as other GM based protocols, most notably that message delivery is blocked severely in the presence of node failures.  In the context of Infinispan total order transactions, a crashed node $c$ will cause all transactions that interact with $c$ to block until the GM service issues a new view.  This causes the \emph{liveness} of all nodes interacting with $c$ to be lost in the interim period, as the blocked transactions will not be able to commit, resulting in a loss of throughput.  
+	        
+	        Another limitation of the TOA protocol is that it does not scale well as the number of destinations $N$ increase.  All broadcast protocols incur $1->N$ communication (i.e. $m.o$ broadcasting $m$ to all $m.dst$) as it is necessary for each destination to receive $m$.  However, $N->1$ communication (i.e. $N$ destinations in $m.dst$ sending an acknowledgment to $m.o$) is expensive, as the total time taken is equal to the slowest $N$.  Therefore, any protocol that relies on $N->1$ communication is more liable to encounter slow or crashed nodes as $N$ increases, and is ultimately more likely to block.  This means that as the number of operations in a transaction increase and keys become more distributed, the latency involved in each transaction will also increase, severely hampering Infinispan's ability to scale elastically.  
+	        
 
 
 %\section{RMSys}
