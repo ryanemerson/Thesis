@@ -219,14 +219,12 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	         
             \textbf{Pessimistic Locking.}
             When pessimistic locking is used, the lock on $k$ is acquired the first time that a write operation is performed on $k$ in $Tx$ and it is held until $Tx$ either commits or aborts.  
-	        
-	        \begin{equation*}
-		     \begin{aligned}
-		       & \text{\textsf{Tx.begin()}} \\
-		       & \text{\textsf{update(k,v)}   // Lock is acquired} \\
-		       & \text{\textsf{Tx.commit()}  // Lock is released} \\
-		     \end{aligned}
-		    \end{equation*}
+	       		    
+		    \begin{lstlisting}
+		    	Tx.begin();
+		    	update(k,v); // Lock is acquired
+		    	Tx.commit(); // Lock is released
+		    \end{lstlisting}
 
             This means that a RPC is issued for every write operation in the transaction, at the time the operation is encountered.  Not only does this result in an increase in network traffic, due to the number of RPCs required being equal to the number of write operations, but it also means that locks are held for a longer period of time, increasing the likelihood of deadlocks occurring.  
             
