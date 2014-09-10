@@ -317,7 +317,7 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 		     \end{aligned}
 		    \end{equation*}
 
-	        \paragraph{TOA Limitations} \hspace{0pt} \\
+	        \paragraph{TOA Limitations} \hspace{0pt} \\ \label{TOA_limations}
 			The TOA protocol suffers from the same limitations as other GM based protocols, most notably that message delivery is blocked severely in the presence of node failures.  In the context of Infinispan total order transactions, a crashed node $c$ will cause all transactions that interact with $c$ to block until the GM service issues a new view.  This causes the \emph{liveness} of all nodes interacting with $c$ to be lost in the interim period, as the blocked transactions will not be able to commit, resulting in a loss of throughput.  
 	        
 	        Another limitation of the TOA protocol is that it does not scale well as the number of destinations $N$ increase.  All broadcast protocols incur $1->N$ communication (i.e. $m.o$ broadcasting $m$ to all $m.dst$) as it is necessary for each destination to receive $m$.  However, $N->1$ communication (i.e. $N$ destinations in $m.dst$ sending an acknowledgment to $m.o$) is expensive, as the total time taken is equal to the slowest $N$.  Therefore, any protocol that relies on $N->1$ communication is more liable to encounter slow or crashed nodes as $N$ increases, and is ultimately more likely to block.  This means that as the number of operations in a transaction increase and keys become more distributed, the latency involved in each transaction will also increase, severely hampering Infinispan's ability to scale elastically.  
