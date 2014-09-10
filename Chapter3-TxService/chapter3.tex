@@ -1,4 +1,4 @@
-\chapter{TaaS - Transactions as a Service}
+\chapter{AbaaS - Atomic Broadcast as a Service}
 
 % **************************** Define Graphics Path **************************
 \ifpdf
@@ -7,46 +7,45 @@
     \graphicspath{{Chapter3/Figs/Vector/}{Chapter3/Figs/}}
 \fi
 
-\section{First Section of the Third Chapter}
-And now I begin my third chapter here \dots
+%Introduction
 
-And now to cite some more people~\citet{Rea85,Ancey1996}
+This chapter introduces the concept of providing \emph{abcast} messaging as a service (\textsf{AbaaS}) to members of a cluster.
 
-\subsection{First Subsection in the First Section}
-\dots and some more 
+First we describe the rational behind \textsf{Abaas}, then we explore the requirements of such a service and the challenges involves in meeting them.  This is followed by the introduction of the \textsf{ABService} protocol that is used to implement \textsf{AbaaS}.  We then explain the methodology used to evaluate \textsf{ABService}, before presenting the results of our performance evaluation.  Finally, we discuss the limitations of existing \emph{abcast} protocols in the context of \textsf{AbaaS}, and propose the need for a new non-blocking \emph{abcast} solution.  
 
-\subsection{Second Subsection in the First Section}
-\dots and some more \dots
+\section{Rational}
+% Reduce N-1 communication, by utilising a small set of dedicated nodes to provide abcast for a cluster
+% N-1 does not scale
+% No overlapping subsets of destinations, fixed set, therefore always faster
+% Allows for two optimisations that are not feasable in a traditional abcast solution:
+	% Client Abcast requests can be bundled, regardless of m.dst. 
+	% Single destination set allows for acknowledgments to be piggybacked, allowing for 1-phase abcast
 
-\subsubsection{First subsub section in the second subsection}
-\dots and some more in the first subsub section otherwise it all looks the same
-doesn't it? well we can add some text to it \dots
+\section{AbaaS System Requirements}
+% Split into client and s-node requirements
+	% Client Requirements:
+		% What the Abaas System needs to provide consunmers
+		% Ordering, previous orderings
+		% Must be able to provide abcasts to multiple disjoint destination sets within a cluster of clients
+		
+	% S-node Requirements:
+		% Consensus needs to be reached between s-node members in order to replicate abcast ordering returned to clients
+		% S-nodes need to exchange as little data as possible to improve ordering time?????
 
-\subsection{Third Subsection in the First Section}
-\dots and some more \dots
+\section{Abaas Protocol}
+% Detail the protocol that I created
+	% How it handles cascading orderings
+% Explain the various optimisations that are possible
+% Utilise diagrams to explain the architecture
 
-\subsubsection{First subsub section in the third subsection}
-\dots and some more in the first subsub section otherwise it all looks the same
-doesn't it? well we can add some text to it and some more and some more and
-some more and some more and some more and some more and some more \dots
+\section{Experimentation}
+% Explain - 10 clients, x box members etc.  Utilise Aramis paper
+% Flow control used in the box and in traditional TOA.  
 
-\subsubsection{Second subsub section in the third subsection}
-\dots and some more in the first subsub section otherwise it all looks the same
-doesn't it? well we can add some text to it \dots
+\section{Results}
+% Utilise the graphs used in the Aramis paper, but without the Aramis results
+% These graphs can then be used later, with the addition of the Aramis results in order to compare performance
 
-\section{Second Section of the Third Chapter}
-and here I write more \dots
-
-Now we can refer to the table using Table.~\ref{t:borders}.
-\begin{table}[h]
-\caption{Table with Borders}
-\centering
-\label{t:borders}
-\begin{tabular}{|l|c| r|}
-
-\hline
-1 & 2 & 3 \\ \hline
-4 & 5 & 6 \\ \hline
-7 & 8 & 9 \\ \hline
-\end{tabular}
-\end{table}
+\section{Limitations of Existing Atomic Broadcast Solutions}
+% TOA blocks, which if a crash occurs inside the Abaas results in the entire cluster blocking
+% Need a new non-blocking protocol that still allows high throughput i.e. not chubby, or zookeeper
