@@ -59,7 +59,7 @@ Meeting both C1 and C2 is not a trivial task, as such there is a large amount of
     \subsection{Group Ordering}
     \emph{Abcast} protocols can provide two different types of broadcasting capability, some protocols allow messages to only be sent to a single destination set, whereas others allow messages to be sent to multiple subsets of the available destinations.  The merits of each are explored below.   
     
-        \subsubsection{Single Destination Set}
+        \subsubsection{Single Destination Set}\label{ssec:single_destination_set}
         A single destination protocol is a \emph{abcast} protocol that only allows the sending of a message to one set of destinations.  For example if the total number of nodes is equal to 5, then $\left\vert{m.dst}\right\vert = 5$.
         
         Protocols that utilise a single destination set can provide performance benefits over protocols that allow multiple destination groups in scenarios where $\left\vert{m.dst}\right\vert$ is small (< 5).  This is because such protocols can piggyback additional meta information on messages as they know that $m.dst$ remain the same for all broadcasts, when no node failures occur.  Furthermore, such protocols do not have the overhead of satisfying the overlapping subset problem described in \ref{ssec:overlapping}.  
@@ -79,7 +79,7 @@ Meeting both C1 and C2 is not a trivial task, as such there is a large amount of
 	
 	GM dependent protocols always operate on the assumption that the current view $v_i$ provided by the GM protocol is accurate.  A consequence of this is that when $v_i$ no longer represents the actual state of the network, $\left\vert v_i \right\vert \neq \left\vert ActiveNodes \right\vert$, the \emph{abcast} protocol will block severely until $v_j$ is published.  This blocking will result in a loss of availability for any \emph{abcast} messages required by higher level protocols/applications, however it is necessary to ensure that G1-G4 are maintained.  Upon receiving $v_j$, the \emph{abcast} protocol will safely remove any messages that have been received from the crashed node, but have not yet been delivered by any destination (G1).  A \emph{virtually-synchronous}\cite{Birman:1991:LCA:128738.128742} closure is typically used to ensure that all \emph{abcast} messages sent by the crashed node, that have been delivered by at least one correct destination, are delivered by all of the remaining destinations (G2).  
 
-        \subsubsection{Newtop}
+        \subsubsection{Newtop} \label{ssec:newtop}
         Newtop \citep{Ezhilchelvan:1995:NFG:876885.880005} is a GM based \emph{abcast} protocol developed by Ezhilchelvan \emph{et al.} that supports broadcasting to overlapping destination sets.  It utilises acknowledgements and logical clocks, to ensure that C1 and C2 are met, respectively.  
         
         To ensure that C1 is met, the delivery of a message $m$, sent by $d$, $m.o=d$, is blocked until each $d' \in m.dst-\{m.o\}$ has acknowledged $m$ by sending $ack_{d'}(m)$ to every $d \in m.dst$ and each $d \in m.dst$ has received $ack_{d'}(m) \forall m.dst \setminus \{m.o,d\}$.  This ensures that it is impossible to violate C1, as every $d$ has confirmation that $m$ has been received by all members of $m.dst$.  
@@ -298,7 +298,7 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
                 \label{fig:total_order_wsc}
             \end{figure}	      	
                         
-	        \subsubsection{Total Order Anycast - Atomic Broadcast Protocol}
+	        \subsubsection{Total Order Anycast - Atomic Broadcast Protocol} \label{ssec:TOA_limations}
 	        Total Order Anycast (TOA)\cite{Ruivo:2011:ETO:2120967.2121604} is the \emph{abcast} protocol currently utilised by Infinispan for coordinating Total Order transactions (\ref{sec:to_commit}).  It is a GM dependent protocol that, like Newtop\citep{Ezhilchelvan:1995:NFG:876885.880005}, utilises logical clocks and acknowledgements, to solve C1 and C2 (\ref{atomic_guarantees}) respectively.  
 	        
 			TOA's structure is very similar to the 2PC protocol, in that it consists of two distinct phases, both of which are required for a message $m$ to be delivered.  The \emph{ack phase} requires that all destinations in $m.dst$ acknowledge the message origin $m.o$, and the \emph{delivery phase} involves $m.o$ instructing all $m.dst$ to deliver $m$.  Thus the ack and delivery phases are the equivalent of the \emph{vote} and \emph{commit} phases, respectively.  
@@ -317,7 +317,7 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 		     \end{aligned}
 		    \end{equation*}
 
-	        \paragraph{TOA Limitations} \hspace{0pt} \\ \label{TOA_limations}
+	        \paragraph{TOA Limitations} \hspace{0pt} \\
 			The TOA protocol suffers from the same limitations as other GM based protocols, most notably that message delivery is blocked severely in the presence of node failures.  In the context of Infinispan total order transactions, a crashed node $c$ will cause all transactions that interact with $c$ to block until the GM service issues a new view.  This causes the \emph{liveness} of all nodes interacting with $c$ to be lost in the interim period, as the blocked transactions will not be able to commit, resulting in a loss of throughput.  
 	        
 	        Another limitation of the TOA protocol is that it does not scale well as the number of destinations $N$ increase.  All broadcast protocols incur $1->N$ communication (i.e. $m.o$ broadcasting $m$ to all $m.dst$) as it is necessary for each destination to receive $m$.  However, $N->1$ communication (i.e. $N$ destinations in $m.dst$ sending an acknowledgment to $m.o$) is expensive, as the total time taken is equal to the slowest $N$.  Therefore, any protocol that relies on $N->1$ communication is more liable to encounter slow or crashed nodes as $N$ increases, and is ultimately more likely to block.  This means that as the number of operations in a transaction increase and keys become more distributed, the latency involved in each transaction will also increase, severely hampering Infinispan's ability to scale elastically.  
