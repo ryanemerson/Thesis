@@ -121,7 +121,7 @@ Finally, if the Newtop protocol is utilised in an single destination environment
 		\end{enumerate}		
 	
 
-\section{Coordination Services}
+\section{Coordination Services}\label{sec:coordination}
 Coordination services are centralised systems that can be utilised by distributed systems to provide commonly required services that aid process coordination. Examples of such services are: distributed lock management, low-volume storage and naming. System engineers can implement these features without using a coordination service, however these features are very complex due to their distributed nature\citep{Burrows:2006:CLS:1298455.1298487}. A coordination service hides this complexity, enabling the engineer to focus on the core functionality of their system. Furthermore, incorporating a coordination service into an existing system only requires calls to the services api, whereas, retrospectively introducing distributed services into even the simplest of systems is fraught with difficulties. 
 
 Coordination systems are usually used by a system to store data that is crucial to their operation, therefore high availability and fault-tolerance are required. Typically, coordination services consist of a small number up of nodes (no greater than ten) that are all replicas of each other, allowing the coordination system to carry on functioning in the presence of node failures. The use of multiple nodes can also increase the number of requests that the coordination service can process simultaneously. 

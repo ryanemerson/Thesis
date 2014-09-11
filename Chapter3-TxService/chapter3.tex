@@ -18,9 +18,9 @@ Total order commit protocols can be utilised by distributed systems to coordinat
 
 The limiting factor of total order commit protocols is the underlying \emph{abcast} protocol used to provide atomic guarantees on message delivery.  The TOA protocol currently utilised by Infinispan, does not scale well as the number of destinations $N$ increase, as $N->1$ communication is expensive ($\S$ \ref{ssec:TOA_limations}).  Similarly, other GM protocols such as Newtop \citep{Ezhilchelvan:1995:NFG:876885.880005}, exasperate the problem, as the number of messages required to perform an \emph{abcast} increases dramatically as $N$ increases.  Finally, Quorum based protocols provide even less scalability, then GM based protocols, as their inability to \emph{abcast} messages to disjoint sets of nodes typically requires all nodes in the cluster to participate in an \emph{abcast}.  
 
-Regardless of the \emph{abcast} protocol used, $N->1$ communication is inherently unscalable.  Therefore, we propose that reaching a consensus on \emph{abcast} ordering should not be conducted between a transaction coordinator $Tx.c$ and its participating Infinispan nodes $Tx.dst$, but instead atomic ordering should be provided by an independent coordination service and consumed by $Tx.c$.  It is then the responsibility of $Tx.c$ to utilise the ordering provided by the coordination service to coordinate communication with $Tx.dst$.  We call this system model Atomic Broadcast as a Service (\textsf{AbaaS}).  
+Regardless of the \emph{abcast} protocol used, $N->1$ communication is inherently unscalable.  Therefore, we propose that reaching a consensus on \emph{abcast} ordering should not be conducted between a transaction coordinator $Tx.c$ and its participating Infinispan nodes $Tx.dst$, but instead atomic ordering should be provided by an independent coordination service and consumed by $Tx.c$.  It is then the responsibility of $Tx.c$ to coordinate $Tx$, with $Tx.dst$, using the ordering provided by this service.  We call this system model Atomic Broadcast as a Service (\textsf{AbaaS}).  
 
-Utilising \textsf{AbaaS} decouples message broadcasting from message ordering, by restricting the number of nodes conducting \emph{abcast} messages to the nodes providing the service; known as \emph{service} nodes, or simply $s$-nodes, and denoted as $N_s$; Infinispan nodes are known as \emph{client} nodes, or simply $c$-nodes, and denoted as $N_c$.  This decoupling means that regardless of $\left\vert Tx.dst \right\vert$, the number of nodes that execute a \emph{abcast} protocol, to obtain a total order for $Tx$, will always be equal to $\left\vert s\text{-nodes}\right\vert$.  Furthermore, restricting \emph{abcast}s to $s$-nodes means that, for all \emph{abcast}s, $m.dst$ will be the same, therefore \emph{abcast}s always occur between a single destination set, which increases performance ($\S$ \ref{ssec:single_destination_set}) and enables certain optimisations to be made ($\S$ \ref{ssec:abaas_optimisations}).  
+Utilising \textsf{AbaaS} decouples message broadcasting and message ordering, by restricting the number of nodes conducting \emph{abcast} messages to the nodes providing the service; known as \emph{service} nodes, or simply $s$-nodes, and denoted as $N_s$; Infinispan nodes are known as \emph{client} nodes, or simply $c$-nodes, and denoted as $N_c$.  This decoupling means that regardless of $\left\vert Tx.dst \right\vert$, the number of nodes that execute a \emph{abcast} protocol, to obtain a total order for $Tx$, will always be equal to $\left\vert s\text{-nodes}\right\vert$.  Furthermore, restricting \emph{abcast}s to $s$-nodes means that, for all \emph{abcast}s, $m.dst$ will be the same, therefore \emph{abcast}s always occur between a single destination set, which increases performance ($\S$ \ref{ssec:single_destination_set}) and enables certain optimisations to be made ($\S$ \ref{ssec:abaas_optimisations}).  
 
 For a totally ordered 1PC transaction in Infinispan, \textsf{AbsaaS} works as follows: Once $Tx_i.c$ has completed its local execution of $Tx_i$, it is ready to \emph{abcast} a $prepare(Tx_i)$ message $m$.  $Tx_i.c$ selects some $s$-node and forwards $m$ with $m_i.dst = Tx_i.dst$ to the selected $s$-node, say, $N_s$, for \emph{abcast}ing $m$ to $m_i.dst$. $N_s$ actually \emph{abcast}s $m_i$ \emph{only} to other $s$-nodes, which leads to all operative $s$-nodes delivering $m_i$. When $N_s$ delivers $m_i$, it returns $m_i$ to $Tx_i.c$, who then disseminates $m_i$ to every node $d$ indicated in $m_i.dst$ together with two types of order related information: $m_i.ts$ agreed by $s$-nodes and the \emph{immediate} predecessor. The latter is the identity of $m_j$ whose delivery must \emph{precede} \emph{immediately} before delivery of $m_i$. More precisely, $d \in m_j.dst$, $d$ must not deliver $m_i$ until it delivers $m_j$, and no \emph{abcast} other than $m_i$ must be delivered immediately after $m_j$ is delivered.
 
@@ -39,19 +39,40 @@ Note that the immediate predecessor of $m_i$ with respect to \emph{all} \emph{ab
 	
 	\paragraph{Acknowledgement Piggybacking} \hspace{0pt} \\
 	As all $s$-nodes send \emph{abcast}s to all other $s$-nodes, and hence, always have the same destination set, it is possible for message acknowledgements to be piggybacked, therefore enabling \emph{abcast}s to be completed with just a single dedicated broadcast ($\S$ \ref{ssec:newtop}).  This optimisation is ideal for a \textsf{AbaaS} service: as all nodes in the service must handle $c$-node requests, thus ensuring that each $s$-node frequently sends \emph{abcast}s containing piggybacked acknowledgements; and, it aids scalability as it reduces the number of messages sent over the network. 
-
+	
+	\subsection{AbaaS Deployment Possibilities}
+	Implementing transaction ordering as a dedicated service, provides distinct advantages for system administrators.  In the traditional integrated \emph{abcast} approach, administrators would typically want to run Infinispan over a cluster of nodes utilising a homogeneous hardware specification, to ensure that Infinispan's performance would not be hamstrung by a lesser machine.  In an environment where low-latency and high-capacity in-memory database is desired, this would require a large number of expensive machines.  
+	
+	However, when AbaaS is utilised, it is possible to improve the performance of the entire cluster, simply by upgrading the $s$-nodes used to provide the \emph{AbaaS} service.  For example, consider a cluster consisting of 50 $c$-nodes, and 3 $s$-nodes, instead of upgrading all 50 $c$-nodes it is possible to improve transaction latency and throughput by upgrading the hardware of the 3 $s$-nodes.  
+	
 \section{AbaaS System Requirements}
-% Split into client and s-node requirements
-	% Client Requirements:
-		% What the Abaas System needs to provide consunmers
-		% Ordering, previous orderings
-		% Must be able to provide abcasts to multiple disjoint destination sets within a cluster of clients
-		
-	% S-node Requirements:
-		% Consensus needs to be reached between s-node members in order to replicate abcast ordering returned to clients
-		% S-nodes need to exchange as little data as possible to improve ordering time?????
+The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-nodes.  This section will explore the requirements that need to be met in order for the \textsf{AbaaS} model to be effective.  We consider requirements from the perspective of both clients and the ordering service.
 
-\section{Abaas Protocol}
+	\paragraph{Client Requirements} \hspace{0pt}
+	\begin{itemize}
+		\item [\textbf{CR1}] Clients must be able to send \emph{abcast}s to multiple destination sets that may overlap.
+		
+		\item [\textbf{CR2}] The service must provide a consistent total order $m.ts$ on messages irrespective of the $s$-node handling a clients request, or the $c$-node from which the clients request originated.  
+		
+		\item [\textbf{CR3}] Client nodes must be informed of $m_i$ when handling $m_j$, if $m_i.dst \cap m_j.dst$ to ensure that $m_i$ is not missed by a $c$-node in $m_i.dst$.  
+	\end{itemize}
+	
+	\paragraph{Service Requirements} \hspace{0pt}
+	\begin{itemize}
+		\item [\textbf{S1}] The service must be fault-tolerant ($s\text{-nodes} > 1$).  
+		
+		\item [\textbf{S2}] Service nodes must process client requests in the exact same order to maintain a consistent state between all $s$-nodes.  This prevents a $c$-node from receiving conflicting ordering data, for example two distinct $m$ being allocated the same global timestamp.  
+		
+		\item [\textbf{S3}] All $s$-nodes should be able to handle client requests, to allow for high availability and to prevent a single $s$-node becoming a performance bottleneck.
+	\end{itemize}
+
+\section{Limitations of Existing Coordination Services}\label{sec:limitations_existing_coordination}
+It is possible to utilise existing coordination solutions ($\S$ \ref{sec:coordination}), such as Zookeeper\citep{Hunt:2010:ZWC:1855840.1855851} and Chubby\citep{Burrows:2006:CLS:1298455.1298487}, as a basis of a \textsf{AbaaS} service.  However, both of these solutions are intended for high levels of read requests, not workloads that consist predominantly of write operations; an operation that changes the state of a single service node, requires all other service nodes to update their state (i.e. a client ordering request), and is classified as a write operation.  
+
+Write requests are vital to the \textsf{AbaaS} model, as every client request needs to be forwarded to all $s$-nodes within a service to ensure consistency (S1, S2).  Both of these existing services rely on a establishing a quorum amongst $s$-nodes for each write operation, which is coordinated by a single master node, and as a result, performance deteriorates rapidly as the number of write requests increase.  Therefore, if Zookeeper or Chubby were utilised as the basis of a \textsf{AbaaS} service, the service's latency and throughput would be poor as neither solution is intended for write-dominated workloads.  The observed limitations of these existing solutions was the motivation for requirement S3.  
+
+\section{AbaaS Protocol}
+
 % Detail the protocol that I created
 	% How it handles cascading orderings
 % Explain the various optimisations that are possible
@@ -61,10 +82,13 @@ Note that the immediate predecessor of $m_i$ with respect to \emph{all} \emph{ab
 % Explain - 10 clients, x box members etc.  Utilise Aramis paper
 % Flow control used in the box and in traditional TOA.  
 
-\section{Results}
+\section{Results}\label{sec:abaas_results}
 % Utilise the graphs used in the Aramis paper, but without the Aramis results
 % These graphs can then be used later, with the addition of the Aramis results in order to compare performance
 
 \section{Limitations of Existing Atomic Broadcast Solutions}
-% TOA blocks, which if a crash occurs inside the Abaas results in the entire cluster blocking
-% Need a new non-blocking protocol that still allows high throughput i.e. not chubby, or zookeeper
+Section \ref{sec:abaas_results} clearly shows that transaction throughput can be improved by utilising the \textsf{AbaaS} model for \emph{abcast} ordering.  However, the existing protocol used, TOA, is a GM based protocol that blocks severely when node crashes occur.  This blocking behaviour is acceptable when TOA is utilised between client nodes, as it is presumed that blocking will only occur at a small subset of the overall cluster, thus system \emph{liveness} still exists in the majority of the cluster.  However, if all $s$-nodes utilise TOA for \emph{abcast}ing and a single $s$-node crashes, all $s$-nodes will block, resulting in no client requests being satisfied. Therefore, not only are the $s$-nodes blocked, but as a consequence of this blocking, so is the entire cluster.  Thus the entire system's \emph{liveness} is lost until the GM protocol detects the $s$-node crash and unblocks the ordering service.  GM based protocols, such as TOA, cannot be used as the basis of a \textsf{AbaaS} service as system-wide blocking would be catastrophic for any in-memory database.  
+
+As detailed in sections \ref{sec:limitations_existing_coordination} and \ref{sec:coordination}, quorum based \emph{abcast} protocols are not suitable for use in \textsf{AbaaS} due to their tendency to block mildly when the master is falsely/validly suspected of crashing, and because of the performance limitations associated with master based protocols.  
+
+Therefore, in order for \textsf{AbaaS} to be valid system model, a new \emph{abcast} protocol is required.  The \emph{abcast} protocol must allow for low-latency, high-throughput \emph{abcast}s, as provided by GM based protocols, in addition to providing non-blocking behaviour in the presence of node failures.  
