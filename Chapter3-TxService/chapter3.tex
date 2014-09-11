@@ -2,9 +2,9 @@
 
 % **************************** Define Graphics Path **************************
 \ifpdf
-    \graphicspath{{Chapter3/Figs/Raster/}{Chapter3/Figs/PDF/}{Chapter3/Figs/}}
+    \graphicspath{{Chapter3-TxService/Figs/Raster/}{Chapter3-TxService/Figs/PDF/}{Chapter3-TxService/Figs/}}
 \else
-    \graphicspath{{Chapter3/Figs/Vector/}{Chapter3/Figs/}}
+    \graphicspath{{Chapter3-TxService/Figs/Vector/}{Chapter3-TxService/Figs/}}
 \fi
 
 %Introduction
@@ -71,7 +71,7 @@ It is possible to utilise existing coordination solutions ($\S$ \ref{sec:coordin
 
 Write requests are vital to the \textsf{AbaaS} model, as every client request needs to be forwarded to all $s$-nodes within a service to ensure consistency (S1, S2).  Both of these existing services rely on a establishing a quorum amongst $s$-nodes for each write operation, which is coordinated by a single master node, and as a result, performance deteriorates rapidly as the number of write requests increase.  Therefore, if Zookeeper or Chubby were utilised as the basis of a \textsf{AbaaS} service, the service's latency and throughput would be poor as neither solution is intended for write-dominated workloads.  The observed limitations of these existing solutions was the motivation for requirement S3.  
 
-\section{AbaaS Protocol}
+\section{AbaaS Protocol}\label{sec:decoupled_protocol}
 
 % Detail the protocol that I created
 	% How it handles cascading orderings
@@ -82,9 +82,50 @@ Write requests are vital to the \textsf{AbaaS} model, as every client request ne
 % Explain - 10 clients, x box members etc.  Utilise Aramis paper
 % Flow control used in the box and in traditional TOA.  
 
-\section{Results}\label{sec:abaas_results}
-% Utilise the graphs used in the Aramis paper, but without the Aramis results
-% These graphs can then be used later, with the addition of the Aramis results in order to compare performance
+To test our assumption that the \textsf{AbaaS} model would improve transaction performance, we developed an experiment that utilises the \textsf{AbaaS} Protocol (\ref{sec:decoupled_protocol}).  The details of these experiments are outlined below. 
+
+We implemented an \textsf{AbaaS} service using $n=2$ and $3$ $s$-nodes, which utilised commodity PCs of \emph{2.80GHz Intel Core i7} CPU and 4GB of RAM, running \emph{Fedora 19} and communicating over Gigabit Ethernet. The $s$-nodes are a part of a large, university cluster and hence communication delays between them can be quite volatile as they are influenced by other network traffic and by jobs launched on $s$-nodes by other users.
+
+Ten other nodes, called \emph{client} ($c$) nodes, in the same cluster emulate a transaction system. Each $c$ node operates 25 concurrent threads to initiate and coordinate transactions and a transaction $T_x$ involves a set $T_x.dst$ of $3,4,\ldots,10$ $c$ nodes (including its coordinator). Each $T_x$ consists purely of write operations and hence requires \emph{abcast} for completion. Read requests ($get(k)$) are not emulated, as the retrieval of key/values occurs before $Tx.c$ \emph{abcast}s its $prepare(k)$ message, and therefore has not baring on \emph{abcast} performance.  A thread coordinating a transaction starts the next $Tx'$ as soon as it dispatches commit/abort decision for the current $Tx$. Thus, at any moment, $250$ transactions are in different stages of execution.
+
+A coordinator thread submits its \emph{abcast} request for $T_x$, denoted as $r(T_x)$, with some $s$-node; the latter stores such requests in the ARP in the arrival order. The \emph{Send} thread bundles some or all of these requests in ARP in their arrival order into an $m$, which can have a maximum payload of $1kB$, then \emph{abcast}s $m$ to all other $s$-nodes.  The \emph{Send} thread waits if the ARP is empty and resumes bundling once ARP becomes non-empty. Thus, the number of requests bundled in any $m$ varies depending on the request arrival rate. 
+
+When an $s$-node delivers $m$, it decides $ts$ for each $r(T_x)$ bundled in $m$ as: $r(T_x).ts= m.ts\oplus m.o \oplus$\emph{sequence number} of $r(T_x)$ within the bundle, where $\oplus$ is the append operator. If the $s$-node itself is $m.o$, it computes the immediate predecessor of $r(T_x)$ for each $d \in T_x.dst$; $r(T_x)$ is then sent to each $d$ together with $r(T_x).ts$ and predecessor information.
+
+Evaluation focusses on 4 issues: (i) advantages over the
+\emph{peer-to-peer} (P2P) approach of $T_x.dst$ nodes executing Base
+amongst themselves for $T_x$ (\emph{BaseP2P});
+%and thus
+%avoiding all communications to/from $s$-nodes;
+(ii) performance comparison between ABService and \emph{BaseService}
+implemented using only Base; (iii) use of Aramis when no crash
+occurs (i.e., $\mathcal{P}(m \mid suspect)$); and (iv) Aramis
+failures ($Q_A$).
+
+\section{Performance Evaluation and Comparison}\label{sec:abaas_results}
+Performance evaluation focuses on the comparison of a \textsf{Base} protocol (TOA), being utilised in a traditional \emph{peer-to-peer} (P2P) scenario (\emph{BaseP2P}), with an \textsf{AbaaS} service that utilises the same \textsf{Base} protocol between $s$-nodes (\emph{BaseService}).
+
+Our performance comparison focuses on comparing transaction latency and throughput between \emph{BaseP2P} and \emph{BaseService}.  In \emph{BaseService} latency is measured as the time elapsed between a $c$ node transmitting to some $s$-node a $r(T_x)$  and all members of $T_x.dst$ receiving that $r(T_x)$ with $r(T_x).ts$ and its predecessor information. In BaseP2P, latency is the duration for all peers to complete execution. For both approaches, throughput is measured as the average number of \emph{abcast}s delivered per second by a $c$ node.
+
+\begin{figure}[htbp!]
+ % \centering
+ \includegraphics[width=\textwidth,height=\textheight,keepaspectratio]{latency}
+ \caption{Comparison of Latency}
+ \label{fig:LatencyGraph}
+\end{figure}
+
+\begin{figure}[htbp!]
+% \centering
+ \includegraphics[width=\textwidth,height=\textheight,keepaspectratio]{throughput}
+ \caption{Comparison of Throughput}
+ \label{fig:ThroughputGraph}
+\end{figure}
+
+Figures \ref{fig:LatencyGraph} and \ref{fig:ThroughputGraph} show latency and throughput, with $2N$ and $3N$ denoting $n=2$ and $n=3$. Each plot on the graph is an average of 3 \emph{crash-free} trials; a trial consists of each $c$ node completing $10^4$ transactions for a specific value of $|T_x.dst|$. Thus, BaseService receive a total of $10^5$ \emph{abcast} requests in each trial. In BaseP2P, each $c$ node initiates $10^4$ Base executions with its peers and the steady throughput in Figure \ref{fig:ThroughputGraph} as $|T_x.dst| \rightarrow 10$ suggests an absence of node saturation.
+
+Referring to Fig \ref{fig:LatencyGraph}, as $|T_x.dst| \geq 4$, BaseP2P's \emph{abcast} latencies increase considerably, indicating that \emph{abcast} is best provided as a service for scalable performance. Comparing throughput in Figure \ref{fig:ThroughputGraph} leads to similar conclusions.
+
+\noindent \textbf{Summary}: \emph{Abcast}ing is best offered as a service to a large-scale distributed transaction system. 
 
 \section{Limitations of Existing Atomic Broadcast Solutions}
 Section \ref{sec:abaas_results} clearly shows that transaction throughput can be improved by utilising the \textsf{AbaaS} model for \emph{abcast} ordering.  However, the existing protocol used, TOA, is a GM based protocol that blocks severely when node crashes occur.  This blocking behaviour is acceptable when TOA is utilised between client nodes, as it is presumed that blocking will only occur at a small subset of the overall cluster, thus system \emph{liveness} still exists in the majority of the cluster.  However, if all $s$-nodes utilise TOA for \emph{abcast}ing and a single $s$-node crashes, all $s$-nodes will block, resulting in no client requests being satisfied. Therefore, not only are the $s$-nodes blocked, but as a consequence of this blocking, so is the entire cluster.  Thus the entire system's \emph{liveness} is lost until the GM protocol detects the $s$-node crash and unblocks the ordering service.  GM based protocols, such as TOA, cannot be used as the basis of a \textsf{AbaaS} service as system-wide blocking would be catastrophic for any in-memory database.  
