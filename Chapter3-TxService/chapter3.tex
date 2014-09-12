@@ -27,7 +27,7 @@ Utilising \textsf{AbaaS} decouples message broadcasting and message ordering, by
 	\subsection{Optimisations}\label{ssec:abaas_optimisations}
 	The \textsf{Abaas} model allows for two key optimisations that are not possible when \emph{abcast}ing occurs directly between $N_c$ nodes: \emph{Message Bundling} and \emph{Acknowledgement Piggybacking}.  
 	
-		\subsubsection{Message Bundling} \hspace{0pt} \\
+		\subsubsection{Message Bundling} \label{ssec:bundling} \hspace{0pt} \\
 		As the number of concurrent transactions between $c$-nodes increases, the total number of \emph{abcast}s required also increases.  When utilising \emph{abcast}s between $c$-nodes to coordinate the transactions, typically it is not possible to bundle multiple \emph{abcast} messages $<m_i, m_j>$, into a single \emph{abcast}, $m$, due to the high probability of $m_i.dst \neq m_j.dst$.  Of course it is possible to implement a bundling strategy that is utilised only when $m_i.dst = m_j.dst$, however in a system such as Infinispan the performance improvements provided by such a strategy are negligible; as the wide distribution of key/value pairs significantly reduces the probability of two \emph{abcast}s having the same destination set.  
 		
 		However, when utilising \textsf{AbaaS} it is possible for all \emph{abcast} requests received from $c$-nodes to be bundled at a receiving $s$-node, regardless of their destination set.  This is because $s$-nodes only send \emph{abcast}s to other $s$-nodes, therefore the destination set is the same for all $c$-node requests.  
@@ -42,7 +42,7 @@ It is possible to utilise existing coordination solutions ($\S$ \ref{sec:coordin
 
 Write requests are vital to the \textsf{AbaaS} model, as every client request needs to be forwarded to all $s$-nodes within a service to ensure consistency (S1, S2).  Both of these existing services rely on a establishing a quorum amongst $s$-nodes for each write operation, which is coordinated by a single master node, and as a result, performance deteriorates rapidly as the number of write requests increase.  Therefore, if Zookeeper or Chubby were utilised as the basis of a \textsf{AbaaS} service, the service's latency and throughput would be poor as neither solution is intended for write-dominated workloads.  The observed limitations of these existing solutions is the motivation for requirement S3 in $\S$ \ref{sec:absaas_requirements}.  	
 	
-\section{Service Requirements}\label{sec:absaas_requirements}
+\section{System Requirements}\label{sec:absaas_requirements}
 The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-nodes.  This section will explore the requirements that need to be met in order for the \textsf{AbaaS} model to be effective.  We consider requirements from the perspective of both clients, $c$-nodes, and the ordering service, $s$-nodes.
 
 	\paragraph{Client Requirements} \hspace{0pt}
@@ -56,17 +56,48 @@ The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-no
 	
 	\paragraph{Service Requirements} \hspace{0pt}
 	\begin{itemize}
-		\item [\textbf{S1}] The service must provide fault-tolerance ($s\text{-nodes} > 1$), and provide high availability.  
+		\item [\textbf{S1}] The service must provide fault-tolerance ($s\text{-nodes} > 1$).
 		
-		\item [\textbf{S2}] All service nodes must process client requests in the exact same order to maintain a consistent state between all $s$-nodes.  This prevents a $c$-node from receiving conflicting ordering data, for example two distinct $m$ being allocated the same global timestamp.  
+		\item [\textbf{S2}] The service must be highly available and non-blocking in the event of $s$-node failures.  Necessary to prevent the entire cluster becoming blocked if a $s$-node fails.   
 		
-		\item [\textbf{S3}] All $s$-nodes should be able to handle client requests, to allow for high availability and to prevent a single $s$-node becoming a performance bottleneck.
+		\item [\textbf{S3}] All service nodes must process client requests in the exact same order to maintain a consistent state between all $s$-nodes.  This prevents a $c$-node from receiving conflicting ordering data, for example two distinct $m$ being allocated the same global timestamp.  
+		
+		\item [\textbf{S4}] All $s$-nodes should be able to handle client requests, to allow for high availability and to prevent a single $s$-node becoming a performance bottleneck.
 	\end{itemize}
 
 \section{Protocol Details}\label{sec:decoupled_protocol}
-For a totally ordered 1PC transaction in Infinispan, \textsf{AbsaaS} works as follows: Once $Tx_i.c$ has completed its local execution of $Tx_i$, it is ready to \emph{abcast} a $prepare(Tx_i)$ message $m$.  $Tx_i.c$ selects some $s$-node and forwards $m$ with $m_i.dst = Tx_i.dst$ to the selected $s$-node, say, $N_s$, for \emph{abcast}ing $m$ to $m_i.dst$. $N_s$ actually \emph{abcast}s $m_i$ \emph{only} to other $s$-nodes, which leads to all operative $s$-nodes delivering $m_i$. When $N_s$ delivers $m_i$, it returns $m_i$ to $Tx_i.c$, who then disseminates $m_i$ to every node $d$ indicated in $m_i.dst$ together with two types of order related information: $m_i.ts$ agreed by $s$-nodes and the \emph{immediate} predecessor. The latter is the identity of $m_j$ whose delivery must \emph{precede} \emph{immediately} before delivery of $m_i$. More precisely, $d \in m_j.dst$, $d$ must not deliver $m_i$ until it delivers $m_j$, and no \emph{abcast} other than $m_i$ must be delivered immediately after $m_j$ is delivered.
+% Change protocol name from Dcup
+We have developed a protocol for the \textsf{AbaaS} model, called \textsf{Dcup} as from the $c$-nodes perspective it decouples \emph{abcast} ordering and broadcast.  \textsf{Dcup} satisfies all of the requirements specified in $\S$ \ref{sec:absaas_requirements} with the exception of S2.  S2 cannot be satisfied by our protocol directly, rather \textsf{Dcup} relies on a \emph{abcast} protocol to guarantee S1, S3 and S4, therefore in order for S2 to be satisfied, the underlying \emph{abcast} protocol must not block in the presence of node failures.  
 
-Note that the immediate predecessor of $m_i$ with respect to \emph{all} \emph{abcast}s directed at a given $d$ - not just those that originate from $Tx_i.c$ nor just those that are handled only by $N_s$. Thus, it is specific to each $d$ and ensures that delivery at every $d$ is as per the finalized $m.ts$. To illustrate this, let $Tx_i.c$ submit $m_i$ to $N_s$, $Tx_j.c$ submit $m_j$ to $N_{s'}$ and $d \in m_i.dst \cap m_j.dst $. Say, $s$-nodes order $m_j$ before $m_i$. If $d$ receives $m_i$ before $m_j$, it will not deliver $m_i$ until it delivers $m_j$.
+\textsf{Dcup} consists of six distinct phases, each of which will is explored in detail in their order of execution below.  Note, a collection of $s$-nodes providing \emph{abcast} ordering are collectively referred to as the \emph{ordering service}.  
+
+	\begin{description}
+		\item[Client Request - Client] \hfill \\
+		Once a $Tx_i.c$ has completed its local execution of $Tx_i$, it is ready to \emph{abcast} a $prepare(Tx_i)$ message as required by the total order commit protocol.  $Tx_i.c$ randomly selects a $s$-node, $N_s$, from the \emph{service}, and sends an ordering request $order(Tx_i)$ message $m$ to $N_s$, $m.snode = N_s$, with $m_i.dst = Tx_i.dst$.  
+		
+		The content of the $prepare(Tx_i)$ message is not sent to $N_s$ as we only require a global order for $Tx_i$, therefore the contents of the message to be \emph{abcast} is irrelevant and including it would only increase the load on the network.  An order message must specify $m.dst$ as this is the destination set of the \emph{abcast} that $Tx_i$ is trying to send, and the \emph{ordering service} needs this data to ensure that requirements CR1, CR2 and CR3 can be satisfied.  
+		
+		\item[Receive Request - Ordering Service] \hfill \\
+		Upon receiving $order(Tx_i)$, the \emph{ordering service} places the request in the \emph{Abcast Request Pool} (ARP), which is a bounded queue used for storing requests before they are processed by the $s$-node.  If the ARP becomes full, $c$-node requests are rejected by the service and a \emph{reject} response is sent to $Tx.c$ whom can abort $Tx$ or resend $order(Tx_i)$ after a configurable amount of time.  
+		
+		The ARP is necessary to ensure that if the \emph{ordering service} starts to become overloaded by client requests their is a 'push back' mechanism that makes clients aware of the services current limitations, allowing clients to restrict user operations if necessary.  An ARP is also essential for providing message bundling, which as described in \ref{ssec:bundling} is an effective optimisation for improving the throughput of the \emph{ordering service}.  
+		
+		\item[Process ARP - Ordering Service] \hfill \\
+		A single thread, \emph{send} thread, is utilised for retrieving requests from the ARP and \emph{abcast}ing them to all $s$-nodes for ordering.  If the ARP is empty, then the \emph{send} thread waits for the ARP to become non-empty before resuming \emph{abcast}ing.  When message bundling is enabled the \emph{send} thread retrieves requests from the ARP in their arrival order, and bundles them into a single \emph{abcast} message $mb$; message bundles have a configurable upper limit on the maximum size of the bundle message, if this upper limit is reached and the ARP still has available requests, the \emph{send} thread will \emph{abcast} the next message bundle once $mb$ has been \emph{abcast}.  
+		
+		All \emph{abcast} messages $m$, or message bundles $mb$, sent by a $s$-node $N_s$ have their originator set to the sending $s$-node, $m.o$, $mb.o$ = $N_s$.  This is necessary for the next phase of the protocol.  
+		
+		\item[Receive Ordering]
+		When a $s$-node, $N_s$, receives an \emph{abcast} bundle $mb$, it 'un-bundles' $mb$ and processes each request $r$ in the order that they arrived in the ARP at $mb.o$.  If $N_s$ is the $s$-node that initial received the $r$, then $N_s$ must send $r$ back to $Tx.c$ with two types of ordering data: $m.ts$ agreed by $s$-nodes for $r$ and the \emph{immediate} predecessor.  The latter is the identity of $ms.ts'$ whose delivery must \emph{precede} \emph{immediately} before delivery of $m.ts$.  
+		
+		The storage of \emph{immediate} predecessor data works as follows: All $s$-nodes maintain a map that stores a transaction history by mapping a $c$-node address with the id of the last transaction they were associated with, i.e. the last ordering request received that contained $c$-node in $m.dst$, hence \emph{immediate} predecessor.  So for each client request the associated $m.ts$ is stored in this map for each $d \in m.dst$. When a $s$-node receives an \emph{abcast} bundle $mb$, it knows that all other nodes have received, or will receive, $mb$ in the same order.  Therefore, when $mb$ is processed by an $s$-node, it is guaranteed that all other $s$-nodes will have processed $mb$ in the exact same order, therefore we know that the transaction history will be consistent for all $s$-nodes.  
+		
+		
+	\end{description}
+
+%For a totally ordered 1PC transaction in Infinispan, \textsf{AbsaaS} works as follows: Once $Tx_i.c$ has completed its local execution of $Tx_i$, it is ready to \emph{abcast} a $prepare(Tx_i)$ message $m$.  $Tx_i.c$ selects some $s$-node and forwards $m$ with $m_i.dst = Tx_i.dst$ to the selected $s$-node, say, $N_s$, for \emph{abcast}ing $m$ to $m_i.dst$. $N_s$ actually \emph{abcast}s $m_i$ \emph{only} to other $s$-nodes, which leads to all operative $s$-nodes delivering $m_i$. When $N_s$ delivers $m_i$, it returns $m_i$ to $Tx_i.c$, who then disseminates $m_i$ to every node $d$ indicated in $m_i.dst$ together with two types of order related information: $m_i.ts$ agreed by $s$-nodes and the \emph{immediate} predecessor. The latter is the identity of $m_j$ whose delivery must \emph{precede} \emph{immediately} before delivery of $m_i$. More precisely, $d \in m_j.dst$, $d$ must not deliver $m_i$ until it delivers $m_j$, and no \emph{abcast} other than $m_i$ must be delivered immediately after $m_j$ is delivered.
+
+%Note that the immediate predecessor of $m_i$ with respect to \emph{all} \emph{abcast}s directed at a given $d$ - not just those that originate from $Tx_i.c$ nor just those that are handled only by $N_s$. Thus, it is specific to each $d$ and ensures that delivery at every $d$ is as per the finalized $m.ts$. To illustrate this, let $Tx_i.c$ submit $m_i$ to $N_s$, $Tx_j.c$ submit $m_j$ to $N_{s'}$ and $d \in m_i.dst \cap m_j.dst $. Say, $s$-nodes order $m_j$ before $m_i$. If $d$ receives $m_i$ before $m_j$, it will not deliver $m_i$ until it delivers $m_j$.
 
 		
 \section{Experimentation}
