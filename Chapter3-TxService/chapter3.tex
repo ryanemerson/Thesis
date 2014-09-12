@@ -46,7 +46,7 @@ Note that the immediate predecessor of $m_i$ with respect to \emph{all} \emph{ab
 	However, when AbaaS is utilised, it is possible to improve the performance of the entire cluster, simply by upgrading the $s$-nodes used to provide the \emph{AbaaS} service.  For example, consider a cluster consisting of 50 $c$-nodes, and 3 $s$-nodes, instead of upgrading all 50 $c$-nodes it is possible to improve transaction latency and throughput by upgrading the hardware of the 3 $s$-nodes.  
 	
 \section{AbaaS System Requirements}
-The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-nodes.  This section will explore the requirements that need to be met in order for the \textsf{AbaaS} model to be effective.  We consider requirements from the perspective of both clients and the ordering service.
+The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-nodes.  This section will explore the requirements that need to be met in order for the \textsf{AbaaS} model to be effective.  We consider requirements from the perspective of both clients, $c$-nodes, and the ordering service, $s$-nodes.
 
 	\paragraph{Client Requirements} \hspace{0pt}
 	\begin{itemize}
@@ -59,7 +59,7 @@ The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-no
 	
 	\paragraph{Service Requirements} \hspace{0pt}
 	\begin{itemize}
-		\item [\textbf{S1}] The service must be fault-tolerant ($s\text{-nodes} > 1$).  
+		\item [\textbf{S1}] The service must be fault-tolerant ($s\text{-nodes} > 1$), and aim to be highly available.  
 		
 		\item [\textbf{S2}] Service nodes must process client requests in the exact same order to maintain a consistent state between all $s$-nodes.  This prevents a $c$-node from receiving conflicting ordering data, for example two distinct $m$ being allocated the same global timestamp.  
 		
