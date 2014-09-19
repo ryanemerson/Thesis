@@ -4,11 +4,11 @@
 
  \chapter{Background}
 
-\ifpdf
-    \graphicspath{{Chapter2-Background/Figs/Raster/}{Chapter2-Background/Figs/PDF/}{Chapter2-Background/Figs/}}
-\else
+%\ifpdf
+%    \graphicspath{{Chapter2-Background/Figs/Raster/}{Chapter2-Background/Figs/PDF/}{Chapter2-Background/Figs/}}
+%\else
     \graphicspath{{Chapter2-Background/Figs/Vector/}{Chapter2-Background/Figs/}}
-\fi
+%\fi
 
 
 \section[Network Communication Paradigms]{Network Communication Paradigms}
@@ -294,7 +294,7 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	        \begin{figure}[htbp!] 
                 \centering    
                 \includegraphics[width=1.0\textwidth]{WSC-Abcast}
-                \caption[Total Order Commit with Write Skew Check]{Total Order with WSC Sequence Diagram}
+                \caption[Total Order Commit with Write Skew Check]{Total Order Commit with WSC Sequence Diagram}
                 \label{fig:total_order_wsc}
             \end{figure}	      	
                         
@@ -305,7 +305,14 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	        
 			The ack phase consists of all $d' \in m.dst-\{m.o\}$ acknowledging $m$ by sending $ack_{d'}(m)$ to $m.o$.  Once $m.o$ has received all $ack_{d'}(m)$, the ack phase is complete, and C1 is guaranteed as all $m.dst$ are known to have received $m$.  
 			
-			The delivery phase is necessary so that all $m.dst$ know the final total order of $m$.  As in Newtop, TOA ensures C2 by piggybacking the timestamp of a logical clock onto all $m$, $ack(m)$ and $deliver(m)$ messages.  However, in TOA the timestamp of $m$ is always finalised by $m.o$ after the ack phase has completed, with the $deliver(m)$ message containing the final timestamp of $m$ in order to dictate the $m$'s total order to all $m.dst$.  
+			The delivery phase in TOA is necessary to ensure that all $m.dst$ know the final total order of $m$. Like the Newtop protocol, TOA ensures C2 by piggybacking the timestamp of a sending node's logical clock onto all $m$, $ack(m)$ and $deliver(m)$ messages sent from that node.  However, in TOA the final timestamp of $m$ is always finalised by $m.o$ after the ack phase has completed, with the $deliver(m)$ message dictating the final timestamp of $m$ to all $m.dst$ in order to dictate $m$'s place in the total order.  Figure \ref{fig:TOA} shows the communication stages required for \emph{abcast}ing $m$ between nodes $N_1, N_2 and N_3$.  
+			
+            \begin{figure}[htbp!] 
+                \centering    
+                \includegraphics[width=1.0\textwidth]{TOA}
+                \caption[Total Order Anycast Protocol]{Total Order Anycast Sequence Diagram}
+                \label{fig:TOA}
+            \end{figure}	 			
 			
 			The advantage of utilising $m.o$ as a central coordinator, opposed to all $m.dst$ acknowledging each other, is that the total number of messages involved in a single \emph{abcast} is reduced as $\left\vert m.dst \right\vert$ increases.  The total remote message cost for TOA and Newtop is expressed below:
 			
