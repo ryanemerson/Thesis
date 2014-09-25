@@ -144,6 +144,20 @@ In order for a coordination service to maintain replicated nodes consistently, i
 
 The main advantage of the Chubby system is its focus on high availability and reliability, with production instances reported to have executed for over a year. However, the limitations of the chubby system are caused by its use of a master node. Utilising a single node to handle all read/write requests severely limits the system's throughput as the master node will always become a bottleneck as the number of requests to the service increase.  Furthermore, because Chubby utilises the Paxos consensus algorithm, the minimum number of nodes in a chubby coordination service is 3 as a quorum needs to be reached between service members.  This can be a disadvantage in systems where fast writes are required, and the use of 3 nodes for fault-tolerance is excessive.  
 
+	\begin{figure}[htbp!] 
+	    \centering    
+	    \includegraphics[width=1.0\textwidth]{chubby_leader_write}
+	    \caption[Chubby Write Request at Master Node]{Chubby Write Request at Master Node Diagram}
+	    \label{fig:chubby_write_request}
+	\end{figure}	 
+
+	\begin{figure}[htbp!] 
+	    \centering    
+	    \includegraphics[width=1.0\textwidth]{chubby_slave_write}
+	    \caption[Chubby Write Request at Slave Node]{Chubby Write Request at Slave Node Diagram}
+	    \label{fig:chubby_write_request}
+	\end{figure}	 
+	
 	\subsection{Zookeeper}
 	Zookeeper ~\cite{Hunt:2010:ZWC:1855840.1855851} is an open source general purpose coordination service developed by The Apache Software Foundation. Similar to Chubby, Zookeeper also employs a master node, as it utilises the quorum-based protocol ZAB ~\cite{Junqueira:2011:ZHB:2056308.2056409} to update the data replicas.  However, unlike Chubby, in Zookeeper client read requests are not restricted to the master node, rather any replica node can handle them.  This is advantageous, as it reduces the number of requests that the master node has to handle, enabling the master to concentrate on maintaining a consistent state between replicas (i.e. handling write requests) and satisfying its own read requests.  
 	
