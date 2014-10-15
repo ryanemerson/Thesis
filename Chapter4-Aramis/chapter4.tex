@@ -1,11 +1,46 @@
-\chapter{Initial Protocols}
+\chapter{Aramis}
 
 % **************************** Define Graphics Path **************************
 %\ifpdf
 %    \graphicspath{{Chapter3/Figs/Raster/}{Chapter3/Figs/PDF/}{Chapter3/Figs/}}
 %\else
-    \graphicspath{{Chapter3/Figs/Vector/}{Chapter3/Figs/}}
+    \graphicspath{{Chapter4/Figs/Vector/}{Chapter4/Figs/}}
 %\fi
 
+This chapter introduces a non-blocking \emph{abcast} protocol \textsf{Aramis}, that utilises probabilistic guarantees to prevent blocking.  First we introduce the rational behind \textsf{Aramis}, before detailing all of the protocol's assumptions.  This is followed by an in-depth look at all of the components required by \textsf{Aramis}, and how they have been implemented.  We then explore the \textsf{Aramis} protocol, detailing the protocols delivery and rejection criteria for \emph{abcast} messages.  Finally, we presents the results of our performance evaluation of \textsf{Aramis} and explore the ramifications of said results.    
 
+\section{Rational}
+	% AbaaS requires a non-blocking abcast protocol.  
+	% FLP impossibility states that it is impossible for a protocol to be non-blocking and 100% deterministic.
+	% Relax abcast guarantees in order to allow non-blocking performance. 
+	
+\section{Assumptions}
+	% N - 1 Crashes
+	% Reliable UDP utilised
+	% Clock synchronisation
+	% Stationary Assumption
+
+	\subsection{Probing Validation}
+		% Describe Experiment and execution environment
+		% Results
+		% Analysis
+	
+\section{Aramis Components}
+	\subsection{Network Measurement Component}
+	\subsection{Reliable Multicast}
+	\subsection{Clock Synchronisation}
+	\subsection{Flow Control}
+	
+\section{Protocol}
+	\subsection{Delivery Delay}
+		% Maths and the rational for their calculation. 
+	\subsection{Rejected Messages}
+		% Messages rejected if a later message has already been delivered.
+		% Issue a warning, or throw exception.
+	
+\section{Performance Evaluation}
+	% Ran in the emulated transactions environment, very slow performance - due to large upper bound on delivery delays.
+	% Not suitable for use as a standalone abcast protocol.
+	% However, no rejections occurred - assumptions held.
+	
 \section{Summary}
