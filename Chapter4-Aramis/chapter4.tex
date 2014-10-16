@@ -7,7 +7,7 @@
     \graphicspath{{Chapter4/Figs/Vector/}{Chapter4/Figs/}}
 %\fi
 
-This chapter introduces a non-blocking \emph{abcast} protocol \textsf{Aramis}, that utilises probabilistic guarantees to prevent blocking.  First we introduce the rational behind \textsf{Aramis}, before detailing all of the protocol's assumptions.  This is followed by an in-depth look at all of the components required by \textsf{Aramis}, and how they have been implemented.  We then explore the \textsf{Aramis} protocol, detailing the protocols delivery and rejection criteria for \emph{abcast} messages.  Finally, we presents the results of our performance evaluation of \textsf{Aramis} and explore the ramifications of said results.    
+This chapter introduces a non-blocking \emph{abcast} protocol, called \textsf{Aramis}, that utilises probabilistic guarantees in order to prevent message delivery blocking.  First we introduce the rational behind our design approach for \textsf{Aramis}, before detailing the protocol's requirements and assumptions.  This is followed by an in-depth look at the components required by \textsf{Aramis}, and how they have been implemented.  We then explore the protocol in detail, outlining the protocols delivery and rejection criteria for \emph{abcast} messages.  The experiments used to evaluate \textsf{Aramis} are then detailed, followed by an evaluation of the protocol's performance and the ramifications of our findings.  
 
 \section{Rational}
 	% AbaaS requires a non-blocking abcast protocol.  
