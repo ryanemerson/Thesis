@@ -39,7 +39,7 @@ Atomic broadcast protocols, \emph{abcast} for short, are message broadcasting pr
     \item [\textbf{G1}] - \emph{Validity}: If the source of $m_i$ does not crash until it \emph{abcast}s $m_i$, then all operative destinations of $m_i$ deliver $m_i$.
     \item [\textbf{G2}] - \emph{Uniform Agreement}: If the source of $m_i$ crashes while \emph{abcast}ing $m_i$, and if any destination delivers $m_i$, then all operative
 destinations of $m_i$ must deliver $m_i$.
-    \item [\textbf{G3}] - \emph{Uniform Integrity}: If $m_i$ has already been delivered by a destination $d$, then $d$ cannot not deliver $m_i$ again.  
+    \item [\textbf{G3}] - \emph{Uniform Integrity}: If $m_i$ has already been delivered by a destination $d$, then $d$ cannot deliver $m_i$ again.  
     \item [\textbf{G4}] - \emph{Uniform Total Order}: If two \emph{\emph{abcast}s}, $m_i$ and $m_j$, have
 common destinations, then all such destinations that deliver both $m_i$ and $m_j$, must deliver them in an identical order (i.e. $<m_i, m_j>$ or $<m_j, m_i>$)
 \end{itemize}
