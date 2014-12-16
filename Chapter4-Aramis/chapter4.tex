@@ -4,7 +4,7 @@
 %\ifpdf
 %    \graphicspath{{Chapter3/Figs/Raster/}{Chapter3/Figs/PDF/}{Chapter3/Figs/}}
 %\else
-    \graphicspath{{Chapter4/Figs/Vector/}{Chapter4/Figs/}}
+    \graphicspath{{Chapter4-Aramis/Figs/Vector/}{Chapter4-Aramis/Figs/}}
 %\fi
 
 This chapter introduces a non-blocking \emph{abcast} protocol, called \textsf{Aramis}, that utilises probabilistic guarantees for message ordering to prevent message delivery blocking in the event of node failures.  First we introduce the rational behind our design approach for \textsf{Aramis}, before detailing the protocol's requirements and assumptions.  This is followed by an in-depth look at the components required by \textsf{Aramis}, and how they have been implemented.  We then explore the protocol in detail, outlining the protocols delivery and rejection criteria for \emph{abcast} messages.  The experiments used to evaluate \textsf{Aramis} are then detailed, followed by an evaluation of the protocol's performance and the ramifications of our findings.  
@@ -41,7 +41,18 @@ This chapter introduces a non-blocking \emph{abcast} protocol, called \textsf{Ar
 	\end{description}
 	
 \section{Aramis Components}
-	\subsection{Network Measurement Component}\label{ssec:nmc}
+In this section we detail the individual components required by the \textsf{Aramis} protocol.  For each component, we explain its purpose and design; with important implementation details highlighted where appropriate.  
+
+    \begin{figure}[!h] 
+        \centering    
+         \includegraphics[width=0.8\textwidth]{components}
+         \caption[Aramis Protocol Components Overview]{Aramis Protocol Components}
+         \label{fig:aramis_components}
+    \end{figure}
+    
+   Figure \ref{fig:aramis_components} provides an overview of all of the components required by the \textsf{Aramis} protocol; where FCC is a Flow-Control Component (\ref{ssec:fcc}), GM is the Group Membership service provided by JGroups, DMC is the Delay Measurement Component (\ref{ssec:dmc}) and \emph{rmcast} is the Reliable Multicast Component (\ref{ssec:rmcast}).  
+
+	\subsection{Delay Measurement Component}\label{ssec:dmc}
 	    \paragraph{NMC Validation}\label{a4_validation}\hspace{0pt} \\
             	%We conducted a series of experiments to test \textbf{A4}, which were executed on a local computer cluster.  These experiments consisting of a 
             	% Describe Experiment and execution environment
@@ -50,7 +61,7 @@ This chapter introduces a non-blocking \emph{abcast} protocol, called \textsf{Ar
 	    
 	\subsection{Reliable Multicast}\label{ssec:rmcast}
 	\subsection{Clock Synchronisation}\label{ssec:clocksynch}
-	\subsection{Flow Control}
+	\subsection{Flow Control}\label{ssec:fcc}
 	
 \section{Atomic Broadcast Protocol}
 	\subsection{Delivery Delay}
