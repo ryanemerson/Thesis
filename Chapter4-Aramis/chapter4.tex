@@ -1,11 +1,7 @@
 \chapter{Aramis}
 
 % **************************** Define Graphics Path **************************
-%\ifpdf
-%    \graphicspath{{Chapter3/Figs/Raster/}{Chapter3/Figs/PDF/}{Chapter3/Figs/}}
-%\else
     \graphicspath{{Chapter4-Aramis/Figs/Vector/}{Chapter4-Aramis/Figs/}}
-%\fi
 
 This chapter introduces a non-blocking \emph{abcast} protocol, called \textsf{Aramis}, that utilises probabilistic guarantees for message ordering to prevent message delivery blocking in the event of node failures.  First we introduce the rational behind our design approach for \textsf{Aramis}, before detailing the protocol's requirements and assumptions.  This is followed by an in-depth look at the components required by \textsf{Aramis}, and how they have been implemented.  We then explore the protocol in detail, outlining the protocols delivery and rejection criteria for \emph{abcast} messages.  The experiments used to evaluate \textsf{Aramis} are then detailed, followed by an evaluation of the protocol's performance and the ramifications of our findings.  
 
