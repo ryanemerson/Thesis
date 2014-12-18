@@ -53,14 +53,14 @@ Meeting both C1 and C2 is not a trivial task, as such there is a large amount of
 	\subsection{Atomic Broadcast vs Atomic Multicast}
 	So far we have considered \emph{abcast} and \emph{amcast} protocols to be \emph{one-to-many} network protocols, that must satisfy guarantees G1-G4 in order to be considered atomic.  However, there are key differences between broadcast and multicast protocols.  Below we provide a definition for both broadcast and multicast protocols and explore the strengths and limitations of each type.  
 	
-	\subsection{Broadcast}
+	\subsection{Broadcast}\label{atomic_broadcast}
 	In the literature\cite{Defago:2004:TOB:1041680.1041682} broadcast protocols, and hence \emph{abcast}, are defined as a \emph{one-to-many} network protocols that allow messages to be sent to a single destination set, with all destinations in the set receiving each broadcast.  For example if the total number of destinations is equal to 5, then $\left\vert{m.dst}\right\vert = 5$ is always true.
 	
 	Restricting \emph{one-to-many} communication to a single destination set can provide performance benefits over protocols that allow multiple destination sets, when the size of the destination set is small ($e.g. \left\vert{m.dst}\right\vert < 5$).   This is because such protocols can employ various optimisations, such as as piggybacking meta information on messages, as they know that $m.dst$ remain the same for all broadcasts when no node failures occur.  Furthermore, broadcast protocols do not have the overhead of handling more complex message routing problems such as the overlapping subset problem described in \ref{ssec:overlapping}.  
 	
 	Due to $\left\vert{m.dst}\right\vert$ always being equal to the total number of destinations in a set, the scalability of single destination set protocols is underwhelming, with performance degrading dramatically as the number of destinations increase.  
 	
-	\subsection{Multicast}
+	\subsection{Multicast}\label{atomic_multicast}
 	In contrast to broadcast protocols, multicast protocols allow messages to be sent to multiple destination sets.  Such protocols fall into two categories, those that only allow \emph{disjoint} destination sets and those that allow \emph{overlapping} destination sets.  
 	
 	The creation of disjoint \emph{amcast} protocols is trivial, as the majority of \emph{abcast} protocols can be converted into disjoint protocols with only a few minor adjustments \cite{Defago:2004:TOB:1041680.1041682}.  Disjoint protocols are not applicable to Infinispan, as the ability to only multicast to disjoint sets of destinations does not provides a solution to either the \emph{partial} or \emph{full} replication problem, as described in \ref{sec:infinispan}.  
