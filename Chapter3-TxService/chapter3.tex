@@ -120,25 +120,48 @@ We have developed a protocol for the \textsf{AmaaS} model, which we call \textsf
    	\end{description}
 
 	\subsection{Fault-Tolerance}
-	Fault-tolerance in \textsf{SCast} must consider the consequences of both crashed $c$-nodes and $s$-nodes.  Here we explore the consequences of $c$-node, and then $s$-node crashes during various stages of a \textsf{SCast} \emph{abcast} and how they are mitigated.  In this section we consider node crashes from the perspective of a single transaction, however it is worth noting that each $c$-nodes would typically have multiple transactions executing concurrently.  
+	Fault-tolerance in \textsf{SCast} must consider the consequences of both crashed $c$-nodes and $s$-nodes.  Here we explore the consequences of both $c$-node and $s$-node crashes during various stages of a \textsf{SCast} \emph{amcast}.  For the sake of simplicity, we only consider node crashes from the perspective of a single transaction, however it is worth noting that each $c$-node would typically have multiple transactions executing concurrently.  
 	
-	\paragraph{Client Node Crash} \hspace{0pt} \\
-	When a $c$-node, $Tx.c$, crashes during or directly after the local execution of $Tx_j$ (before stage 1 of \textsf{SCast}), then no action needs to be taken for this $Tx$, as no interactions with other nodes has occurred.  
-	
-    If $Tx.c$ crashes during the unicasting of a request to the \emph{multicast service}  (Stage 1), then three scenarios are possible: 
-    \begin{itemize}
-	    \item    No $s$-nodes receive the request, in which case the multicast will never complete and no further actions are required.
-	    \item    Not all of the $s$-nodes receive the original request, in which case the nodes who do receive the request will execute as normal and all $s$-nodes will eventually receive details of the transaction when the other $s$-nodes \emph{abcast} the request and the transaction will be multicast as normal.  
-	    \item    Only one $s$-node receives a copy of the request and that $s$-node also crashes, in which case no further action is required as no other $s$-node is aware of the request.  
-    \end{itemize}        	
-	
-    Finally, its possible for $Tx.c$ or any other $d \in Tx.dst$ to crash after the \emph{multicast service} has received the original request (Stage 2-5), in which case the service will continue to process the request as normal and multicast the message to all of the operative destinations.  
-	    
-	\paragraph{Service Node Crash} \hspace{0pt} \\
-    If a $s$-node crashes after receiving a request $req(Tx_i)$ (Stage 2 or 3), then another $s$-node will eventually receive $req(Tx_i)$ as $Tx.c$ unicasts the request to all $s$-nodes.  
+	\paragraph{Client Node Crash}
+	\begin{description}
+         \item[\emph{Local Tx Execution}]  \hfill \\
+         If a $c$-node, $Tx.c$, crashes during or directly after the local execution of $Tx_j$, then no action needs to be taken for this $Tx$, as no interactions with other nodes has occurred.  
+		
+	    \item[\emph{Phase 1}]  \hfill \\
+	    If $Tx.c$ crashes during the unicasting of a request to the \emph{multicast service}, then three scenarios are possible: 
+		    \begin{itemize}
+			    \item    No $s$-nodes receive the request, in which case the multicast will never complete and no further actions are required.
+			    \item    Not all of the $s$-nodes receive the original request, in which case the nodes who do receive the request will execute as normal.  All $s$-nodes will eventually receive details of the transaction, as the other $s$-nodes \emph{abcast} their copy of the request between service members, and the transaction will be multicast as normal.  
+			    \item    Only one $s$-node receives a copy of the request and that $s$-node also crashes, in which case no further action is required as no other $s$-node is aware of the request.  
+		    \end{itemize}        	
+		
+	    \item[\emph{Phase 2-5}]  \hfill \\
+	    Finally, its possible for $Tx.c$ or any other $d \in Tx.dst$ to crash after the \emph{multicast service} has received the original request, in which case the service will continue to process the request as normal and multicast the message to all of the operative destinations.  
+    \end{description}
     
-	Its possible for a $s$-node, $N_s$, to crash just after it has been designated as the multicasting $s$-node for $Rsp(Tx_i)$ (Stage 4).  In which case, it is necessary for the remaining $s$-nodes to takeover the multicasting responsibilities for $Rsp(Tx_i)$ to ensure that all $Tx_i.dst$ receive the transaction.  This can be achieved by each operative $s$-node piggybacking the timestamp of the latest request it has completed multicasting, on every \emph{abcast} message sent to $s$-nodes.  Each $s$-node must then maintain a recent history of client requests that have been accepted; storing the transaction as well as the address of the $s$-node whose \emph{abcast} request was accepted by the service.  When an $s$-node crash is detected the remaining $s$-nodes iterate through the recent history of client requests, starting at the timestamp of the last multicast completed and comfirmed by $N_s$, multicasting $Rsp$ messages for all requests that were originally the responsibility of $N_s$.  
+	\paragraph{Service Node Crash}
+	\begin{description}
+       \item[\emph{Phase 1}] \hfill \\
+       If a $s$-node crashes while a $Tx.c$ is issuing a service request, then the \emph{amcast} can still succeed as the client request is unicast to all $s$-nodes, therefore one of the remaining $s$-nodes will handle the request.  
 	
+       \item[\emph{Phase 2-3}] \hfill \\
+       If a $s$-node crashes after receiving a request $req(Tx_i)$, then another $s$-node will eventually receive $req(Tx_i)$, as $Tx.c$ unicasts the request to all $s$-nodes.  
+    
+        \item[\emph{Phase 4}] \hfill \\
+	    Its possible for a $s$-node, $N_s$, to crash just after it has been designated as the multicasting $s$-node for $Rsp(Tx_i)$.  In which case, it is necessary for the remaining $s$-nodes to take responsibility for multicasting $Rsp(Tx_i)$ to ensure that all $Tx_i.dst$ receive the transaction.  
+	    
+	    The remaining $s$-nodes can determine which requests still require multicasting if meta data is piggybacked onto each \emph{abcast} sent between $s$-nodes.  For example, if each operative $s$-node: 
+	    \begin{enumerate}
+	    \item    Piggybacks the timestamp of the latest request it has successfully responded to; where success is defined as the $Rsp$ message being multicast to all destinations.
+	    \item    Maintains a recent history of client requests that have been accepted; storing the transaction as well as the address of the $s$-node whose \emph{abcast} request was accepted by the service.  
+	    \end{enumerate}. 
+	    
+	    When an $s$-node crash is detected the remaining $s$-nodes iterate through their recent history of client requests, starting at the timestamp of the last confirmed multicast to be completed by the crashed $s-$node.  Each subsequent client request that was the responsibility of the crashed $s$-node to respond to, which has not been completed, is then handled by the operative $s$-node.  This will potentially cause multiple $s$-nodes to multicast the same $Rsp(Tx_i)$ message, however $c$-nodes can simply discard any duplicate transmissions that are received from the \emph{multicast service}.  
+	    
+	    \item[\emph{Stage 5}] \hfill \\
+	    A $s$-node crash at this stage of the protocol has no effect on the outcome of the \emph{amcast}, as the $Rsp$ message has already been multicast to all destinations.  
+    \end{description}
+
 \section{Experimentation}
 % Explain - 10 clients, x box members etc.  Utilise Aramis paper
 % Flow control used in the box and in traditional TOA.  
