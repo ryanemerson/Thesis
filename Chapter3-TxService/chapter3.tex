@@ -86,7 +86,8 @@ We have developed a protocol for the \textsf{AmaaS} model, which we call \textsf
 
 In the explanations below we assume that Infinispan is executing a 1-Phase Total Order transaction, without a second WSC phase, and that the transaction has already been successfully executed locally.  Furthermore, we assume that a reliable network protocol is being utilised as the underlying communication mechanism, for example TCP\citep{Cerf:2005:PPN:1064413.1064423} or Reliable UDP\citep{ReliableUDP}.  Finally, we refer to a collection of $s$-nodes providing the \emph{amcast} service as the \emph{multicast service}.  
 
-    \paragraph{Client Nodes} \hspace{0pt} \\
+
+   \subsection*{Client Nodes}
     Stage 1 of the client \textsf{SCup} protocol starts once a transaction coordinator, $Tx_i.c$, has completed its local execution of $Tx_i$ it is ready to \emph{amcast} a $prepare(Tx_i)$ message to $Tx_i.dst$ as required by the total order commit protocol.  Each stage of the client protocol and its purpose are detailed below:
     \begin{description}
     
@@ -96,93 +97,82 @@ In the explanations below we assume that Infinispan is executing a 1-Phase Total
         The purpose of creating a backup transaction coordinator is to allow for the possibility that the original $Tx.c$ may crash during the multicast process, in which case the group membership protocol will detect the crash and the backup coordinator will assume responsibility for multicasting the $prepare(Tx_i)$ message.  Depending on the level of fault-tolerance required, it is possible for the new coordinator to revert back to stage 1 or 2 of the protocol, the benefits of each are explored in \ref{ssec:scast_fault_tolerance}.  
         
         \item[2. Request Ordering from Multicast Service] \hfill \\
-        Once the a backup coordinator has been established, it is possible for the transaction coordinator to request a multicast ordering from the service.  \emph{Amcast}s are initiated by the $Tx_i.c$ randomly selecting a $s$-node, $N_s$, from the \emph{ordering service} and sending an \emph{amcast} request to that node - $req(Tx_i) -> N_s$.  If $Tx_i.c$ does not receive an ordering from the \emph{multicast service} after a specified amount of time, then a different $s$-node is selected and the ordering request is resent - $(req(Tx_i) -> N_s'$.  
+        Once the a backup coordinator has been established, it is possible for the transaction coordinator to request a multicast ordering from the service.  \emph{Amcast}s are initiated by the $Tx_i.c$ randomly selecting a $s$-node, $N_s$, from the \emph{ordering service} and sending an \emph{amcast} request to that node - $req(Tx_i) -> N_s$.  If $Tx_i.c$ does not receive an ordering from the \emph{multicast service} after a specified amount of time, then a different $s$-node is selected and the ordering request is resent - $req(Tx_i) -> N_s'$.  
         
         The content of the $prepare(Tx_i)$ message is not sent to $N_s$ as we only require a global order for $Tx_i$, therefore the contents of the message to be \emph{amcast} to $Tx.dst$ is irrelevant and including it would only increase the load on the network.  However, $req(Tx_i)$ must include $Tx_i.dst$ as this is the destination set of the \emph{amcast} that $Tx_i$ is trying to send, and the \emph{multicast service} needs this data to ensure that requirements CR1, CR2 and CR3 are satisfied.  
         
+        \item[Waiting for a response from the \emph{multicast service} ...] \hfill \\
+        
         \item[3. Receive Ordering Data and Multicast Transaction] \hfill \\
-        When the transaction coordinator receives $Rsp(Tx_i)$ from $N_s$, it appends the $Rsp(Tx_i)$ message header to the original $prepare(Tx_i)$ message and multicasts $mcast(Tx_i)$ to all $Tx.dst$ including itself. 
+        When the transaction coordinator receives $Rsp(Tx_i)$ from $N_s$, it appends the ordering information to the original $prepare(Tx_i)$ message and sends a multicast, $mcast(Tx_i)$, to all $Tx.dst$ including itself. 
         
         \item[4. Receive Multicast from the Coordinator] \hfill \\
-        Upon receiving $mcast(Tx_i)$, a $c$-node, $c$, will check the \emph{immediate} predecessor data, contained within the $Rsp(Tx_i)$ header, that is applicable to $c$.  This data dictates which $mcast$ message should be delivered in the total order before $mcast(Tx_i)$.  
+        Upon receiving $mcast(Tx_i)$, a client node, $c$, will check the \emph{immediate} predecessor for this node.  This data dictates which $mcast$ message should be delivered in the total order before $mcast(Tx_i)$.  For example, if the predecessor data dictates $mcast(Tx_i)$ is preceded by $mcast(Tx_h)$ at destination $d$, then $d$ cannot deliver $mcast(Tx_i)$ until it has delivered $mcast(Tx_h)$.  
         
+        The predecessor data consists of a single multicast timestamp for each $d \in Tx.dst$, opposed to a list of past timestamps, in order to reduce the size of each $Rsp$ header sent by the \emph{multicast service}.  The use of a single timestamp results in a cascading wait occurring if multiple message have not yet been received by $c$.  For example, if $c$ has received $mcast(Tx_j)$ but has not received its predecessors $mcast(Tx_h)$ and $mcast(Tx_i)$, $c$ will only be aware of $mcast(Tx_i)$ from $Tx_j$'s predecessor data.  However when $mcast(Tx_i)$ arrives, $c$ becomes aware that it has not yet received $mcast(Tx_h)$,  and will wait for $mcast(Tx_h)$ before delivering $mcast(Tx_i)$ and $mcast(Tx_j)$.          
     \end{description}
 
-	\begin{description}
-		\item[1. Client Request - Client] \hfill \\
-		Once a transaction coordinator, $Tx_i.c$, has completed its local execution of $Tx_i$ it is ready to \emph{amcast} a $prepare(Tx_i)$ message to $Tx_i.dst$ as required by the total order commit protocol.  In \textsf{SCast} \emph{amcasts} are initiated by the $Tx_i.c$ unicasting a \emph{amcast} request, $req(Tx_i)$, to all  $s$-nodes in the \emph{ordering service}.  The request, $req(Tx_i)$, contains the contents of a transaction's $prepare(Tx_i)$ message and the addresses of $Tx_i.dst$.  Each client request is associated with a unique id that consists of the $c$-node's address and a sequence number that is incremented after each request from this client.    
+    \subsection*{Service Nodes}
+    Stage 1 of the service protocol starts when a multicast request, $req(Tx_i)$ is received from a client node.  Note, it is anticipated that each $s$-node will have to handle many requests simultaneously, however for the sake of brevity we assume the service is only handling a single request.  
+    
+    \begin{description}
+        \item[1. Receive Client Request] \hfill \\
+            Upon receiving $req(Tx_i)$, each $s$-node places the request in its \emph{Abcast Request Pool} (ARP), which is a bounded queue for storing requests before they are \emph{abcast} to all $s$-nodes.  If an $s$-node's ARP becomes full, subsequent requests from $c$-nodes are rejected until space becomes available in the ARP.  When a $c$-node request is rejected a \emph{reject} response is sent to $Tx_i.c$.  If $Tx_i.c$ receives a \emph{reject} response from all $s$-nodes, then it can either abort $Tx_i$ or resend the \emph{amcast} request to another $s$-node after a configurable amount of time.    
+            
+            The ARP is necessary to ensure that if the \emph{ordering service} starts to become overloaded by client requests their is a 'feedback' mechanism that makes clients aware of the services current limitations, allowing clients to restrict user operations if necessary.  Utilising an ARP is also essential for providing message bundling, which as described in \ref{ssec:abaas_optimisations} is an effective optimisation for improving the throughput of the \emph{multicast service}.  
+            
+        \item[2. Process ARP] \hfill \\
+        A single thread, called the \emph{send} thread, is utilised for retrieving requests from the ARP and \emph{abcast}ing them to all $s$-nodes for ordering.  The \emph{send} thread retrieves ordering requests from the ARP in their arrival order, and bundles them into a single message bundle $mb$, before \emph{abcast}ing $mb$ to all $s$-nodes.  If the ARP is empty, then the \emph{send} thread waits for the ARP to become non-empty before resuming \emph{abcast}ing.  
 		
-		\item[2. Receive Request - Multicast Service] \hfill \\
-		Upon receiving $req(Tx_i)$, each $s$-node places the request in its \emph{Abcast Request Pool} (ARP), which is a bounded queue for storing requests before they are \emph{abcast} to all $s$-nodes.  If an $s$-node's ARP becomes full, subsequent requests from $c$-nodes are rejected until space becomes available in the ARP.  When a $c$-node request is rejected a \emph{reject} response is sent to $Tx_i.c$.  If $Tx_i.c$ receives a \emph{reject} response from all $s$-nodes, then it can either abort $Tx_i$ or resend the \emph{amcast} request after a configurable amount of time.    
-		
-		The ARP is necessary to ensure that if the \emph{ordering service} starts to become overloaded by client requests their is a 'feedback' mechanism that makes clients aware of the services current limitations, allowing clients to restrict user operations if necessary.  Utilising an ARP is also essential for providing message bundling, which as described in \ref{ssec:abaas_optimisations} is an effective optimisation for improving the throughput of the \emph{multicast service}.  
-		
-		\item[3. Process ARP - Multicast Service] \hfill \\
-		A single thread, called the \emph{send} thread, is utilised for retrieving requests from the ARP and \emph{abcast}ing them to all $s$-nodes for ordering.  The \emph{send} thread retrieves ordering requests from the ARP in their arrival order, and bundles them into a single message bundle $mb$, before \emph{abcast}ing $mb$ to all $s$-nodes.  If the ARP is empty, then the \emph{send} thread waits for the ARP to become non-empty before resuming \emph{abcast}ing.  
-		
-		A configurable upper limit is placed on the maximum size (number of messages or \emph{bytes}) of a bundle message.  If this upper limit is reached and the ARP still has available requests, then the \emph{send} thread will \emph{abcast} the next message bundle $mb'$ once $mb$ has been \emph{abcast}.  If message bundling is not enabled, then a upper limit of one message is set for all bundles.    
+		A configurable upper limit is placed on the maximum size of a bundle message. \footnote{The maximum size could be specified in terms of bytes or the number of messages to be bundled.} If this upper limit is reached and the ARP still has available requests, then the \emph{send} thread will \emph{abcast} the next message bundle, $mb'$, once $mb$ has been \emph{abcast}.  If message bundling is not enabled, then a upper limit of one message is set for all bundles.    
 		
 		All \emph{abcast} $mb$ sent by an $s$-node have an originator field that is set to equal the sending node's address $N_s$, $mb.o$ = $N_s$, this is necessary for the next phase of the protocol.  
 		
-		\item[4. Process Requests and Multicast - Multicast Service] \hfill \\
-		When an $s$-node, $N_s$, receives a request bundle $mb$, it 'un-bundles' $mb$ and processes each ordering request $req(Tx)$ in the order that they arrived in the ARP at $mb.o$.  If $N_s$ has already received $req(Tx)$ in a previous \emph{abcast} message, we discard this request and take no further action.  It is possible to discard a repeat request, as we know that all other $s$-nodes have, or will eventually, handle(d) the same copy of the request as $N_s$ due to the guarantees provided by \emph{abcast}.  Each accepted $req(Tx)$ is associated with a global timestamp $ts$: $req(Tx_i).ts = m.ts\oplus m.o \oplus$\emph{sequence number} of $req(Tx_i)$ within the bundle; where $\oplus$ is the append operator and $m.ts$ is the final timestamp provided by the underlying \emph{abcast} protocol utilised between $s$-nodes.  
+		\item[3. Process Requests and Return Ordering] \hfill \\
+		When an $s$-node, $N_s$, receives a request bundle $mb$, it 'un-bundles' $mb$ and processes each ordering request $req(Tx_i)$ in the order that they arrived in the ARP at $mb.o$.  If $N_s$ has already received $req(Tx_i)$ in a previous \emph{abcast} message, we discard this request and take no further action.  \footnote{Requests can be \emph{abcast} more than once if a client request timesout and the transaction coordinator resends the request to a different $s$-node.} It is possible to discard a repeat request as we know that all other $s$-nodes have, or will eventually, handle(d) the same version of a request as $N_s$ due to the guarantees provided by \emph{abcast}.  A request is accepted by an $s$-node if it is the first time that the $s$-node has encountered the request id.  
 		
-		The $s$-node who's copy of $req(Tx_i)$ was first received by the $s$-nodes, and thus accepted, is responsible for multicasting a response message, $Rsp(Tx_i)$, containing the transaction and associated ordering data to all $Tx.dst$.  Delegating the multicasting of requests in this manner prevents $Rsp(Tx_i)$ being multicast by all $s$-nodes.  
+		Once a request has been accepted it is associated with a global timestamp $ts$: $req(Tx_i).ts = m.ts\oplus m.o \oplus$\emph{sequence number} of $req(Tx_i)$ within the bundle; where $\oplus$ is the append operator and $m.ts$ is the final timestamp provided by the underlying \emph{abcast} protocol utilised between $s$-nodes.  As soon as a timestamp has been assigned to a transaction, it is possible for a response message to be sent to the transaction coordinator.  As all $s$-nodes will receive, and assign the same timestamp to each request, it is necessary for a single $s$-node to take responsibility for sending the response message.  This is achieved by utilising the $mb.o$ field set in the previous stage of the protocol: If $N_s = mb.o$ then $N_s$ is the $s$-node that initially received $req(Tx_i)$, therefore $N_s$ takes responsibility for sending a response message.  
+				
+		A Response message, $Rsp(Tx_i)$ consists of two types of ordering data: the timestamp agreed by $s$-nodes for $req(Tx_i)$, and the timestamp of $req(Tx_i)$'s \emph{immediate} predecessor.  The latter is the identity of the transaction that directly precedes $Tx_i$ in the total order of multicasts.  More precisely, for all destinations $d \in r(Tx_i).dst$, each $d$ must not deliver $Tx_i$ until they have delivered the transaction whose timestamp is mapped to their address in the immediate predecessor data.  
+				
+		The storage of \emph{immediate} predecessor data works as follows: All $s$-nodes maintain a map that stores a transaction history by mapping a $c$-node address with the id of the last transaction they were associated with, hence its \emph{immediate} predecessor.  So for each multicast request, the associated timestamp is stored in the map for each destination in the transactions destination set. When a $s$-node receives an \emph{abcast} bundle $mb$, it knows that all other $s$-nodes have received, or will receive, $mb$ in the same order.  Therefore, when $mb$ is processed by an $s$-node, it is guaranteed that all other $s$-nodes will have processed $mb$ in the exact same order, hence we know that the transaction history will be consistent across all $s$-nodes.  
 		
-		In addition to  the actual transaction, a multicast response $Rsp(Tx_i)$ consists of two types of ordering data: $ts$ agreed by $s$-nodes for $req(Tx_i)$, and $req(Tx_i)$'s \emph{immediate} predecessor data.  The latter is the identity of $Rsp(Tx_j)$ whose delivery at the specified $c$-node must \emph{precede} \emph{immediately} before delivery of $Rsp(Tx_i)$.  More precisely, all $d \in Rsp(Tx_i).dst$ must not deliver $Rsp(Tx_i)$ until they have delivered $Rsp(Tx_j)$, and only $Rsp(Tx_i)$ can be delivered immediately after $Rsp(Tx_j)$.
-		
-		The storage of \emph{immediate} predecessor data works as follows: All $s$-nodes maintain a map that stores a transaction history by mapping a $c$-node address with the id of the last transaction they were associated with, hence its \emph{immediate} predecessor.  So for each $req(Tx)$ the associated $req(Tx).ts$ is stored in the map for each $d \in Tx.dst$. When a $s$-node receives an \emph{abcast} bundle $mb$, it knows that all other $s$-nodes have received, or will receive, $mb$ in the same order.  Therefore, when $mb$ is processed by an $s$-node, it is guaranteed that all other $s$-nodes will have processed $mb$ in the exact same order, hence we know that the transaction history will be consistent across all $s$-nodes.  
-		
-		Note that the immediate predecessor of $Rsp(Tx_i)$ is applicable to \emph{all} \emph{amcast}s directed at a given $d$ - not just those that originate from $Tx_i.c$ nor just those that are handled by one $s$-node. Thus, it is specific to each $d \in Tx_i.dst$ and ensures that delivery at every $d$ is per the finalized $Rsp(Tx).ts$. To illustrate this, let $Tx_i.c$ send $req(Tx_i)$ to the \emph{multicast service}, with $N_s$'s \emph{abcast} copy being accepted , $Tx_j.c$ then sends $req(Tx_j)$ and $N_{s'}$'s copy is accepted by the service.  Assume $d \in Tx_i.dst \cap Tx_j.dst$ and the \emph{multicast service} orders $req(Tx_j)$ before $req(Tx_i)$, if $d$ receives $Rsp(Tx_i)$ before $Rsp(Tx_j)$ it will not deliver $Rsp(Tx_i)$ until it has delivered $Rsp(Tx_j)$.
-    
-    \item[5. Receive Multicast - Client] \hfill \\
-    Upon receiving $Rsp(Tx_i)$, a $c$-node, $c$, will check the \emph{immediate} predecessor data that is applicable to $c$, in this case $Rsp(Tx_j)$.  If $Rsp(Tx_j)$ has been received by $c$ then $Rsp(Tx_i)$ can be delivered by $c$ and the $prepare(Tx_i)$ operation is executed.  However, if $Rsp(Tx_j)$ has not yet been received by $c$ then $Rsp(Tx_i)$ cannot be delivered locally, and $c$ must wait to receive $Rsp(Tx_j)$ before delivering $Rsp(Tx_i)$.  
-    
-    A single $ts$ is provided for each $d \in Tx.dst$ in the predecessor data, opposed to a list of past timestamps for each $d$, in order to reduce the size of each $Rsp(Tx)$.  This results in a cascading wait occurring if multiple messages have not yet been received by $c$.  For example, if $c$ has received $Rsp(Tx_i)$ but has not received its predecessors $Rsp(Tx_j)$ and $Rsp(Tx_k)$, $c$ is only aware of $m.j$, however when $Rsp(Tx_j)$ arrives, it reads $Rsp(Tx_j)$'s predecessor data and becomes aware that it has not yet received $Rsp(Tx_k)$ and must therefore wait for $Rsp(Tx_k)$ before delivering $Rsp(Tx_j)$ and $Rsp(Tx_i)$.  
-    
-   	\end{description}
+		Note that the immediate predecessor of $Tx_i$ is applicable to \emph{all} \emph{amcast}s directed at a given $d$ - not just those that originate from $Tx_i.c$ nor just those that are handled by one $s$-node. Thus, it is specific to each $d \in Tx_i.dst$ and ensures that delivery at every $d$ is per the finalized $Tx.ts$.  To illustrate this, let $Tx_i.c$ submit $req(Tx_i)$ to $N_s$, $Tx_j.c$ submit $req(Tx_j)$ to $N_{s'}$ and $d \in Tx_i.dst \cap Tx_j.dst$. Say, the multicast service places $req(Tx_j)$ before $req(Tx_i)$ in the total order, if $d$ receives $Tx_i$ before $Tx_j$, it cannot deliver $Tx_i$ until it delivers $Tx_j$.
+    \end{description}
 
 	\subsection{Fault-Tolerance}\label{ssec:scast_fault_tolerance}
 	Fault-tolerance in \textsf{SCast} must consider the consequences of both crashed $c$-nodes and $s$-nodes.  Here we explore the consequences of both $c$-node and $s$-node crashes during various stages of a \textsf{SCast} \emph{amcast}.  For the sake of simplicity, we only consider node crashes from the perspective of a single transaction, however it is worth noting that each $c$-node would typically have multiple transactions executing concurrently.  
 	
-	\paragraph{Client Node Crash}
+    \subsection*{Client Node Crash}
 	\begin{description}
          \item[\emph{Local Tx Execution}]  \hfill \\
-         If a $c$-node, $Tx.c$, crashes during or directly after the local execution of $Tx_j$, then no action needs to be taken for this $Tx$, as no interactions with other nodes has occurred.  
+         If a $c$-node, $Tx.c$, crashes during or directly after the local execution of a transaction, $Tx_i$, then no action needs to be taken fas no interactions with other nodes has occurred.  
 		
-	    \item[\emph{Phase 1}]  \hfill \\
-	    If $Tx.c$ crashes during the unicasting of a request to the \emph{multicast service}, then three scenarios are possible: 
+		\item[\emph{Stage 1}]  \hfill \\
+		If $Tx.c$ crashes during the creation of a backup coordinator then two scenarios are possible:
 		    \begin{itemize}
-			    \item    No $s$-nodes receive the request, in which case the multicast will never complete and no further actions are required.
-			    \item    Not all of the $s$-nodes receive the original request, in which case the nodes who do receive the request will execute as normal.  All $s$-nodes will eventually receive details of the transaction, as the other $s$-nodes \emph{abcast} their copy of the request between service members, and the transaction will be multicast as normal.  
-			    \item    Only one $s$-node receives a copy of the request and that $s$-node also crashes, in which case no further action is required as no other $s$-node is aware of the request.  
-		    \end{itemize}        	
-		
-	    \item[\emph{Phase 2-5}]  \hfill \\
-	    Finally, its possible for $Tx.c$ or any other $d \in Tx.dst$ to crash after the \emph{multicast service} has received the original request, in which case the service will continue to process the request as normal and multicast the message to all of the operative destinations.  
+			    \item    The backup coordinator never receives the $prepare(Tx_i)$ message, in which case the transaction  can only be aborted as its contents have been lost.  
+			    \item    The backup coordinator successfully receives the $prepare(Tx_i)$ message and attempts to ack the original coordinator.  In which case the original coordinator will never receive the ack, and the backup coordinator will restart the multicasting process. 
+		    \end{itemize}     
+		    
+		\item[\emph{Stage 2}]  \hfill \\
+        If $Tx.c$ crashes before, or during, the sending of a request to the multicast service, then the backup coordinator will simply restart the multicast process when the group membership service recognises that $Tx.c$ has crashed.  It is possible that the $s$-node that the request was sent to will still see receive the request, in which case the request will be processed as normal by the $s$-node.  This means that when the backup coordinator sends a new multicast request to the service, the service will accept the original request from $Tx.c$.  Therefore if a $s$-node receives a request that is from a backup coordinator, not the original $Tx.c$, the $s$-node will record the address of the backup coordinator locally and send a response to the backup coordinator when the original request arrives via \emph{abcast}.  Of course it is possible that the original request was never received, in which case the $s$-node that received the request from the backup coordinator will simply send a response message when the backup coordinators request has been delivered via \emph{abcast}.  
+        
+        \item[\emph{Stage 3}]  \hfill \\
+        If $Tx.c$ crashes before receiving a response from the multicast service, then the backup coordinator will take over and restart the process.  When the backup coordinators request is received from the service, the service checks its recent history of processed requests and simply returns the ordering data for the requested transaction to the backup coordinator.  The size of the recent history stored by the service should be configurable, however as the size of the past history increases the chances of a prior transaction ordering being discarded decreases, therefore a larger record is advantageous for fault-tolerance.  
+        
+        \item[\emph{Stage 4}]  \hfill \\
+        If $Tx.c$ crashes before the multicasting of $mcast(Tx_i)$ to all $d \in Tx.dst$ has finished, then two scenarios are possible:
+           \begin{itemize}
+			    \item    The backup coordinator has received $mcast(Tx_i)$ from $Tx.c$, in which case the backup coordinator can simply restart the multicasting process (Stage 4).
+			    \item    The backup coordinator has not received $mcast(Tx_i)$ from $Tx.c$, in which case the protocol must be restarted.  
+		    \end{itemize}  
     \end{description}
     
-	\paragraph{Service Node Crash}
+	\subsection*{Service Node Crash}
 	\begin{description}
-       \item[\emph{Phase 1}] \hfill \\
-       If a $s$-node crashes while a $Tx.c$ is issuing a service request, then the \emph{amcast} can still succeed as the client request is unicast to all $s$-nodes, therefore one of the remaining $s$-nodes will handle the request.  
-	
-       \item[\emph{Phase 2-3}] \hfill \\
-       If a $s$-node crashes after receiving a request $req(Tx_i)$, then another $s$-node will eventually receive $req(Tx_i)$, as $Tx.c$ unicasts the request to all $s$-nodes.  
-    
-        \item[\emph{Phase 4}] \hfill \\
-	    Its possible for a $s$-node, $N_s$, to crash just after it has been designated as the multicasting $s$-node for $Rsp(Tx_i)$.  In which case, it is necessary for the remaining $s$-nodes to take responsibility for multicasting $Rsp(Tx_i)$ to ensure that all $Tx_i.dst$ receive the transaction.  
-	    
-	    The remaining $s$-nodes can determine which requests still require multicasting if meta data is piggybacked onto each \emph{abcast} sent between $s$-nodes.  For example, if each operative $s$-node: 
-	    \begin{enumerate}
-	    \item    Piggybacks the timestamp of the latest request it has successfully responded to; where success is defined as the $Rsp$ message being multicast to all destinations.
-	    \item    Maintains a recent history of client requests that have been accepted; storing the transaction as well as the address of the $s$-node whose \emph{abcast} request was accepted by the service.  
-	    \end{enumerate}. 
-	    
-	    When an $s$-node crash is detected the remaining $s$-nodes iterate through their recent history of client requests, starting at the timestamp of the last confirmed multicast to be completed by the crashed $s-$node.  Each subsequent client request that was the responsibility of the crashed $s$-node to respond to, which has not been completed, is then handled by the operative $s$-node.  This will potentially cause multiple $s$-nodes to multicast the same $Rsp(Tx_i)$ message, however $c$-nodes can simply discard any duplicate transmissions that are received from the \emph{multicast service}.  
-	    
-	    \item[\emph{Stage 5}] \hfill \\
-	    A $s$-node crash at this stage of the protocol has no effect on the outcome of the \emph{amcast}, as the $Rsp$ message has already been multicast to all destinations.  
+       \item[\emph{Stage 1-3}] \hfill \\
+       If a $s$-node crashes while a $Tx.c$ is issuing a service request, then the request will simply timeout and the $Tx.c$ will resend the request to another $s$-node.  Its possible that the request was \emph{abcast} to other $s$-nodes before the crash, in which case the other $s$-nodes will process the request and simply return the established ordering for a transaction when subsequent requests are received from the transaction coordinator.  
     \end{description}
 
 \section{Experimentation}
