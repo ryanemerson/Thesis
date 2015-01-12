@@ -18,14 +18,14 @@
 % `oneside' or `twoside'(default): Printing double side (twoside) or single
 % side.
 %
-% `print': Use `print' for print version with appropriate margins and page
+% `print': Use `print' for prinhe t version with appropriate margins and page
 % layout. Leaving the options field blank will activate Online version.
 %
 % `index': For index at the end of the thesis
 %
 % `draft': For draft mode without loading any images (same as draft in book)
 %
-% `abstract': To generate only the title page and abstract page with
+% `abstract': To generate only the title page and abstract page withmph
 % dissertation title and name, to submit to the Student Registry
 %
 % `chapter`: This option enables only the specified chapter and it's references
@@ -98,7 +98,13 @@
 % To use choose `chapter' option in the document class
 
 \ifdefineChapter
- \includeonly{Chapter4-Aramis/chapter4} 
+%\includeonly{Chapter1-Introduction/chapter1}
+%\includeonly{Chapter2-Background/chapter2}
+%\includeonly{Chapter3-TxService/chapter3}
+%\includeonly{Chapter4-ABcast/chapter4}
+%\includeonly{Chapter5-FlowControl/chapter5}
+%\includeonly{Chapter6-Results/chapter6}
+%\includeonly{Chapter7-Conclusions/chapter7}
 \fi
 
 % ******************************** Front Matter ********************************
@@ -135,9 +141,9 @@
 \include{Chapter1-Introduction/chapter1}
 \include{Chapter2-Background/chapter2}
 \include{Chapter3-TxService/chapter3}
-\include{Chapter4-Aramis/chapter4}
-\include{Chapter5-ABcast/chapter5}
-\include{Chapter6-FlowControl/chapter6}
+\include{Chapter4-ABcast/chapter4}
+\include{Chapter5-FlowControl/chapter5}
+\include{Chapter6-Results/chapter6}
 \include{Chapter7-Conclusions/chapter7}
 
 % ********************************** Back Matter *******************************

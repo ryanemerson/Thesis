@@ -1,7 +1,7 @@
-\chapter{Aramis}
+\chapter{ABcast}
 
 % **************************** Define Graphics Path **************************
-    \graphicspath{{Chapter4-Aramis/Figs/Vector/}{Chapter4-Aramis/Figs/}}
+    \graphicspath{{Chapter4-ABcast/Figs/Vector/}{Chapter4-ABcast/Figs/}}
 
 This chapter introduces a non-blocking \emph{abcast} protocol, called \textsf{Aramis}, that utilises probabilistic guarantees on message ordering and delivery in order to prevent blocking when node failures occur.  This protocol was designed for use within the \textsf{AmaaS} service, however the protocol could also be utilised in other environments where non-blocking \emph{abcast}s are required between a small number of nodes.  
 
@@ -62,15 +62,25 @@ In this section we detail the individual components required by the \textsf{Aram
 	\subsection{Flow Control}\label{ssec:fcc}
 	
 \section{Atomic Broadcast Protocol}
-	\subsection{Delivery Delay}
-		% Maths and the rational for their calculation. 
-	\subsection{Rejected Messages}
-		% Messages rejected if a later message has already been delivered.
-		% Issue a warning, or throw exception.
+
+    \subsection{Aramis}
+    
+	    \subsubsection{Delivery Conditions}    
+	    
+		\subsubsection{Delivery Delay}
+			% Maths and the rational for their calculation. 
+		\subsubsection{Rejected Messages}
+			% Messages rejected if a later message has already been delivered.
+			% Issue a warning, or throw exception.
+		
+		% Base delivery conditions
+	\subsection{Base}
+	% Vector clocks
+	% Missing sequences
+	% Delivery conditions - All acks sent and received
 	
-\section{Performance Evaluation}
-	% Ran in the emulated transactions environment, very slow performance - due to large upper bound on delivery delays.
-	% Not suitable for use as a standalone abcast protocol.
-	% However, no rejections occurred - assumptions held.
-	
+	\subsection{Optimisations}
+	% Rho > )
+	% Acks piggybacked on subsequent messages
+		
 \section{Summary}
