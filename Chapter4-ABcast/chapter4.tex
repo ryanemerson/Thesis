@@ -62,17 +62,17 @@ In this section we have described the inspiration and rational behind the \texts
     	A consequence of this assumption, is that \textsf{ABcast} can only be utilised in data centres and cluster-based environments.  It is not suitable for use over the Internet, or similar networks that are susceptible to large fluctuations in network delays over a short period of time.  This is because frequent fluctuations in network delays would consistently undermine the assumptions of PSM.  
 	\end{description}
 	
-\section{Aramis Components}
-In this section we detail the individual components required by the \textsf{Aramis} protocol.  For each component, we explain its purpose and design; with important implementation details highlighted where appropriate.  
+\section{ABcast Components}
+In this section we detail the individual components required by the \textsf{ABcast} protocol.  For each component, we explain its purpose and design; with important implementation details highlighted where appropriate.  
 
     \begin{figure}[!h] 
         \centering    
-         \includegraphics[width=0.8\textwidth]{components}
-         \caption[Aramis Protocol Components Overview]{Aramis Protocol Components}
-         \label{fig:aramis_components}
+         \includegraphics[width=0.8\textwidth]{components_no_fcc}
+         \caption[\textsf{ABcast} Protocol Components Overview]{\textsf{ABcast} Protocol Components}
+         \label{fig:abcast_components}
     \end{figure}
     
-   Figure \ref{fig:aramis_components} provides an overview of all of the components required by the \textsf{Aramis} protocol; where FCC is a Flow-Control Component (\ref{ssec:fcc}), GM is the Group Membership service provided by JGroups, DMC is the Delay Measurement Component (\ref{ssec:dmc}) and \emph{rmcast} is the Reliable Multicast Component (\ref{ssec:rmcast}).  
+   Figure \ref{fig:abcast_components} provides an overview of all of the components required by the \textsf{ABcast} protocol; where GM is the Group Membership service provided by JGroups, DMC is the Delay Measurement Component (\ref{ssec:dmc}) and \emph{rmcast} is the Reliable Multicast Component (\ref{ssec:rmcast}).  
 
 	\subsection{Delay Measurement Component}\label{ssec:dmc}
 	    \paragraph{NMC Validation}\label{a4_validation}\hspace{0pt} \\
