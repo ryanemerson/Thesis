@@ -37,24 +37,29 @@ In this section we have described the inspiration and rational behind the \texts
 	This section first defines the four key assumptions made when designing the \textsf{Aramis} protocol.  Before exploring each assumption in detail, explaining the rational behind each assumption as well as exploring the technologies required to ensure each assumption held.  
 
 	\paragraph{Assumptions:}\hspace{0pt} \\
-	\begin{description}
-	
+	\begin{description}	
 	% ******** Is this the case? Why?
-		\item [\textbf{A1 - Fault Tolerance}] At most ($n-1$) of $n$ nodes involved in a multicast can crash. However, 2 or more nodes cannot crash within an interval of some finite duration $D$ that is smaller than a few seconds.
+		\item [\textbf{A1 - Fault Tolerance}] \hfill \\
+		At most ($n-1$) of $n$ nodes involved in a multicast can crash. However, 2 or more nodes cannot crash within an interval of some finite duration $D$ that is smaller than a few seconds.
 		
-		\item [\textbf{A2 - Reliable Communication}] When an operative node multicast $m$ to all $m.dst$, all operative destinations $d \in m.dst$ will eventually receive $m$.
+		\item [\textbf{A2 - Reliable Communication}] \hfill \\
+		When an operative node multicast $m$ to all $m.dst$, all operative destinations $d \in m.dst$ will eventually receive $m$.
 		
 		All of the protocols presented in this thesis are implemented in Java using the JGroups \citep{JGroups} network framework.  JGroups provides a reliable UDP layer which guarantees that all UDP messages, sent by a protocol higher in the network stack, arrive at their destinations when node crashes do not occur.  This reliable UDP layer is placed below \textsf{Aramis} in the network stack to ensure that when messages are multicast they are received by all destinations; where a multicast consists of $m$ being unicast via UDP to each of its intended recipients.  
 		
-		When crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable multicast, \emph{rmcast}, protocol is required to ensure \textbf{A2}.  The \emph{rmcast} protocol we utilise is based upon (INSERT REF), and is explored in detail in $\S$ \ref{ssec:rmcast}.  
+		When crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable multicast, \emph{rmcast}, protocol is required to ensure \textbf{A2}.  The \emph{rmcast} protocol we use is explored in detail in $\S$ \ref{ssec:rmcast}.  
 		
-		\item [\textbf{A3 - Synchronised Clocks}] At any moment, clocks of any two operative nodes are synchronised with a maximum error rate of $\epsilon$ with probability $\mathcal{P}_\epsilon \geq (1- 10^{-5}$).
+		\item [\textbf{A3 - Synchronised Clocks}] \hfill \\
+		At any moment, clocks of any two operative nodes are synchronised with a maximum error rate of $\epsilon$ with probability $\mathcal{P}_\epsilon \geq (1- 10^{-5}$).
 
         We meet \textbf{A3} by implementing the well known clock synchronisation algorithm \citep{Cristian:1996:SA:227210.227231}.  The details of our implementation and the parameters used are explored in $\S$ \ref{ssec:clocksynch}.
 		
-		\item [\textbf{A4 - Probabilistically Synchronous}] Let random variable $x$ denote the message communication delay between any pair of operative nodes. The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions in the recent past, is \emph{not} exceeded during $NT_F$, where $NT_F \leq NT_P$, number of future transmissions to unfold next, with a high probability ($1-q$).
+		\item [\textbf{A4 - Probabilistically Synchronous}] \hfill \\
+		Let random variable $x$ denote the message communication delay between any pair of operative nodes. The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions in the recent past, is \emph{not} exceeded during $NT_F$, where $NT_F \leq NT_P$, number of future transmissions to unfold next, with a high probability ($1-q$).
 		
-    	\textbf{A4} is motivated by previous research conducted by Ezhilchelvan \emph{et al.} \citep{Ezhilchelvan:2010:LPR:1773912.1773927}, which proposes that the challenges of designing asynchronous distributed systems, namely the FLP impossibility, can be avoided by assuming that the underlying network communication is synchronous to a given probability.  This assumption is a foundation of the \textsf{Aramis} protocol and its ability to provide non-blocking \emph{abcast}, as the variable $x$ is utilised by the \textsf{Aramis} protocol to place an upper bound on the delivery delay of each \emph{abcast} message.  The measurement of $x$, and experiments used to validate \textbf{A4}, are presented in $\S$ \ref{ssec:dmc}.  	
+    	\textbf{A4} is motivated by previous research conducted by Ezhilchelvan \emph{et al.} \citep{Ezhilchelvan:2010:LPR:1773912.1773927} into PSM, which proposes that the challenges of designing asynchronous distributed systems, namely the FLP impossibility, can be avoided by assuming that the underlying network communication is synchronous to a given probability.  This assumption is a foundation of the \textsf{ABcast} protocol and its ability to provide non-blocking \emph{abcast}, as the variable $x$ is utilised by the \textsf{Aramis} protocol to place an upper bound on the delivery delay of each \emph{abcast} message.  The measurement of $x$, and experiments used to validate \textbf{A4}, are presented in $\S$ \ref{ssec:dmc}.  	
+    	
+    	A consequence of this assumption, is that \textsf{ABcast} can only be utilised in data centres and cluster-based environments.  It is not suitable for use over the Internet, or similar networks that are susceptible to large fluctuations in network delays over a short period of time.  This is because frequent fluctuations in network delays would consistently undermine the assumptions of PSM.  
 	\end{description}
 	
 \section{Aramis Components}
