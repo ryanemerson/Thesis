@@ -24,7 +24,7 @@ First we introduce the rational behind utilising a Hybrid protocol and our desig
     
     The \textsf{Aramis} protocol was developed to be risk adverse, with all probabilistic calculations designed pessimistically in order to ensure that the delivery delay is rarely exceeded by an \emph{abcast} message.  Furthermore, the delivery delay must always assume the worst case scenario will happen when the protocol is executing (e.g. the originator node crashing during broadcast) to ensure that such situations are catered for.  A consequence of this pessimism, is that the \emph{broadcast-to-delivery} latency of a \emph{abcast} message can be very large, typically 100-1000ms.  These large latencies are not appropriate for use in many systems, and especially not the \textsf{AmaaS} model, therefore the \textsf{Aramis} protocol alone is not sufficient for providing the low-latency, non-blocking \emph{abcast} messages required by \textsf{AmaaS}.  
     
-    To counteract the large-latencies associated with the \textsf{Aramis} protocol, we decided that it was necessary for a second \emph{abcast} protocol, \textsf{Base}, to be utilised alongside \textsf{Aramis}.  The \textsf{Base} protocol is a GM based deterministic protocol, similar to NewTop\citep{Ezhilchelvan:1995:NFG:876885.880005}, that provides low-latency high throughput \emph{abcast}s at the expense of blocking when node failures occur. The protocol is acknowledgement based and consists of two phases: First the message's originator, $m.o$ broadcasts $m$ to all $d \in m.dst$; Secondly, all $d' \in m.dst - \{m.o\}$ send an acknowledgement, $ack(_{d'})$  to each $d \in m.dst$ whom upon receiving all of the acks can deliver $m$.  If a single $d \in m.dst$ crashes during the \emph{abcast},  then it is possible that some of the required acks will never arrive at all destinations, in which case message delivery is blocked until the GM service detects the crash and appropriate action is taken by the protocol.  
+    To counteract the large delivery latencies associated with the \textsf{Aramis} protocol, we decided that it was necessary for a second \emph{abcast} protocol, \textsf{Base}, to be utilised alongside \textsf{Aramis}.  The \textsf{Base} protocol is a GM based deterministic protocol, similar to NewTop\citep{Ezhilchelvan:1995:NFG:876885.880005}, that provides low-latency high throughput \emph{abcast}s at the expense of blocking when node failures occur. The protocol is acknowledgement based and consists of two phases: First the message's originator, $m.o$ broadcasts $m$ to all $d \in m.dst$; Secondly, all $d' \in m.dst - \{m.o\}$ send an acknowledgement, $ack(_{d'})$  to each $d \in m.dst$ whom upon receiving all of the acks can deliver $m$.  If a single $d \in m.dst$ crashes during the \emph{abcast},  then it is possible that some of the required acks will never arrive at all destinations, in which case message delivery is blocked until the GM service detects the crash and appropriate action is taken by the protocol.  
     
     In order to hone the advantages of both protocols it was necessary to create the hybrid protocol \textsf{ABcast}.  This protocol is created by utilising the delivery conditions of the \textsf{Base} protocol when no node failures are present, and utilising those of \textsf{Aramis} when a broadcast message has not been delivered by \textsf{Base} after $\Delta_m$ has expired.  This approach provides the application with the low-latency of \textsf{Base} for the majority of message deliveries, whilst ensuring that a message will not wait on a acknowledgement for more than $\Delta_m$.  In the event of a node failure the \textsf{Base} protocol does not have to wait for the GM service to detect a crash before message delivery becomes unblocked.  Instead, messages will be delivered by \textsf{Aramis} after $\Delta_m$ expires.  Therefore, when node failures are present the \textsf{ABcast} protocol will always allow for a greater throughput of delivered messages than a traditional GM based protocol, as long as $\Delta_m$ remains smaller than the time it takes the GM to detect a node failure.  In the worse case, if the GM delay is smaller than $\Delta_m$, than the \textsf{Base} protocol can simply unblock its message buffer and continue to delivery messages without the use of \textsf{Aramis}.  Finally, in normal working conditions, the \textsf{ABcast} protocol should have similar performance to a traditional GM based protocol as, in the majority of cases, \textsf{Aramis} is not used for message delivery.  
 
@@ -40,19 +40,17 @@ In this section we have described the inspiration and rational behind the \texts
 	\begin{description}	
 	% ******** Is this the case? Why?
 		\item [\textbf{A1 - Fault Tolerance}] \hfill \\
-		At most ($n-1$) of $n$ nodes involved in a multicast can crash. However, 2 or more nodes cannot crash within an interval of some finite duration $D$ that is smaller than a few seconds.
+		At most ($n-1$) of $n$ nodes involved in a broadcast can crash. However, 2 or more nodes cannot crash within an interval of some finite duration $D$ that is smaller than a few seconds.
 		
 		\item [\textbf{A2 - Reliable Communication}] \hfill \\
-		When an operative node multicast $m$ to all $m.dst$, all operative destinations $d \in m.dst$ will eventually receive $m$.
+		When an operative node broadcasts $m$ to all $m.dst$, all operative destinations $d \in m.dst$ will eventually receive $m$.  
 		
-		All of the protocols presented in this thesis are implemented in Java using the JGroups \citep{JGroups} network framework.  JGroups provides a reliable UDP layer which guarantees that all UDP messages, sent by a protocol higher in the network stack, arrive at their destinations when node crashes do not occur.  This reliable UDP layer is placed below \textsf{Aramis} in the network stack to ensure that when messages are multicast they are received by all destinations; where a multicast consists of $m$ being unicast via UDP to each of its intended recipients.  
-		
-		When crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable multicast, \emph{rmcast}, protocol is required to ensure \textbf{A2}.  The \emph{rmcast} protocol we use is explored in detail in $\S$ \ref{ssec:rmcast}.  
+		We use reliable UDP protocol to guarantee that all operative nodes receive $m$ in crash-free scenarios.  However, when crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable broadcast, \emph{rbcast}, protocol is required to ensure \textbf{A2}.  The UDP and \emph{rbcast} protocol we use are explored in detail in $\S$ \ref{ssec:reliable_udp} and $\S$ \ref{ssec:rbcast}, respectively.  
 		
 		\item [\textbf{A3 - Synchronised Clocks}] \hfill \\
-		At any moment, clocks of any two operative nodes are synchronised with a maximum error rate of $\epsilon$ with probability $\mathcal{P}_\epsilon \geq (1- 10^{-5}$).
-
-        We meet \textbf{A3} by implementing the well known clock synchronisation algorithm \citep{Cristian:1996:SA:227210.227231}.  The details of our implementation and the parameters used are explored in $\S$ \ref{ssec:clocksynch}.
+		At any moment, clocks of any two operative nodes participating in a \textsf{ABcast} are synchronised.  
+		
+		We meet \textbf{A3} by implementing the well known clock synchronisation algorithm \citep{Cristian:1996:SA:227210.227231}.  The details of our implementation and the parameters used are explored in $\S$ \ref{ssec:clocksynch}.
 		
 		\item [\textbf{A4 - Probabilistically Synchronous}] \hfill \\
 		Let random variable $x$ denote the message communication delay between any pair of operative nodes. The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions in the recent past, is \emph{not} exceeded during $NT_F$, where $NT_F \leq NT_P$, number of future transmissions to unfold next, with a high probability ($1-q$).
@@ -63,7 +61,7 @@ In this section we have described the inspiration and rational behind the \texts
 	\end{description}
 	
 \section{ABcast Components}
-In this section we detail the individual components required by the \textsf{ABcast} protocol.  For each component, we explain its purpose and design; with important implementation details highlighted where appropriate.  
+In this section we detail the individual components required by the \textsf{ABcast} protocol.  For each component, we explain its purpose and design; with important implementation details highlighted where appropriate.  All of the protocols presented in this thesis are implemented in Java using the JGroups \citep{JGroups} network framework.  
 
     \begin{figure}[!h] 
         \centering    
@@ -72,7 +70,21 @@ In this section we detail the individual components required by the \textsf{ABca
          \label{fig:abcast_components}
     \end{figure}
     
-   Figure \ref{fig:abcast_components} provides an overview of all of the components required by the \textsf{ABcast} protocol; where GM is the Group Membership service provided by JGroups, DMC is the Delay Measurement Component (\ref{ssec:dmc}) and \emph{rmcast} is the Reliable Multicast Component (\ref{ssec:rmcast}).  
+   Figure \ref{fig:abcast_components} provides an overview of all of the components required by the \textsf{ABcast} protocol; where GM is the Group Membership service provided by JGroups, DMC is the Delay Measurement Component (\ref{ssec:dmc}) and \emph{rmcast} is the Reliable broadcast Component (\ref{ssec:rmcast}).  
+
+	\subsection{Clock Synchronisation}\label{ssec:clocksynch}
+	In order to provide synchronised clocks between nodes executing \textsf{ABcast}, we implemented the probabilistic clock synchronisation algorithm presented in \citep{Cristian:1996:SA:227210.227231} as a dedicated protocol in JGroups.  
+			
+			At any moment, clocks of any two operative nodes are synchronised with a maximum error rate of $\epsilon$, with probability $\mathcal{P}_\epsilon \geq (1- 10^{-5}$). All of the experiments presented in this thesis utilise clock synchronisation with $\epsilon$ estimated as $1$ millisecond (ms).  A major consideration when estimating $\epsilon$ is the worst-case rate of clock drift between successive synchronisations. Ultimately, the longer the synchronisation interval, the larger the drift rate between clocks.  Estimation of $\epsilon = 1$ usually assumes an interval of $45$ minutes between synchronisations, however we use a shorter $15$ minute interval in order to increase $\mathcal{P}_\epsilon$.
+	
+	\subsection{Reliable UDP}\label{ssec:reliable_udp}
+	JGroups provides a reliable UDP protocol, \textsf{UNICAST3}, which guarantees that all UDP messages sent by a protocol higher in the network stack arrive at their destinations when node crashes do not occur.  This reliable UDP layer is placed below \textsf{ABcast} in the network stack to ensure that when messages are broadcast they are received by all destinations; where a broadcast consists of $m$ being unicast via UDP to each of its intended recipients.  
+	
+	As well as providing reliable UDP broadcasts, the \textsf{UNICAST3} provides \emph{node-to-node} ordering as default for each message sent.  This ordering means that if a node $N_i$ sends two consecutive unicast messages, $m_1$ followed by $m_2$, to $N_j$, then $N_j$ will not deliver $m_2$ until it has first delivered $m_1$.  This behaviour is not always appropriate, therefore \textsf{UNICAST3} allows for messages to be sent Out Of Band (OOB), which simply means that messages will be sent reliably but they will be delivered at a destination as soon as they are received, regardless of the messages that have (or have not) been delivered before it.  
+	
+	\subsection{Reliable Broadcast}\label{ssec:rbcast}
+	\subsection{JGroups Group Membership}\label{ssec:jgroups_gm}
+	JGroups provides a GM service, called GMS which simply stands for Group Membership Service.  Upon discovering that a new node has joined the group or a node failure has occurred, GMS issues a new view to all of the protocols in the JGroups stack.  It is then the responsibility of the individual protocols to take the appropriate action when a new view is issued.  
 
 	\subsection{Delay Measurement Component}\label{ssec:dmc}
 	    \paragraph{NMC Validation}\label{a4_validation}\hspace{0pt} \\
@@ -81,10 +93,6 @@ In this section we detail the individual components required by the \textsf{ABca
 				% Results
 				% Analysis
 	    
-	\subsection{Reliable Multicast}\label{ssec:rmcast}
-	\subsection{Clock Synchronisation}\label{ssec:clocksynch}
-	\subsection{Flow Control}\label{ssec:fcc}
-	
 \section{Atomic Broadcast Protocol}
 
     \subsection{Aramis}
