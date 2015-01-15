@@ -45,7 +45,7 @@ In this section we have described the inspiration and rational behind the \texts
 		\item [\textbf{A2 - Reliable Communication}] \hfill \\
 		When an operative node broadcasts $m$ to all $m.dst$, all operative destinations $d \in m.dst$ will eventually receive $m$.  
 		
-		We use reliable UDP protocol to guarantee that all operative nodes receive $m$ in crash-free scenarios.  However, when crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable broadcast, \emph{rbcast}, protocol is required to ensure \textbf{A2}.  The UDP and \emph{rbcast} protocol we use are explored in detail in $\S$ \ref{ssec:reliable_udp} and $\S$ \ref{ssec:rbcast}, respectively.  
+		We use reliable UDP protocol to guarantee that all operative nodes receive $m$ in crash-free scenarios.  However, when crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable broadcast, \emph{rbcast}, protocol is required to ensure \textbf{A2}.  The Reliable UDP and \emph{rbcast} protocol we use are explored in detail in $\S$ \ref{ssec:reliable_udp} and $\S$ \ref{ssec:rbcast}, respectively.  
 		
 		\item [\textbf{A3 - Synchronised Clocks}] \hfill \\
 		At any moment, clocks of any two operative nodes participating in a \textsf{ABcast} are synchronised.  
@@ -53,9 +53,9 @@ In this section we have described the inspiration and rational behind the \texts
 		We meet \textbf{A3} by implementing the well known clock synchronisation algorithm \citep{Cristian:1996:SA:227210.227231}.  The details of our implementation and the parameters used are explored in $\S$ \ref{ssec:clocksynch}.
 		
 		\item [\textbf{A4 - Probabilistically Synchronous}] \hfill \\
-		Let random variable $x$ denote the message communication delay between any pair of operative nodes. The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions in the recent past, is \emph{not} exceeded during $NT_F$, where $NT_F \leq NT_P$, number of future transmissions to unfold next, with a high probability ($1-q$).
+        Let random variable $x$ denote the message communication delay between any pair of operative nodes. The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions from the recent past, will \emph{not} be exceeded during $NT_F$ number of future transmissions that unfold next, where $NT_F \leq NT_P$ with a high probability ($1 - q$).
 		
-    	\textbf{A4} is motivated by previous research conducted by Ezhilchelvan \emph{et al.} \citep{Ezhilchelvan:2010:LPR:1773912.1773927} into PSM, which proposes that the challenges of designing asynchronous distributed systems, namely the FLP impossibility, can be avoided by assuming that the underlying network communication is synchronous to a given probability.  This assumption is a foundation of the \textsf{ABcast} protocol and its ability to provide non-blocking \emph{abcast}, as the variable $x$ is utilised by the \textsf{Aramis} protocol to place an upper bound on the delivery delay of each \emph{abcast} message.  The measurement of $x$, and experiments used to validate \textbf{A4}, are presented in $\S$ \ref{ssec:dmc}.  	
+    	\textbf{A4} is motivated by previous research conducted by Ezhilchelvan \emph{et al.} \citep{Ezhilchelvan:2010:LPR:1773912.1773927} into PSM, which proposes that the challenges of designing asynchronous distributed systems, namely the FLP impossibility, can be avoided by assuming that the underlying network communication is synchronous to a given probability.  This assumption is a foundation of the \textsf{ABcast} protocol and its ability to provide non-blocking \emph{abcast}, as the variable $x$ is utilised by the \textsf{Aramis} protocol to place an upper bound on the delivery delay of each \emph{abcast} message.  The measurement of $x$, $x_{mx}$ and $q$, as well as past experiments used to validate \textbf{A4}, are presented in $\S$ \ref{ssec:dmc}.  	
     	
     	A consequence of this assumption, is that \textsf{ABcast} can only be utilised in data centres and cluster-based environments.  It is not suitable for use over the Internet, or similar networks that are susceptible to large fluctuations in network delays over a short period of time.  This is because frequent fluctuations in network delays would consistently undermine the assumptions of PSM.  
 	\end{description}
@@ -97,9 +97,91 @@ In this section we detail the individual components required by the \textsf{ABca
     
     Note that if $N_i$ does not crash, or if it crashes and an operative $s$-node receives $m$, then $m$ is broadcast \emph{at least} ($\rho + 1$) times.  Conversely, if $N_i$ crashes during the initial broadcast of $m$, and no members of $m.dst - \{m.o\}$ receive a copy of $m$, then the broadcast has failed and $m$ is lost.  This is acceptable for \textsf{ABcast}, because if no $d \in m.dst - \{m.o\}$ receive $m$, then its not possible for an inconsistent total order of messages to occur between participants of an \emph{abcast}.  
     
-    The significance of $\eta, \omega$ and $\rho$ are discussed in detail in $\S$ \ref{ssec:dmc}.  
+    The significance of $\eta, \rho$ and $\omega$ are discussed in detail in $\S$ \ref{ssec:dmc}.  
+    
 	\subsection{Delay Measurement Component}\label{ssec:dmc}
-	    \paragraph{NMC Validation}\label{a4_validation}\hspace{0pt} \\
+        For the sake of clarity, assumption A4 is repeated below:	
+        
+        \begin{quotation}
+            The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions from the recent past, will \emph{not} be exceeded during $NT_F$ number of future transmissions that unfold next, where $NT_F \leq NT_P$ with a high probability ($1 - q$).
+        \end{quotation}
+	
+        The delay measurement component is responsible for monitoring and observing the network latency of $NT_P$ transmissions from the recent past.  This recent past of latencies is then used to calculate various parameters that are required by the \emph{rbcast} and \textsf{ABcast} protocols for executing \emph{abcasts} in the near future.  Being conservative, we use $NT_F = 10\%$ of $NT_P$ and $NT_P=1000$; so, a \textsf{ABcast} node freshly estimates $x_{mx}$ for every 100 new delays it observes.  Each fresh estimation of $x_{mx}$ results in the recalculation of the following parameters: $\eta, \rho, q$ and $\omega$.  The remainder of this section explores each of these parameters individually, explaining what they represent and how they are calculated.  
+        
+        \begin{description}
+        \item[\Huge$\boldsymbol{q}$] \hfill \\
+                The parameter $q$ is the estimated probability that a transmission delay observed in the near future will exceed $x_{mx}$.  We estimate $q$ by observing the ratio of observed delays from the recent past that exceed $95\%$ of the recorded $x_{mx}$; thus, when more delays are observed closer to $x_{mx}$, $q$ tends to be large.  Although unlikely, it is possible that $q$ can be calculated as $1$ if all latencies in the recent past are the same, to avoid this we set a maximum value for $q$, $ q \leq q_{mx}$.  $q_{mx}$ is calculated as: 
+
+        \begin{equation*}
+		     \begin{aligned}
+		          q_{mx} = \sqrt{1 - R^{(\frac{1}{n} - 1)}}
+		     \end{aligned}
+        \end{equation*}
+        
+        Where $R$ is a constant defined before run-time that specifies to what probability the system will be \emph{reliable}, as the system is probabilistic the following must be true $R < 1$.  Note that $q$ cannot be accurately estimated, as it relates to future delays.  Therefore, \textsf{ABcast} uses $q$ estimates in a manner that accounts for potential inaccuracies and only for estimating one other parameter - $\rho$.
+	
+	    \item[\Huge$\boldsymbol{\rho}$] \hfill \\
+	    $\rho$ is the parameter that determines the number of redundant broadcasts that are sent by the \emph{rbcast} protocol.  As \emph{rbcast} sends ($\rho + 1$) broadcasts, $rho = 1$ is sufficient for crash-tolerance, however we estimate it so that at least one copy of $m$ reaches all operative nodes other than $m.o$ within $x_{mx}$ delay and with a probability $> R$; more precisely, $\rho$ is estimated as the smallest integer that satisfies $\rho \geq 1$ and
+
+		\begin{equation*}
+		    \begin{aligned}
+		        (1-q^{\rho+1})^{n-1} > R
+		    \end{aligned}
+		\end{equation*}
+
+        which can be re-arranged as:
+
+        \begin{equation*}
+		    \begin{aligned}
+		        \rho > \frac{ln(1-R)}{ln(q)} -1 \qquad \mbox{\emph{where}} \qquad R=(R)^{\frac{1}{n-1}}
+		    \end{aligned}
+		\end{equation*}
+
+        The inequality assumes that $m$ is multicast exactly ($\rho +1$) times in a crash-free manner and all $n-1$  intended recipients are operative. Both assumptions lead to a \emph{conservative} estimate of $\rho$. Moreover, for a given $R$, an integer $I =0,1, \ldots$, satisfies: 
+
+        \begin{equation*}
+		    \begin{aligned}
+		        I < \frac{ln(1-R)}{ln(q)}-1 < I+1
+		    \end{aligned}
+		\end{equation*}
+		
+        for a wide range of $q$ values; e.g., for $R \approx 0.9999$:
+
+        \begin{equation*}
+		    \begin{aligned}
+                \frac{ln(1-R)}{ln(q)}-1 < 1 \quad \forall \quad q < 0.01 = 1\%
+		    \end{aligned}
+		\end{equation*}
+
+        Thus, small inaccuracies in estimating $q$ may not adversely affect $\rho$ estimates.
+
+        \item[\Huge$\boldsymbol{\eta}$] \hfill \\
+        $\eta$ is the parameter used by \emph{rbcast} to determine the amount of time to wait between each broadcast of a message copy and is calculated as the largest delay in $n - 1$ transmissions (of a given copy $m$) with probability $R$.  Assuming exponential distribution $n$ is calculated as follows:
+        
+		% \eta=-\bar{x}[ln(1-R^{\frac{1}{n-1}})]     
+		% \eta=-\bar{x}[ln(1-R)]  
+        \begin{equation*}
+		    \begin{aligned}
+		        \eta=-\bar{x}[ln(1-R^{\frac{1}{n-1}})]  
+		    \end{aligned}
+		\end{equation*}
+		
+Where $\bar{x}$ is the median of $NT_P$ observed delays.
+%Where $\bar{x}$ is the mean of $NT_P$ observed delays.    
+
+        \item[\Huge$\boldsymbol{\omega}$] \hfill \\
+        $\omega$ is the parameter utilised by \emph{rbcast} to approximate the PDV encountered by the network.  $\omega$ is simply calculated as:
+        
+        \begin{equation*}
+		    \begin{aligned}
+		        \omega = \eta - \bar{x}
+		    \end{aligned}
+		\end{equation*}        
+        
+        Again, $\bar{x}$ is the median of $NT_P$ observed delays.
+        \end{description}
+
+	    %\paragraph{NMC Validation}\label{a4_validation}\hspace{0pt} \\
             	%We conducted a series of experiments to test \textbf{A4}, which were executed on a local computer cluster.  These experiments consisting of a 
             	% Describe Experiment and execution environment
 				% Results
