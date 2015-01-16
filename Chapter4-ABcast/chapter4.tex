@@ -42,15 +42,15 @@ In this section we have described the inspiration and rational behind the \texts
 		\item [\textbf{A1 - Fault Tolerance}] \hfill \\
 		At most ($n-1$) of $n$ nodes involved in a broadcast can crash. However, 2 or more nodes cannot crash within an interval of some finite duration $D$ that is smaller than a few seconds.
 		
-		\item [\textbf{A2 - Reliable Communication}] \hfill \\
-		When an operative node broadcasts $m$ to all $m.dst$, all operative destinations $d \in m.dst$ will eventually receive $m$.  
-		
-		We use reliable UDP protocol to guarantee that all operative nodes receive $m$ in crash-free scenarios.  However, when crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable broadcast, \emph{rbcast}, protocol is required to ensure \textbf{A2}.  The Reliable UDP and \emph{rbcast} protocol we use are explored in detail in $\S$ \ref{ssec:reliable_udp} and $\S$ \ref{ssec:rbcast}, respectively.  
-		
-		\item [\textbf{A3 - Synchronised Clocks}] \hfill \\
+        \item [\textbf{A2 - Synchronised Clocks}] \hfill \\
 		At any moment, clocks of any two operative nodes participating in a \textsf{ABcast} are synchronised.  
 		
-		We meet \textbf{A3} by implementing the well known clock synchronisation algorithm \citep{Cristian:1996:SA:227210.227231}.  The details of our implementation and the parameters used are explored in $\S$ \ref{ssec:clocksynch}.
+		We meet \textbf{A2} by implementing the well known clock synchronisation algorithm \citep{Cristian:1996:SA:227210.227231}.  The details of our implementation and the parameters used are explored in $\S$ \ref{ssec:clocksynch}.		
+		
+		\item [\textbf{A3 - Reliable Communication}] \hfill \\
+		When an operative node broadcasts $m$ to all $m.dst$, all operative destinations $d \in m.dst$ will eventually receive $m$.  
+		
+		We use reliable UDP protocol to guarantee that all operative nodes receive $m$ in crash-free scenarios.  However, when crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable broadcast, \emph{rbcast}, protocol is required to ensure \textbf{A3}.  The Reliable UDP and \emph{rbcast} protocol we use are explored in detail in $\S$ \ref{ssec:reliable_udp} and $\S$ \ref{ssec:rbcast}, respectively.  
 		
 		\item [\textbf{A4 - Probabilistically Synchronous}] \hfill \\
         Let random variable $x$ denote the message communication delay between any pair of operative nodes. The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions from the recent past, will \emph{not} be exceeded during $NT_F$ number of future transmissions that unfold next, where $NT_F \leq NT_P$ with a high probability ($1 - q$).
@@ -88,7 +88,7 @@ In this section we detail the individual components required by the \textsf{ABca
 	As well as providing reliable UDP unicasts, the \textsf{UNICAST3} protocol provides \emph{node-to-node} ordering as default for each message sent.  This ordering means that if a node $N_i$ sends two consecutive unicast messages, $m_1$ followed by $m_2$, to $N_j$, then $N_j$ will not deliver $m_2$ until it has first delivered $m_1$.  This behaviour is not always appropriate, therefore \textsf{UNICAST3} allows for messages to be sent Out Of Band (OOB), which simply means that messages will be sent reliably but they will be delivered at a destination as soon as they are received, regardless of the messages that have (or have not) been delivered before it.  
 	
 	\subsection{Reliable Broadcast}\label{ssec:rbcast}
-    In the event of a node failure Reliable UDP alone is not sufficient to ensure that assumption A2 holds.  This is because its possible for a messages originator, $m.o$, to crash during the unicasting of $m$.  Assume that $m.dst = \{N_i, N_j, N_k\}$ and $m.o = N_i$, if $N_i$ crashes after unicasting $m$ to $N_j$ then $N_k$ will never receive $m$.  Similarly, if $N_i$ crashes during the unicasting of $m$ to $N_j$ it is possible that $N_i$ managed to send $m$ at least once, in which case it may eventually be received.  Both scenarios highlight that an additional protocol is required to ensure that all $m.dst$ receive $m$ in the event of node failures.  
+    In the event of a node failure Reliable UDP alone is not sufficient to ensure that assumption A3 holds.  This is because its possible for a messages originator, $m.o$, to crash during the unicasting of $m$.  Assume that $m.dst = \{N_i, N_j, N_k\}$ and $m.o = N_i$, if $N_i$ crashes after unicasting $m$ to $N_j$ then $N_k$ will never receive $m$.  Similarly, if $N_i$ crashes during the unicasting of $m$ to $N_j$ it is possible that $N_i$ managed to send $m$ at least once, in which case it may eventually be received.  Both scenarios highlight that an additional protocol is required to ensure that all $m.dst$ receive $m$ in the event of node failures.  
     
     To overcome the limitations of Reliable UDP we have implemented a Reliable Broadcast protocol, based upon the work by  Ezhilchelvan \emph{et al.} \citep{ezhilchelvan2011near}, that we call \emph{rbcast}, which utilises redundant broadcasts to ensure all destinations receive a broadcast.  \emph{Rbcast} has been designed specifically for use with PSM based protocols and consequently utilises some of the values from the DMC ($\S$ \ref{ssec:dmc}) as protocol parameters.  Utilising the values provided by DMC allows  \emph{rbcast} to place a probabilistic timeliness guarantee on each message that is reliable broadcast.  This means that, with a high probability, \emph{rbcast} can guarantee that an operative destination will receive a given $m$ within $D$ time, even if $m.o$ crashes during the initial broadcast of $m$.  The remainder of this section describes the basic \emph{rbcast} protocol, before describing how $D$ is calculated.
     
