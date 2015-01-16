@@ -101,6 +101,8 @@ In this section we detail the individual components required by the \textsf{ABca
     
     Note that if $N_i$ does not crash, or if it crashes and an operative $s$-node receives $m$, then $m$ is broadcast \emph{at least} ($\rho + 1$) times.  Conversely, if $N_i$ crashes during the initial broadcast of $m$, and no members of $m.dst - \{m.o\}$ receive a copy of $m$, then the broadcast has failed and $m$ is lost.  This is acceptable for \textsf{ABcast}, because if no $d \in m.dst - \{m.o\}$ receive $m$, then its not possible for an inconsistent total order of messages to occur between participants of an \emph{abcast}.  
     
+    It is worth noting that in our implementations of \emph{rbcast}, every broadcast where $m.copy = 0$ is treated differently to subsequent broadcasts of $m$.  Copy 0 of $m$ is broadcast to all destinations using the default settings of Reliable UDP, i.e. messages are delivered in order based upon the order they were sent from their source address.  This means that if node $N_i$ broadcasts $m$, followed by $m'$, it is not possible for any of the destinations to receive copy 0 of $m'$ before it has received $m$.  In normal conditions this is beneficial, as the latency values recorded by the DMC will take into account any backlog of messages that may have accumulated at the destination address.  However, if the transmission of $m$ is slow or becomes lost, than $m'$ cannot be delivered up the network stack to the \emph{rbcast} protocol until $m$ has been received.  This delay could undermine the timeliness guarantees $D$ calculated by the DMC, and ultimately lead to messages being rejected from the total order ($\S$ \ref{ssec:abcast_rejection}).  To overcome this issue all messages with $m.copy > 0$ are sent OOB, to ensure that they are delivered to the \emph{rbcast} protocol as soon as they are received by the destination node.  Therefore, if $m'.copy = 0$ has been received but not delivered to \emph{rbcast}, then $m'.copy = 1$ will be delivered as soon as it arrives, bypassing the backlog of messages.  
+    
     The significance of $\eta, \rho$ and $\omega$ are discussed in detail in $\S$ \ref{ssec:dmc}.  
     
 	\subsection{Delay Measurement Component}\label{ssec:dmc}
@@ -121,7 +123,7 @@ In this section we detail the individual components required by the \textsf{ABca
         \end{equation*}        
         
         It is necessary to add $2\epsilon$ to each latency to ensure that if $N_j.clockValue$ is behind $N_i.clockValue$ by the maximum error of $2\epsilon$, a positive latency value is still recorded; this assumes that neither $N_i$ or $N_j$ is the clock master, in which case it is not possible for the max clock difference to be $2\epsilon$, only $\epsilon$, however the \emph{rbcast} is independent of the clock synch algorithm used and so $2\epsilon$ is pessimistically added to all latencies.  
-                
+                                
         The remainder of this section explores each of the parameters provided by the DMC, explaining what they represent and how they are calculated.  
         
         \begin{description}
@@ -206,15 +208,15 @@ Where $\bar{x}$ is the median of $NT_P$ observed delays.
 				% Results
 				% Analysis
 	    
-\section{Atomic Broadcast Protocol}
+\section{Atomic Broadcast Protocol}\label{sec:ABcast}
 
     \subsection{Aramis}
     
-	    \subsubsection{Delivery Conditions}    
+	    \subsubsection{Delivery Conditions} 
 	    
 		\subsubsection{Delivery Delay}
 			% Maths and the rational for their calculation. 
-		\subsubsection{Rejected Messages}
+		\subsubsection{Rejected Messages}\label{ssec:abcast_rejection}
 			% Messages rejected if a later message has already been delivered.
 			% Issue a warning, or throw exception.
 		
