@@ -289,21 +289,30 @@ When $N_i$ \emph{rbcast}s $m$ at its clock time $ts$, if some operative $s$-node
 	    
 \section{Atomic Broadcast Protocol}\label{sec:ABcast}
 
-    \subsection{Aramis}
-    
-	    \subsubsection{Delivery Conditions} 
-	    
-		\subsubsection{Delivery Delay}
-			% Maths and the rational for their calculation. 
-		\subsubsection{Rejected Messages}\label{ssec:abcast_rejection}
-			% Messages rejected if a later message has already been delivered.
-			% Issue a warning, or throw exception.
-		
-		% Base delivery conditions
-	\subsection{Base}
+    \subsection{Base}
+    % Message rbcast
+    % Ack required by all d in m.dst, and sent to all d in m.dst
+    % Ack piggybacked on the back of future broadcast
+    % If not broadcast, sent after ackwait period of time (Explain rational)
 	% Vector clocks
 	% Missing sequences
 	% Delivery conditions - All acks sent and received
+
+    \subsection{Aramis}
+    
+	    \subsubsection{Delivery Conditions} 
+	    % Dm must have expired
+	    % All known preceeding messages must have been received
+	    % Ack must have been sent by this node for the message (unless originator)
+	    
+		\subsubsection{Delivery Delay}
+			% Maths and the rational for their calculation. 
+			% Delivery delay accounts for two independent rbcasts trips plus the ackwait period of time
+			
+		\subsubsection{Rejected Messages}\label{ssec:abcast_rejection}
+			% Messages rejected if a later message has already been delivered.
+			% Throw exception.
+		
 	
 	\subsection{Optimisations}
 	% Rho > )
