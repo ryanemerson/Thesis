@@ -261,7 +261,7 @@ By assumption \textbf{A1}, no other node can crash until at least $ts+D$. Thus, 
 		    \end{aligned}
 		\end{equation*}
 
-In the event that $n = 2$, only two scenarios are possible in the event of $N_i$ crashing during the original broadcast of $m$.  Either $m.copy = 0$ is never received by the other node $N_j$, in which case $m$ is lost forever; Or $m.copy \geq 0$ is received by $N_j$, in which case $N_j$ will continue to broadcast the remaining copies of $m$ for completeness, however no other node will receive $m$ as no operative nodes remain.  For both scenarios, the delivery delay is calculated as $D_1$ as dissemination is not possible.  
+In the event that $n = 2$, only two scenarios are possible in the event of $N_i$ crashing during the original broadcast of $m$.  Either $m.copy = 0$ is never received by the other node $N_j$, in which case $m$ is lost forever; Or $m.copy \geq 0$ is received by $N_j$, in which case $N_j$ will continue to broadcast the remaining copies of $m$ for completeness, however no other node will receive $m$ as no operative nodes remain.  For both scenarios, the delivery delay is calculated as $D_1$ as dissemination is not possible, therefore the probability that all operative nodes receive m at or before time $ts+D_1$ is $(1-Q_1)$.  
 
 To put the two cases together, $n > 2$ and $n = 2$, let boolean $\beta = 1$ if $n>2$ and $0$ if $n=2$; further, let: 
 
@@ -279,7 +279,7 @@ When $N_i$ \emph{rbcast}s $m$ at its clock time $ts$, if some operative $s$-node
 		    \end{aligned}
 		\end{equation*}
         
-        
+
         
 	    %\paragraph{NMC Validation}\label{a4_validation}\hspace{0pt} \\
             	%We conducted a series of experiments to test \textbf{A4}, which were executed on a local computer cluster.  These experiments consisting of a 
