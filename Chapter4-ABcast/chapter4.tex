@@ -36,7 +36,7 @@ In this section we have described the inspiration and rational behind the \texts
 \section{Assumptions}
 	This section first defines the four key assumptions made when designing the \textsf{Aramis} protocol.  Before exploring each assumption in detail, explaining the rational behind each assumption as well as exploring the technologies required to ensure each assumption held.  
 
-	\paragraph{Assumptions:}\hspace{0pt} \\
+    \subsection*{Assumptions:}	
 	\begin{description}	
 	% ******** Is this the case? Why?
 		\item [\textbf{A1 - Fault Tolerance}] \hfill \\
@@ -315,7 +315,7 @@ Hitherto this section has focused on the underlying assumptions made when design
     Note, this optimisation has \textbf{not} been utilised in our implementation of the \textsf{ABcast} protocol.  Also this optimisation is not possible if a message has been delivered locally by the \textsf{Aramis} protocol as it is impossible to know for certain that all $d' \in m.dst$ have received $m$.  
 
     \subsection{Aramis}
-    As previously stated,  \textsf{Aramis} is a non-blocking probabilistic \emph{abcast} protocol that utilises a calculated delivery delay $\Delta_m$ to place an upper bound on message deliveries.  The \textsf{Aramis} protocol works in conjunction with \textsf{Base} to ensure that message delivery does not become blocked in the event of slow or crashed nodes.  However, the \textsf{Aramis} protocol does not simply deliver each received message after $\Delta_m$ has expired, as this could cause a \emph{known} message to be missed in the total order.  Instead, it utilises the acknowledgements and \emph{vector clocks} that are integral to \textsf{Base} to ensure that no \emph{known} messages are missed from the total order.  Therefore, if a message $m$'s $\Delta_m$ delay expires, the message can only be delivered if all \emph{known} messages that precede $m$ in the total order have been delivered.  The \textsf{Aramis} delivery conditions are formalised below:
+    As previously stated,  \textsf{Aramis} is a non-blocking probabilistic \emph{abcast} protocol that utilises a calculated delivery delay $\Delta_m$ to place an upper bound on message deliveries.  The \textsf{Aramis} protocol works in conjunction with \textsf{Base} to ensure that message delivery does not become blocked in the event of slow or crashed nodes.  However, the \textsf{Aramis} protocol does not simply deliver each received message after $\Delta_m$ has expired, as this could cause a \emph{known} message to be missed in the total order.  Instead, it utilises the acknowledgements and \emph{vector clocks} that are integral to \textsf{Base} to ensure that \emph{known} messages are not missed from the total order.  Therefore, if a message $m$'s $\Delta_m$ delay expires, the message can only be delivered if all \emph{known} messages that precede $m$ in the total order have been delivered.  The \textsf{Aramis} delivery conditions are formalised below:
     
     \paragraph{\textsf{Aramis} Delivery Rule:}\hspace{0pt} \\
 	    A node, $N_j$ delivers any $m$, via \textsf{Aramis}, only after $D1_A$ and $D2$ stated below are satisfied:
@@ -352,15 +352,45 @@ Hitherto this section has focused on the underlying assumptions made when design
 		
 		Thus, delivering $m$ via \textsf{Aramis} after a node's local clock time is greater than $m.ts + \Delta_m$ will meet \emph{abcast} guarantees G1-G4 with a high probability.
 			    
-		\subsubsection*{Rejecting Missing Messages}\label{ssec:abcast_rejection}
-		    % Conditions required for a message to be rejected!
-			% Messages rejected if a later message has already been delivered.
-			% Throw exception.
+		\subsubsection*{Total Order Violations}\label{ssec:abcast_rejection}
+		In the explanations above, we have only considered the conditions required for a message to be successfully \emph{abcast} to all nodes.  However, as \textsf{Aramis} is a probabilistic protocol it is possible for a message to be delivered in the wrong place in the total order, thus violating G4.  For example, a message $m$ arrives at a destination after its proceeding message $m'$ in the total order has already been delivered, such that the total order is $<m', m>$ when it should be $<m, m'>$.  In such a case, their are two course of action possible when $m$ arrives: 1) Deliver $m$ as soon as possible; resulting in two violations of the total order occurring as $m$ has missed its place and then taken another's in the total order.  2) Receive $m$ and throw an exception to the application; resulting in only one violation of the total order, as $m$ is simply missing, but at the expense of violating G1 and G2 as $m$ cannot be delivered by all destinations.  \footnote{Assumption A2 guarantees that all destinations will eventually receive $m$, so if a message is not rejected then G1 and G2 always holds.}
 		
-    \subsection{\textsf{ABcast} Delivery Rule}
+		\textsf{Aramis} seeks to minimise the effects of a miss-ordered message, therefore it employs the second approach and throws an exception when a message has been missed in the total order; we refer to this process as a message being \emph{rejected}.  Explicitly \emph{rejecting} a miss-ordered message from the total order allows for higher levels in the network stack (e.g. \textsf{SCast}) to initiate an appropriate recovery mechanism to mitigate the effects of a miss-ordered message on the system's state.  
+		
+		The remainder of this section focuses on the scenarios in which it is possible for a message to be \emph{rejected} by a receiving node.  When the number of nodes, $n$, involved in an \emph{abcast} is $n=2$ the conditions required for a message to be rejected are different to $n > 2$, therefore we explore $n=2$ and $n>2$ in isolation. Note, for both $n=2$ and $n>2$ it is not possible for a broadcasting node to reject its own message, as by definition a broadcasting node will always receive its local message, hence G2 is always violated if a single node \emph{rejects} a message.  
+		
+		%\paragraph{Assumptions:}\hspace{0pt} \\
+        \subsubsection*{Message Rejections - $\boldsymbol{n = 2}$}
+        A message, $m$, sent by node $N_i$, can only be \emph{rejected} by the other recipient, $N_j$, when a message $m'$ from $N_j$ has been incorrectly delivered before $m$ in the total order; where $m.ts < m'.ts$ but the total order delivers $m'$ first, hence $m$ is \emph{rejected}.  In order for a message to be miss-ordered, both of the two statements below must be true:
+        
+        \begin{enumerate}
+            \item $N_j$ broadcasts $m'$ with $m'.ts > m.ts$ and $m$ does not arrive at $N_j$ before $m'.ts + \Delta_{m'}$.  
+            \item $N_j$ does not receive an acknowledgement for $m$, or any subsequent broadcasts sent by $N_i$, before $m'.ts + \Delta_m'$.   
+        \end{enumerate}
+        
+        If condition one is not true, i.e. $m$ arrives before $m'.ts + \Delta_{m'}$, then $N_j$ has received $m$ before $m'$'s delivery time and therefore $N_j$ will not miss $m$ in the total order.  Similarly, if condition two is not true, then $N_j$ will know that a message sent by $N_i$ is missing as soon as it inspects the received acknowledgement, attached \emph{vector clock} or the $seq\#$ included in the id of the received message.  
+        
+        \subsubsection*{Message Rejections - $\boldsymbol{n > 2}$}
+        If we assume the same scenario as described in the previous section ($n=2$), but with the addition of a node $N_k$ that represents all other nodes that are not $N_i$ or $N_j$.  A message is miss-ordered if conditions $1$ and $2$ stated above are true, and one of the following is true:
+        
+        \begin{itemize}
+            \item[3a.] $N_j$ and all $N_k$ do not receive $m$ before $m'.ts + \Delta_{m'}$.
+            
+            \item[3b.] $N_j$ does not receive an acknowledgement for $m$ from any $N_k$, or a message from any $N_k$ that has received $m$, before $m'.ts + \Delta_{m'}$.  
+        \end{itemize}
+        
+        If conditions $1,2$ and $3a$ are true, then it is not possible for $m$ to become known to $N_j$ as $m$ will not appear in an acknowledgement or vector clock of any $N_k$.  Similarly, if conditions $1,2$ and $3b$ are true, then $N_j$ will not know of $m$ in time to prevent $m'$ from being delivered before $m$ in the total order.  
+        
+        From both cases, $n=2$ and $n>2$, it is clear to see that in order for a message miss-ordering to occur, a chain of events need to occur that are highly unlikely based upon the probabilistic estimations made by the DMC and \emph{rbcast}.  
+        		
+    \subsection{ABcast Delivery Rule}
     Lastly, we present a concise formalisation of the delivery rule for the entire \textsf{ABcast} protocol.  A node, $N_j$ delivers any $m$, via \textsf{ABcast}, only after both $D1$ and $D2$ stated below are satisfied:
 	    \begin{description}[labelindent=1cm]
 	        \item[$\boldsymbol{D1}$] - The clock of $N_i > m.ts + \Delta_{m}$ ($D1_A$), or $m$ is acknowledged by all nodes other than $m.o$ ($D1_B$). 
 	        \item[$\boldsymbol{D2}$] - All \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
 	    \end{description}
+	    
+\section{Limitations of ABcast}
+
 \section{Summary}
+This chapter presented \textsf{ABcast} - a new hybrid protocol that utilises both a deterministic (\textsf{Base}) and probabilistic (\textsf{Aramis}) protocol in order to create a non-blocking \emph{abcast} solution.  
