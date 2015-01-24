@@ -144,7 +144,7 @@ In this section we detail the individual components required by the \textsf{ABca
         Where $R$ is a constant defined before run-time that specifies to what probability the system will be \emph{reliable}.  As the system is probabilistic the following must be true $R < 1$.  Note that $q$ cannot be accurately estimated, as it relates to future delays.  Therefore, \textsf{ABcast} uses $q$ estimates in a manner that accounts for potential inaccuracies and only for estimating one other parameter - $\rho$.
 	
 	    \item[\Huge$\boldsymbol{\rho}$] \hfill \\
-	    $\rho$ is the parameter that determines the number of redundant broadcasts that are sent by the \emph{rbcast} protocol, with each broadcast sent $\rho + 1$ times.  Note, $rho = 1$ is sufficient for crash-tolerance, however we estimate it so that at least one copy of $m$ reaches all operative nodes, other than $m.o$, within $x_{mx}$ delay and with a probability $> R$; more precisely, $\rho$ is estimated as the smallest integer that satisfies $\rho \geq 1$ and
+	    $\rho$ is the parameter that determines the number of redundant broadcasts that are sent by the \emph{rbcast} protocol, with each broadcast sent $\rho + 1$ times.  Note, $\rho = 1$ is sufficient for crash-tolerance, however we estimate it so that at least one copy of $m$ reaches all operative nodes, other than $m.o$, within $x_{mx}$ delay and with a probability $> R$; more precisely, $\rho$ is estimated as the smallest integer that satisfies $\rho \geq 1$ and
 
 		\begin{equation*}
 		    \begin{aligned}
@@ -208,7 +208,16 @@ Where $\bar{x}$ is the median of $NT_P$ observed delays.
         The \emph{rbcast} protocol utilies the parameters provided by the DMC to apply a probabilistic timeliness guarantee to each broadcast sent by a node.  This timeliness guarantee ensures, with a high probability that all recipient nodes receive a message within $D_m$ time after the initial broadcast of $m$ was sent.  The remainder of this subsection details how $D_m$ is calculated and the rational behind the values used.  First we consider the calculations required for a broadcast where the originator does not crash, before exploring the modifications required to tolerate such a crash.  
 
         \subsubsection*{Crash Free Message Originator}
-        A node, $N_i$ broadcasts a message $m$ at time $ts$, $m.ts = ts$.  If $N_i$ does not crash then $D$ would be $D_1 = x_{mx} + \rho\eta$, as assumption \textbf{A4} means that $x_{mx}$ is the largest delay that will be encountered by $m$ and $\rho\eta$ accounts for the delays between successive copies of m being broadcast ($m.copy = 0,\ldots,\rho$).  Let $g_{D_1}$ be the probability that a destination, $N_j$, does not receive a single copy of $m$ at or before $ts + D1$.  Suppose that no node disseminates a copy of $m$ on behalf of $N_i$, and $\mathcal{P}(x > \xi)$ is the probability that a copy of $m$ takes longer than $\xi$ time to reach $N_{j}$.  The probability that none of the copies of $m$ broadcast at $ts, ts+\eta, \ldots,  ts+\rho \eta$, reaches $N_{j}$ by time $ts+D_1$, is:
+        A node, $N_i$ broadcasts a message $m$ at time $ts$, $m.ts = ts$.  If $N_i$ does not crash then $D$ would be $D_1 = x_{mx} + \rho\eta$, as assumption \textbf{A4} means that $x_{mx}$ is the largest delay that will be encountered by $m$ and $\rho\eta$ accounts for the delays between successive copies of m being broadcast ($m.copy = 0,\ldots,\rho$).  Figure \ref{fig:rbcast_calc} shows the workflow of a message $m$ being \emph{rbcast} to $m.dst = \{N_i, N_j, N_k\}$ in a crash free scenario with $\rho = 2$; the individual parameters of $D_1$ are illustrated to show their significance.  
+        
+            \begin{figure}[htbp!] 
+                \centering    
+                \centerline{\includegraphics[width=1.1\textwidth]{rbcast_calculations}}
+                \caption[Rbcast Calculations Diagram In a Crash Free Scenario]{Rbcast Calculations In a Crash Free Scenario}
+                \label{fig:rbcast_calc}
+            \end{figure}	
+        
+        Let $g_{D_1}$ be the probability that a destination, $N_j$, does not receive a single copy of $m$ at or before $ts + D1$.  Suppose that no node disseminates a copy of $m$ on behalf of $N_i$, and $\mathcal{P}(x > \xi)$ is the probability that a copy of $m$ takes longer than $\xi$ time to reach $N_{j}$.  The probability that none of the copies of $m$ broadcast at $ts, ts+\eta, \ldots,  ts+\rho \eta$, reaches $N_{j}$ by time $ts+D_1$, is:
         
         \begin{equation*}
 		    \begin{aligned}
@@ -263,6 +272,8 @@ By assumption \textbf{A1}, no other node can crash until at least $ts+D$. Thus, 
 		    \end{aligned}
 		\end{equation*}
 
+Figure \ref{fig:rbcast_crash_calc} shows the workflow of a message $m$ being \emph{rbcast} by $N_i$ to $m.dst \{N_i, N_j, N_k\}$.  $N_i$ crashes after unicasting $m$ to $N_j$, therefore $N_j$ waits to receive $m.copy > 0$ from $N_i$ for $2\eta + \omega$ time, before disseminating $m$ to the remaining destination $N_k$.  
+
 In the event that $n = 2$, only two scenarios are possible in the event of $N_i$ crashing during the original broadcast of $m$.  Either $m.copy = 0$ is never received by the other node $N_j$, in which case $m$ is lost forever; Or $m.copy \geq 0$ is received by $N_j$, in which case $N_j$ will continue to broadcast the remaining copies of $m$ for completeness, however no other node will receive $m$ as no operative nodes remain.  For both scenarios, the delivery delay is calculated as $D_1$ as dissemination is not possible, therefore the probability that all operative nodes receive $m$ at or before time $ts+D_1$ is $(1-Q_1)$.  
 
 To put the two cases together, $n > 2$ and $n = 2$, let boolean $\beta = 1$ if $n>2$ and $0$ if $n=2$; further, let: 
@@ -280,15 +291,22 @@ When $N_i$ \emph{rbcast}s $m$ at its clock time $ts$, if some operative $s$-node
 		        \beta\times(1-Q)+(1-\beta)\times(1-Q_1)
 		    \end{aligned}
 		\end{equation*}
-        
 
-        
+        \begin{sidewaysfigure}
+            \hspace*{-2.5cm}
+            \centering
+                \includegraphics[width=1.1\textwidth]{rbcast_crash_calculations}
+            \caption[Rbcast Calculation Diagram with a Crashed Message Originator]{Rbcast Calculations with a Crashed Message Originator}
+            \label{fig:rbcast_crash_calc}
+       \end{sidewaysfigure}
+
 	    %\paragraph{NMC Validation}\label{a4_validation}\hspace{0pt} \\
             	%We conducted a series of experiments to test \textbf{A4}, which were executed on a local computer cluster.  These experiments consisting of a 
             	% Describe Experiment and execution environment
 				% Results
 				% Analysis
-	    
+				
+\clearpage
 \section{Atomic Broadcast Protocol}\label{sec:ABcast}
 Hitherto this chapter has focused on the underlying assumptions made when designing the \textsf{ABcast} protocol and the components it requires to function.  This section details the specifics of the hybrid protocol, detailing the specifics of both the \textsf{Aramis} and \textsf{Base} protocols.  First we explore the \textsf{Base} protocol, as this protocol will be responsible for the majority of message deliveries and is the more conventional of the two \emph{abcast} protocols.  We then explore the \textsf{Aramis} protocol, detailing how messages are delivered and rejected as well as other related properties.  
 
