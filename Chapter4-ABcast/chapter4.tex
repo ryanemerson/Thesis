@@ -144,7 +144,9 @@ In this section we detail the individual components required by the \textsf{ABca
         Where $R$ is a constant defined before run-time that specifies to what probability the system will be \emph{reliable}.  As the system is probabilistic the following must be true $R < 1$.  Note that $q$ cannot be accurately estimated, as it relates to future delays.  Therefore, \textsf{ABcast} uses $q$ estimates in a manner that accounts for potential inaccuracies and only for estimating one other parameter - $\rho$.
 	
 	    \item[\Huge$\boldsymbol{\rho}$] \hfill \\
-	    $\rho$ is the parameter that determines the number of redundant broadcasts that are sent by the \emph{rbcast} protocol, with each broadcast sent $\rho + 1$ times.  Note, $\rho = 1$ is sufficient for crash-tolerance, however we estimate it so that at least one copy of $m$ reaches all operative nodes, other than $m.o$, within $x_{mx}$ delay and with a probability $> R$; more precisely, $\rho$ is estimated as the smallest integer that satisfies $\rho \geq 1$ and
+	    $\rho$ is the parameter that determines the number of redundant broadcasts that are sent by the \emph{rbcast} protocol, with each broadcast sent $\rho + 1$ times.  The DMC utilies a constant $\rho_{min}$ which determines the lowest possible value for $\rho$ and is configured before runtime.  $\rho_{min}$ allows an application to artificially increase the amount of redundancy provided by the \emph{rbcast} protocol if a greater level of redundancy is required; $\rho_{min} = 1$ by default.
+	    
+	    Note, $\rho = 1$ is sufficient for crash-tolerance, however we estimate it so that at least one copy of $m$ reaches all operative nodes, other than $m.o$, within $x_{mx}$ delay and with a probability $> R$; more precisely, $\rho$ is estimated as the smallest integer that satisfies $\rho \geq \rho_{min}$ and
 
 		\begin{equation*}
 		    \begin{aligned}
@@ -160,7 +162,7 @@ In this section we detail the individual components required by the \textsf{ABca
 		    \end{aligned}
 		\end{equation*}
 
-        The inequality assumes that $m$ is multicast exactly ($\rho +1$) times in a crash-free manner and all $n-1$  intended recipients are operative. Both assumptions lead to a \emph{conservative} estimate of $\rho$. Moreover, for a given $R$, an integer $I =0,1, \ldots$, satisfies: 
+        The inequality assumes that $m$ is multicast exactly ($\rho +1$) times in a crash-free manner and all $n-1$  intended recipients are operative. Both assumptions lead to a \emph{conservative} estimate of $\rho$. Moreover, for a given $R$, an integer $I =\rho_{min}, \rho_{min} + 1, \ldots$, satisfies: 
 
         \begin{equation*}
 		    \begin{aligned}
@@ -176,7 +178,7 @@ In this section we detail the individual components required by the \textsf{ABca
 		    \end{aligned}
 		\end{equation*}
 
-        Thus, small inaccuracies in estimating $q$ may not adversely affect $\rho$ estimates.
+        Thus, small inaccuracies in estimating $q$ may not adversely affect $\rho$ estimates.  
 
         \item[\Huge$\boldsymbol{\eta}$] \hfill \\
         $\eta$ is the parameter used by \emph{rbcast} to determine the amount of time to wait between each broadcast of a message copy and is calculated as the largest delay in $n - 1$ transmissions (of a given copy $m$) with probability $R$.  Assuming exponential distribution $n$ is calculated as follows:
@@ -207,15 +209,15 @@ Where $\bar{x}$ is the median of $NT_P$ observed delays.
         \subsection*{Probabilistic Timeliness Guarantee - $\boldsymbol{D_m}$}
         The \emph{rbcast} protocol utilies the parameters provided by the DMC to apply a probabilistic timeliness guarantee to each broadcast sent by a node.  This timeliness guarantee ensures, with a high probability that all recipient nodes receive a message within $D_m$ time after the initial broadcast of $m$ was sent.  The remainder of this subsection details how $D_m$ is calculated and the rational behind the values used.  First we consider the calculations required for a broadcast where the originator does not crash, before exploring the modifications required to tolerate such a crash.  
 
-        \subsubsection*{Crash Free Message Originator}
-        A node, $N_i$ broadcasts a message $m$ at time $ts$, $m.ts = ts$.  If $N_i$ does not crash then $D$ would be $D_1 = x_{mx} + \rho\eta$, as assumption \textbf{A4} means that $x_{mx}$ is the largest delay that will be encountered by $m$ and $\rho\eta$ accounts for the delays between successive copies of m being broadcast ($m.copy = 0,\ldots,\rho$).  Figure \ref{fig:rbcast_calc} shows the workflow of a message $m$ being \emph{rbcast} to $m.dst = \{N_i, N_j, N_k\}$ in a crash free scenario with $\rho = 2$; the individual parameters of $D_1$ are illustrated to show their significance.  
-        
-            \begin{figure}[htbp!] 
+        \begin{figure}[hb]
                 \centering    
-                \centerline{\includegraphics[width=1.1\textwidth]{rbcast_calculations}}
+                \centerline{\includegraphics[width=1.15\textwidth, trim=0.1cm .25cm .1cm .25cm, clip=true]{rbcast_calculations}}
                 \caption[Rbcast Calculations Diagram In a Crash Free Scenario]{Rbcast Calculations In a Crash Free Scenario}
                 \label{fig:rbcast_calc}
             \end{figure}	
+
+        \subsubsection*{Crash Free Message Originator}
+        A node, $N_i$ broadcasts a message $m$ at time $ts$, $m.ts = ts$.  If $N_i$ does not crash then $D$ would be $D_1 = x_{mx} + \rho\eta$, as assumption \textbf{A4} means that $x_{mx}$ is the largest delay that will be encountered by $m$ and $\rho\eta$ accounts for the delays between successive copies of m being broadcast ($m.copy = 0,\ldots,\rho$).  Figure \ref{fig:rbcast_calc} shows the workflow of a message $m$ being \emph{rbcast} to $m.dst = \{N_i, N_j, N_k\}$ in a crash free scenario with $\rho = 2$; the individual parameters of $D_1$ are illustrated to show their significance.  
         
         Let $g_{D_1}$ be the probability that a destination, $N_j$, does not receive a single copy of $m$ at or before $ts + D1$.  Suppose that no node disseminates a copy of $m$ on behalf of $N_i$, and $\mathcal{P}(x > \xi)$ is the probability that a copy of $m$ takes longer than $\xi$ time to reach $N_{j}$.  The probability that none of the copies of $m$ broadcast at $ts, ts+\eta, \ldots,  ts+\rho \eta$, reaches $N_{j}$ by time $ts+D_1$, is:
         
@@ -244,7 +246,14 @@ When $N_i$ does not crash, a crash of a destination node $N_{k}$ cannot undermin
 		    \end{aligned}
 		\end{equation*}
 
+%            \begin{figure}[hb] 
+%                \centering    
+%                \centerline{\includegraphics[width=1.1\textwidth]{rbcast_calculations}}
+%                \caption[Rbcast Calculations Diagram In a Crash Free Scenario]{Rbcast Calculations In a Crash Free Scenario}
+%                \label{fig:rbcast_calc}
+%            \end{figure}	
 
+        \clearpage
         \subsubsection*{Crashed Message Originator}
 Suppose now that $N_i$ crashes before completing redundant transmissions of $m$ and $n>2$. Consider the worst case that only one node, $N_j$, has $m$ with $m.copy=0$. (If $N_u$ has $m.copy>0$, then $N_i$ crashed only after it completed broadcasting $m.copy >= 0$, therefore some node other than $N_j$ has $m$ with a high probability).
 
@@ -294,7 +303,11 @@ When $N_i$ \emph{rbcast}s $m$ at its clock time $ts$, if some operative $s$-node
 
         \begin{sidewaysfigure}
             \vspace*{-1cm}
-            \hspace*{-2.5cm}
+            \strictpagecheck
+            \checkoddpage
+            \ifoddpage
+                \hspace*{-2.5cm}
+            \fi           
             \centering
                 \includegraphics[width=1.1\textwidth]{rbcast_crash_calculations}
             \caption[Rbcast Calculation Diagram with a Crashed Message Originator]{Rbcast Calculations with a Crashed Message Originator}
