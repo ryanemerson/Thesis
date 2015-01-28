@@ -3,6 +3,11 @@
 % **************************** Define Graphics Path **************************
     \graphicspath{{Chapter5-FlowControl/Figs/Vector/}{Chapter5-FlowControl/Figs/}}
 
+\section{Summary}
+This chapter introduces a flow control protocol, AFC, that has been designed specifically for use with the \textsf{ABcast} protocol.  It utilises the measurements of \textsf{ABcast}'s DMC to control a node's broadcast rate in order to avoid buffer overflows and network saturation.  
+
+The remainder of this chapter is structured as follows: First we introduce the rational behind our approach, stating the limitations of the existing flow control protocol provided by JGroups and why this is not suitable for \textsf{ABcast}.  This is followed by an in-depth look at how AFC works and the calculations required to control a node's broadcast rate.  We then briefly describe how AFC is implemented, before discussing the limitations of our approach.  
+
 \section{Rational}
 The \textsf{ABcast} protocol described in this section functions as expected when each node's throughput is low, with the number of requests per second around five hundred.  However, in its current form the protocol has no flow-control, therefore as number of requests per second increases the system starts to become saturated by requests.  In traditional, deterministic approaches this can severely effect performance and lead to a 'snowball' effect if the load on the network is not reduced.  We define a 'snowball' effect as a situation whereby the load on the network continues to increase, causing latencies to become increasingly large until the system can no longer function.  
 
@@ -23,13 +28,17 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} that ut
             The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions from the recent past, will \emph{not} be exceeded during $NT_F$ number of future transmissions that unfold next, where $NT_F \leq NT_P$ with a high probability ($1 - q$).
         \end{quotation}
     
-    As previously stated, when the \textsf{ABcast} nodes start to become overwhelmed with broadcasts, it is possible for \textbf{A4} to be undermined, resulting in future transmissions exceeding $x_{mx}$.  Therefore, we propose a new flow control protocol that reduces the current broadcast rate of a sending node, $N_i$, if $N_i$ observes a latency greater than the last $x_{mx}$ value calculated.  This means that if $x_{mx}$ is exceeded by a new latency then the pressure on the network will keep reducing until no further violations of \textbf{A4} occur.  
+    As previously stated, when the \textsf{ABcast} nodes start to become overwhelmed by broadcasts, it is possible for \textbf{A4} to be undermined, resulting in future transmissions exceeding $x_{mx}$.  Therefore, we propose a new flow control protocol that reduces the current broadcast rate of a sending node, $N_i$, if $N_i$ observes a latency greater than the last $x_{mx}$ value calculated.  This means that if $x_{mx}$ is exceeded by a new latency then the pressure on the network will keep reducing until no further violations of \textbf{A4} occur.  
     
-    Unlike the \textsf{UFC} approach, our approach restricts the sending rate of a node based upon the messages it receives, not the rate at which messages are received at other nodes in the network.  This may seem counter-intuitive, however the \textsf{ABcast} protocol is based upon the assumption that the latencies observed by a given node, $N_i$, are representative of the latencies that will be encountered by $N_i$'s broadcasts to other nodes.  Our approach to flow control, imaginatively called ABcast Flow Control (AFC), is simply an extension of this rational.  The AFC protocol is designed upon the assumption that if $N_i$'s observed latencies repeatedly exceed $N_i.x_{mx}$ then it is highly probable that $N_i$'s message buffer or the underlying network is approaching saturation.  It is very likely that another node, $N_j$, will also be observing increased latencies due to similar circumstances, therefore it is necessary for $N_i$'s broadcast rate to be reduced in order to reduce the load on $N_j$.  This assumption is especially apt in the \emph{AmaaS} model when the \textsf{SCast} protocol is used, as each service client randomly selects a service node when sending a multicast request, resulting in client requests being evenly distributed between $s$-nodes, therefore each $s$-node is likely to issue approximately the same number of \emph{abcast}s and all nodes will have to receive a similar number of messages.          
+    Unlike the \textsf{UFC} approach, our approach restricts the sending rate of a node based upon the messages it receives, not the rate at which messages are received at other nodes in the network.  This may seem counter-intuitive, however the \textsf{ABcast} protocol is based upon the assumption that the latencies observed by a given node, $N_i$, are representative of the latencies that will be encountered by $N_i$'s broadcasts sent to other nodes.  Our approach to flow control, imaginatively called ABcast Flow Control (AFC), is simply an extension of this rational.  The AFC protocol is designed upon the assumption that if $N_i$'s observed latencies repeatedly exceed $N_i.x_{mx}$, then it is highly probable that $N_i$'s message buffer or the underlying network is approaching saturation.  In which case It is very likely that another node, $N_j$, will also be observing increased latencies due to similar circumstances, therefore it is necessary for $N_i$'s broadcast rate to be lowered in order to reduce the load on $N_j$.  This assumption is especially apt in the \emph{AmaaS} model when the \textsf{SCast} protocol is used, as each $c$-node randomly selects an $s$-node when sending a multicast request, resulting in client requests being evenly distributed between $s$-nodes.  Therefore each $s$-node is likely to issue approximately the same number of \emph{abcast}s with all nodes receiving a similar number of messages.          
         
-    Recall that the DMC utilises a $NT_F = 10\%$ of $NT_P$, where $NT_P = 1000$, therefore a new $x_{mx}$ value is calculated after every $100$ latencies observed.  We consider a latency $x$ to have exceeded $x_{mx}$ if $x > x_{mx}$ and $x$ is recorded between subsequent calculations of $x_{mx}$; e.g. $\#x \mod NT_F \neq 0$, where $\#x$ is the index at which $x$ is recorded in relation to all other latencies.  Once the $100$ latencies required to recalculate $x_{mx}$ have been received, then $x_{mx}$ is recalculated, and the values that previously exceeded $x_{mx}$ are now used to define the new $x_{mx}'$. 
+    \subsection*{AFC Calculations}        
+    The AFC protocol utilises several calculations to determine the amount the current broadcast rate should be reduced in the event of a latency exceeding $x_mx$.  This section introduces the variables used for these calculations, explaining their significance and why they are required, before detailing the calculations used to alter a node's broadcast rate.  The calculations presented in this section assume that a single message $m$ is being broadcast.  The steps required by AFC to initiate a broadcast of $m$ are as follows: An application sends $m$ down the protocol stack, and upon receipt of $m$, the AFC protocol performs all of the calculations presented in this section in order to calculate a flow control delay which must be observed by $m$ before it can be passed to \textsf{ABcast} for broadcasting.  
+   
+   \subsubsection*{Protocol Parameters}
+   When the AFC protocol receives $m$ from the application, it determines the number of latencies that have exceeded $x_{mx}$ at the present time and utilises these latencies to calculate a new broadcast rate that is applicable for $m$.  Recall that the DMC utilises a $NT_F = 10\%$ of $NT_P$, where $NT_P = 1000$, and a new $x_{mx}$ value is calculated after every $NT_F$ latency has been recorded; in this case a new $x_{mx}$ value is calculated after every $100$ latencies observed.    We consider a latency $x$ to have exceeded $x_{mx}$ if $x > x_{mx}$ and $x$ is recorded between subsequent calculations of $x_{mx}$; e.g. $\#x \mod NT_F \neq 0$, where $\#x$ is the index at which $x$ is recorded in relation to all other latencies.  Once the $100$ latencies required to recalculate $x_{mx}$ have been received, then $x_{mx}$ is recalculated, and the values that previously exceeded $x_{mx}$ are now used to define the new $x_{mx}'$. 
     
-    When a latency $x$ exceeds $x_{mx}$, we refer to this as a Marginal Peak $Mp$ due to $x_{mx}$ being the boundary (margin) value and $Mp$ a peak beyond the margin; we record $Mp$ as the difference between $x$ and $x_{mx}$, thus $Mp = x - x_{mx}$.  Of course, it is possible that multiple $x$ values will exceed $x_{mx}$, in which case we record all $Mp$ values; we refer to the total number of $Mp$ values as $\#Mp$.   Once all $Mp$ values have been recorded, we calculate the variable $\mu$, which along with the current $x_{mx}$ value determines the amount that a node's broadcast rate should be restricted.  We calculate $\mu$ as:
+    When a latency $x$ exceeds $x_{mx}$, we refer to this as a Marginal Peak $Mp$ due to $x_{mx}$ being the boundary (margin) value and $Mp$ a peak beyond the margin; we record $Mp$ as the difference between $x$ and $x_{mx}$, thus $Mp = x - x_{mx}$.  It is possible that multiple $x$ values will exceed $x_{mx}$, in which case we record all $Mp$ values and refer to the total number of $Mp$ values as $\#Mp$.   Once all $Mp$ values have been recorded, we calculate the variable $\mu$, which along with the current $x_{mx}$ value determines the amount that a node's broadcast rate should be restricted.  We calculate $\mu$ as:
     
     \begin{equation*}
 		     \begin{aligned}
@@ -37,7 +46,7 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} that ut
 		     \end{aligned}
     \end{equation*} 
     
-    Where $Ss$, which stands for sample size, is a constant defined before runtime that is used as a divisor when $\#Mp < Ss$.  The purpose of $Ss$ when calculating $\mu$, is to reduce the effects of a small number ($\#Mp < Ss$) of $Mp$ values from severely restricting a node's broadcast rate.  For example, consider  $x_{mx} = 2ms$ and a single $Mp$ occurs where latency $x$, $x = 4ms$, therefore $Mp = 2ms$.  If $\mu$ did not utilise $Ss$ then $\mu = 2$, which would result in the broadcast rate being reduced significantly and the flow control being overly restrictive, however if we utilise a $Ss$ value the effects of a single latency $x$ on the calculation of $\mu$ can be minimised to an appropriate level.  We define $Ss$ as a constant, in order to allow system administrators to define an appropriate $Ss$ value for their requirements; with a greater $Ss$ value resulting in a less restrictive flow control and \emph{vice versa}.  
+    Where $Ss$, which stands for sample size, is a constant defined before runtime that is used as a divisor when $\#Mp < Ss$.  The purpose of $Ss$ when calculating $\mu$, is to reduce the effects of a small number ($\#Mp < Ss$) of $Mp$ values from severely restricting a node's broadcast rate.  For example, consider  $x_{mx} = 2ms$ and a single $Mp$ occurs where latency $x$, $x = 4ms$, this would result in $Mp = 2ms$.  If the calculation of $\mu$ did not utilise $Ss$, then $\mu = 2$, which would result in the broadcast rate being reduced significantly and the flow control being overly restrictive.  However, the $Ss$ value can be used to minimise the effects of a single latency on the calculated $\mu$, with a large $Ss$ value marginalising the impact of a small number of $Mp$ values, and a small $Ss$ value increasing their significance.  The level of flow control required by a system is determined by its use case, therefore we defined $Ss$ as a constant specified before runtime in order to allow system administrators greater control of the protocols behaviour.  
     
     The $\mu$ variable is used alongside $x_{mx}$ to calculate $\gamma$, where $gamma$ is calculated as:
     
@@ -47,7 +56,18 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} that ut
 		     \end{aligned}
     \end{equation*} 
     
-    Let $\lambda_1$ represent the current broadcast rate of a given node.  When $\gamma > 1$, we know that at least one $Mp$ has occurred and therefore it is necessary for $\lambda_1$ to be reduced to a smaller rate, which is represented as $\lambda_2$.  We calculate $\lambda_2$ as follows:
+    \subsubsection*{Calculating a New Broadcast Rate}
+    Let $\lambda_1$ represent the current broadcast rate of a given node, which we calculate as follows:
+
+    \begin{equation*}
+		     \begin{aligned}
+		         \lambda_1 = \frac{1}{m''.Fc_{ts} - m'.Fc_{ts}}
+		     \end{aligned}
+    \end{equation*} 
+    
+    Where $m.B_\tau$ is a timestamp recorded for each message as it is sent to \textsf{ABcast} for broadcasting and $m'$ and $m''$ are the two messages received by AFC prior to $m$, where $m'.Fc_{ts} < m''.Fc_{ts}$.  Without $m'$ and $m''$ it is not possible to calculate the current broadcast rate, as no two messages have previously been sent.  The timestamps $m'.Fc_{ts}$ and $m''.Fc_{ts}$ are recorded by a node's local clock, however it is irrelevant whether a node's local clock or the  synchronised clock provided by \textsf{ABcast} is utilised for recording the timestamp as calculating the broadcast rate is a local operation.  Therefore, as long as the same clock is used for recording all AFC timestamps the difference between message broadcast times will be adequate for calculating the current broadcast rate.   
+    
+    Once the current broadcast rate has been calculated, it is necessary to calculate a new broadcast rate so that an appropriate delay for $m$ can be applied by the AFC protocol.  Upon calculating $\gamma$, if the value is $0$ then this means that no $Mp$ has occurred, and thus $\lambda_1$ does not need to be reduced.  Conversely if $\gamma > 1$, we know that at least one $Mp$ has occurred and it is therefore necessary for $\lambda_1$ to be reduced to a smaller rate.  We represent this new smaller rate as $\lambda_2$, and it is calculated as follows:
     
       \begin{equation*}
 		     \begin{aligned}
@@ -55,7 +75,9 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} that ut
 		     \end{aligned}
     \end{equation*} 
     
-    Where the broadcast rate $\lambda_2 < \lambda_1$.  To reduce the broadcast rate it is necessary to increase the delay observed between each subsequent message broadcast.  This is achieved by increasing $\lambda_1$ by $\delta$ such that:
+    Where the broadcast rate $\lambda_2 < \lambda_1$.  
+    
+    To reduce a node's broadcast rate it is necessary to increase the delay observed between each subsequent message broadcast.  This is achieved by increasing $\lambda_1$ by $\delta$ such that:
     
     \begin{equation}
 		     \begin{aligned}
@@ -111,7 +133,13 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} that ut
 		     \end{aligned}
     \end{equation}
     
-% Based on the idea that if their exists a latency, not used for the calculation of the current xMax that is > xMax, then the latencies been encountered by the network are increasing.  Therefore, it is necessary to reduce the current broadcast rate to ensure that latencies encountered do not continue to rise, or if they do, they do so over an extended period of time.  The occurence of a latency that is > xMax is referred to as a marginal peak.  The amount that the broadcast rate should be reduced is determined by the average value of the marginal peaks that occur at any one time, called the Mpa.  Mpa and xMax is used to calculate a R value that is then used to calculate delta, a delay value that is applied to all messages to control the broadcast rate between subsequent messages.  
+    We then calculate the delay for $m$ simply as $m.Fc_ts = m'.Fc_ts + \delta$, assuming that the timestamp and delta are calculated using the same unit of time.  If the previous message, $m'$ was sent longer than $\delta$ time in the past, then $m$ can simply be broadcast straight away as the rate between broadcasts is still maintained.  
+    
+    \subsection*{Message Buckets}
+    
+    % Need to utilise a Delta_min and Delta_max value in order to ensure that the broadcasting of messages occurs at a constant rate and that delta is not excessively high
+    % Introduce the concept of buckets
 \section{Limitations}
 
 \section{Summary}
+This chapter presented AFC a new flow control protocol that is bespoke to \textsf{ABcast}.  AFC utilises the probabilistic calculations of \textsf{ABcast}'s DMC to asses the networks current state.  The values observed by the DMC are then used to determine whether a node's current broadcast rate needs to be increased or decreased in order to maintain optimal levels of throughput across the network.  With the ultimate aim of trying to reduce the probability of an \textsf{Abcast} message being rejected due to assumption \textbf{A4} being violated.    
