@@ -46,7 +46,7 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} that ut
 		     \end{aligned}
     \end{equation*} 
     
-    Where $Ss$, which stands for sample size, is a constant defined before runtime that is used as a divisor when $\#Mp < Ss$.  The purpose of $Ss$ when calculating $\mu$, is to reduce the effects of a small number ($\#Mp < Ss$) of $Mp$ values from severely restricting a node's broadcast rate.  For example, consider  $x_{mx} = 2ms$ and a single $Mp$ occurs where latency $x$, $x = 4ms$, this would result in $Mp = 2ms$.  If the calculation of $\mu$ did not utilise $Ss$, then $\mu = 2$, which would result in the broadcast rate being reduced significantly and the flow control being overly restrictive.  However, the $Ss$ value can be used to minimise the effects of a single latency on the calculated $\mu$, with a large $Ss$ value marginalising the impact of a small number of $Mp$ values, and a small $Ss$ value increasing their significance.  The level of flow control required by a system is determined by its use case, therefore we defined $Ss$ as a constant specified before runtime in order to allow system administrators greater control of the protocols behaviour.  
+    Where $Ss$, which stands for sample size, is an integer constant defined before runtime that is used as a divisor when $\#Mp < Ss$.  The purpose of $Ss$ when calculating $\mu$, is to reduce the effects of a small number ($\#Mp < Ss$) of $Mp$ values from severely restricting a node's broadcast rate.  For example, consider  $x_{mx} = 2ms$ and a single $Mp$ occurs where latency $x$, $x = 4ms$, this would result in $Mp = 2ms$.  If the calculation of $\mu$ did not utilise $Ss$, then $\mu = 2$, which would result in the broadcast rate being reduced significantly and the flow control being overly restrictive.  However, the $Ss$ value can be used to minimise the effects of a single latency on the calculated $\mu$, with a large $Ss$ value marginalising the impact of a small number of $Mp$ values, and a small $Ss$ value increasing their significance.  The level of flow control required by a system is determined by its use case, therefore we defined $Ss$ as a constant specified before runtime in order to allow system administrators greater control of the protocols behaviour.  
     
     The $\mu$ variable is used alongside $x_{mx}$ to calculate $\gamma$, where $gamma$ is calculated as:
     
@@ -97,6 +97,7 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} that ut
 		     \end{aligned}
     \end{equation} 
     
+    Where $C$ is an integer constant defined before runtime, with a higher value corresponding to a more restrictive flow control protocol.  
     Therefore:
     
     \begin{equation}
@@ -135,8 +136,11 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} that ut
     
     We then calculate the delay for $m$ simply as $m.Fc_ts = m'.Fc_ts + \delta$, assuming that the timestamp and delta are calculated using the same unit of time.  If the previous message, $m'$ was sent longer than $\delta$ time in the past, then $m$ can simply be broadcast straight away as the rate between broadcasts is still maintained.  
     
-    \subsection*{Message Buckets}
+    The calculation of $\delta$ presented above is a very dynamic solution that can result in a node's $\delta$ value fluctuating dramatically over a period of time.  A dynamic flow control solution that reacts to the changing conditions of the network is desirable, however early experiments showed that calculating $\delta$ as above resulted in very small delays being calculated for the majority of broadcasts when nodes were handling the current level of throughput.  However, over time these small delays did not restrict the throughput of the system enough, causing large numbers of $Mp$ values to appear almost at once, leading to the calculated $\delta$ value being extraordinarily high and the systems throughput being overly restricted.  Ultimately, the calculations were causing the system to be too reactive opposed to proactive with the system's flow control.  Our solution, was to propose two new constants $\delta_{min}$ and $\delta_{max}$, which set a lower and upper bound on the calculated $\delta$ value, respectively.  $\delta$ must satisfy $\delta_{min} \leq \delta \leq \delta_{max}$, therefore if $\delta < \delta_{min}$ or $\delta_{max} > \delta_{max}$, then $\delta = \delta_{min}$ or $\delta_{max}$.
     
+    The lower bound $\delta_{min}$ is necessary to ensure that all broadcasts are sent at a constant, predictable rate, which helps to stabilise $x_{mx}$ and reduces the chances of a single node receiving a large number of requests within a very short period of time.  Conversely, the upper bound $\delta_{max}$ ensures that if a large number of $Mp$s do occur between $x_{mx}$ calculations, the calculated $\delta$ value will not be excessively large and thus wont be overly restrictive on a node's broadcast rate.  Like the other constants used by AFC, $\delta_{min}$ and $\delta_{max}$ are determined before runtime, and therefore appropriate values can be set for each depending on the network environment and intended workflow. 
+    
+    \subsection*{Message Buckets}
     % Need to utilise a Delta_min and Delta_max value in order to ensure that the broadcasting of messages occurs at a constant rate and that delta is not excessively high
     % Introduce the concept of buckets
 \section{Limitations}
