@@ -191,8 +191,7 @@ In this section we detail the individual components required by the \textsf{ABca
 		    \end{aligned}
 		\end{equation*}
 		
-Where $\bar{x}$ is the median of $NT_P$ observed delays.
-%Where $\bar{x}$ is the mean of $NT_P$ observed delays.    
+Where $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
 
         \item[\Huge$\boldsymbol{\omega}$] \hfill \\
         $\omega$ is the parameter utilised by \emph{rbcast} to approximate the PDV encountered by the network.  $\omega$ is simply calculated as:
@@ -203,7 +202,7 @@ Where $\bar{x}$ is the median of $NT_P$ observed delays.
 		    \end{aligned}
 		\end{equation*}        
         
-        Again, $\bar{x}$ is the median of $NT_P$ observed delays.
+        Again, we assume exponential distribution and that $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
         \end{description}
 
         \subsection*{Probabilistic Timeliness Guarantee - $\boldsymbol{D_m}$}
