@@ -40,17 +40,17 @@ Figure \ref{fig:ordering_service_concept} shows how an ordering request is handl
 
 	Lastly, implementing transaction ordering as a dedicated service, provides distinct advantages for system administrators.  When utilising the P2P \emph{amcast} approach, administrators would typically want to run Infinispan over a cluster of nodes utilising a homogeneous hardware specification to ensure that Infinispan's performance would not be hindered by a lesser machine.  In an environment where low-latency and high-capacity in-memory database is desired, this would require a large number of expensive machines. However, when \textsf{AmaaS} is utilised, it is possible to improve the performance of the entire cluster, simply by upgrading the $s$-nodes used to provide the \textsf{AmaaS} service.  For example, consider a cluster consisting of $50$ $c$-nodes, and $3$ $s$-nodes, instead of upgrading all $50$ $c$-nodes it is possible to improve transaction latency and throughput by upgrading the hardware of the $3$ $s$-nodes.  
 	
-	\subsection{Optimisations: A New Hope}\label{ssec:abaas_optimisations}
+	\subsection*{AmaaS Unique Optimisations}\label{ssec:abaas_optimisations}
 	The \textsf{Amaas} model allows for two key optimisations that are not possible when \emph{amcast}ing occurs directly between $c$-nodes in the P2P approach: \emph{Message Bundling} and \emph{Acknowledgement Piggybacking}.  
 	
-%		\subsubsection{Message Bundling} \label{ssec:bundling} \hspace{0pt} \\
-		\paragraph{Message Bundling} \hspace{0pt} \\
+		\subsubsection*{Message Bundling}
+		%\paragraph{Message Bundling} \hspace{0pt} \\
 		As the number of concurrent transactions between $c$-nodes increases, the total number of \emph{amcast}s required also increases.  When utilising \emph{amcast}s between $c$-nodes to coordinate the transactions, typically it is not possible to bundle multiple \emph{amcast} messages $<m_i, m_j>$, into a single \emph{amcast}, $m$, due to the high probability of $m_i.dst \neq m_j.dst$.  Of course it is possible to implement a bundling strategy that is utilised only when $m_i.dst = m_j.dst$, however in a system such as Infinispan the performance improvements provided by such a strategy are negligible; as the wide distribution of key/value pairs significantly reduces the probability of two \emph{amcast}s having the same destination set.  
 		
 		When utilising \textsf{AmaaS} it is possible for all \emph{amcast} requests received from $c$-nodes to be bundled into a single \emph{abcast} (between $s$-nodes) at a receiving $s$-node, regardless of their destination set.  This is because $s$-nodes are only required to send \emph{ambast}s to other $s$-nodes in order for a consensus on transaction ordering to be reached, therefore the destination set for each \emph{abcast} is the same for all $c$-node requests.   The ability to bundle multiple \emph{amcast} requests into a single \emph{abcast} reduces the number of times that consensus needs to be reached between all $s$-nodes.  Thus further reducing the number of $N->1$ communication steps required, with the total number of \emph{abcast}s reduced by $\left\vert bundle \right\vert$; where $bundle$ is the number of  \emph{amcast} requests from $c$-nodes that are sent as a single \emph{abcast}.  As a result of this optimisation network traffic is significantly reduced when requests are frequent, resulting in the capacity and scalability of an \emph{AmaaS} service increasing. Conversely, message bundling does not compromise performance when the number of service requests is low, as bundling does not require any intensive computation or additional communication steps.  
 		
-%		\subsubsection{Acknowledgement Piggybacking} \hspace{0pt} \\
-		\paragraph{Acknowledgement Piggybacking} \hspace{0pt} \\
+		\subsubsection*{Acknowledgement Piggybacking}
+		%\paragraph{Acknowledgement Piggybacking} \hspace{0pt} \\
 		In the \textsf{AmaaS} model, all executions of the \emph{abcast} protocol used for consensus, occur between the same set of $s$-nodes in the \emph{multicast service}, and hence, every \emph{abcast} has the same destination set.  As each \emph{abcast} is guaranteed to be received by all $s$-nodes it is possible for message acknowledgements to be piggybacked, therefore enabling \emph{abcast}s to be satisfied with a single dedicated broadcast ($\S$ \ref{ssec:newtop}).  This optimisation is ideal for \emph{abcast}s between $s$-nodes, as all nodes in the service must handle $c$-node requests, therefore each $s$-node will be sending \emph{abcast}s frequently, allowing message acknowledgements to be piggybacked, and reducing the average number of messages required per \emph{abcast}.  	
 	
 \section{Limitations of Existing Coordination Services}\label{sec:limitations_existing_coordination}
@@ -58,10 +58,11 @@ It is possible to utilise existing coordination solutions ($\S$ \ref{sec:coordin
 
 Write operations are vital to the \textsf{AmaaS} model, as every client request needs to be forwarded to all $s$-nodes within a service to ensure consistency (S1, S2).  Both of these existing services rely on establishing a quorum amongst $s$-nodes for each write operation, which is coordinated by a single master node, and as a result performance deteriorates rapidly as the number of write requests increase.  Therefore, if Zookeeper or Chubby were utilised as the basis of a \textsf{AmaaS} service, the service's latency and throughput would be poor as neither solution is intended for write-dominated workloads.  The observed limitations of these existing solutions is the motivation for requirement S4 in $\S$ \ref{sec:absaas_requirements}.  	
 	
-\section{System Requirements}\label{sec:absaas_requirements}
+\section{AmaaS Requirements}\label{sec:absaas_requirements}
 The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-nodes.  This section will explore the requirements that need to be met in order for the \textsf{AmaaS} model to be effective.  We consider requirements from the perspective of both clients, $c$-nodes, and the multicast service, $s$-nodes.
 
-	\paragraph{Client Requirements} \hspace{0pt}
+	%\paragraph{Client Requirements} \hspace{0pt}
+	\subsection*{Client Requirements}
 	\begin{itemize}
 		\item [\textbf{CR1}] Clients must be able to send \emph{amcast}s to multiple destination sets that may overlap.
 		
@@ -70,7 +71,8 @@ The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-no
 		\item [\textbf{CR3}] Client nodes must be informed of $m_i$ when handling $m_j$, if $m_i.dst \cap m_j.dst$ to ensure that $m_i$ is not missed by a $c$-node in $m_i.dst$.  
 	\end{itemize}
 	
-	\paragraph{Service Requirements} \hspace{0pt}
+%	\paragraph{Service Requirements} \hspace{0pt}
+    \subsection*{Service Requirements}
 	\begin{itemize}
 		\item [\textbf{S1}] The service must provide fault-tolerance ($s\text{-nodes} > 1$).
 		
@@ -81,7 +83,7 @@ The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-no
 		\item [\textbf{S4}] All $s$-nodes should be able to handle client requests, to allow for high availability and to prevent a single $s$-node becoming a performance bottleneck.
 	\end{itemize}
 
-\section{SCast: A Fault-tolerant Atomic Multicast Protocol}\label{sec:scast_protocol}
+\section{SCast: Atomic Multicast Protocol for AmaaS}\label{sec:scast_protocol}
 We have developed a protocol for the \textsf{AmaaS} model, which we call \textsf{SCast}; as the protocol offers atomic ordering for multicast messages as a service, hence Service Multicast - \textsf{SCast}.  \textsf{SCast} satisfies all of the requirements specified in $\S$ \ref{sec:absaas_requirements} with the exception of S2.  S2 cannot be satisfied by our protocol directly, rather \textsf{SCast} relies on a \emph{abcast} protocol to guarantee S1, S3 and S4, therefore in order for S2 to be satisfied, the underlying \emph{abcast} protocol must not block in the presence of node failures.  
 
 \textsf{SCast} defines how client nodes utilise the ordering information provided by the multicast service and how they interact with the service, as well as how the service nodes handle client requests and maintain their replicated state, therefore \textsf{SCup} is explained from the perspective of both client and service nodes.  We then discuss the fault-tolerance of \textsf{SCup}, exploring how the atomicity of the protocol is maintained in the event of node crashes at various stages of the protocols execution.  
@@ -142,7 +144,7 @@ In the explanations below we assume that Infinispan is executing a 1-Phase Total
 		Note that the immediate predecessor of $Tx_i$ is applicable to \emph{all} \emph{amcast}s directed at a given $d$ - not just those that originate from $Tx_i.c$ nor just those that are handled by one $s$-node. Thus, it is specific to each $d \in Tx_i.dst$ and ensures that delivery at every $d$ is per the finalized $Tx.ts$.  To illustrate this, let $Tx_i.c$ submit $req(Tx_i)$ to $N_s$, $Tx_j.c$ submit $req(Tx_j)$ to $N_{s'}$ and $d \in Tx_i.dst \cap Tx_j.dst$. Say, the multicast service places $req(Tx_j)$ before $req(Tx_i)$ in the total order, if $d$ receives $Tx_i$ before $Tx_j$, it cannot deliver $Tx_i$ until it delivers $Tx_j$.
     \end{description}
 
-	\subsection{Fault-Tolerance}\label{ssec:scast_fault_tolerance}
+	\subsection*{Providing Fault-Tolerance}\label{ssec:scast_fault_tolerance}
 	Fault-tolerance in \textsf{SCast} must consider the consequences of both crashed $c$-nodes and $s$-nodes.  Here we explore the consequences of both $c$-node and $s$-node crashes during various stages of a \textsf{SCast} \emph{amcast}.  For the sake of simplicity, we only consider node crashes from the perspective of a single transaction, however it is worth noting that each $c$-node would typically have multiple transactions executing concurrently.  
 	
     \subsection*{Client Node Crash}
@@ -183,7 +185,8 @@ In the explanations below we assume that Infinispan is executing a 1-Phase Total
 
 To test our assumption that the \textsf{AmaaS} model would improve transaction performance, we developed an experiment that utilises a simplified version of the \textsf{SCast} Protocol (\ref{sec:scast_protocol}).  The details of these experiments are outlined below. 
 
-\paragraph{AmaaS Experiment} \hspace{0pt} \\
+%\paragraph{AmaaS Experiment} \hspace{0pt} \\
+\subsection*{AmaaS Experiment}
 We implemented an \textsf{AmaaS} service using the JGroups\citep{JGroups} framework with $n=2$ and $3$ $s$-nodes.  All nodes in the experiment utilised commodity PCs of \emph{3.4GHz Intel Core i7-3770} CPU and 8GB of RAM, running \emph{Fedora 20} and communicating over Gigabit Ethernet. The $s$-nodes are a part of a large university cluster, hence communication delays between them can be quite volatile as they are influenced by other network traffic and by jobs launched by other users.
 
 Our experiments are based upon a highly modified version of an existing performance test available in the JGroups\citep{JGroups} framework, that mimics the partial replication of key/values in Infinispan\citep{Infinispan}.  In these experiments we utilise ten $c$-nodes in the same cluster, each of which emulates a transaction system that is reliant on the \textsf{AmaaS} service.  Each $c$-node operates 25 concurrent threads to initiate and coordinate transactions, and a transaction $Tx$ involves a set $Tx.dst$ of $3,4,\ldots,10$ $c$ nodes (including its coordinator). Each $Tx$ consists purely of key/value write operations and hence requires \emph{amcast} for completion. Read requests ($get(k)$) are not emulated, as the retrieval of key/values occurs before $Tx.c$ \emph{amcast}s its $prepare(k)$ message, and therefore has no baring on \emph{amcast} performance.  A thread coordinating a transaction starts the next $Tx'$ as soon as it dispatches commit/abort decision for the current $Tx$. Thus, at any moment, $250$ transactions are in different stages of execution.
@@ -192,7 +195,8 @@ A coordinator thread submits its \emph{amcast} request for $Tx$, denoted as $req
 
 Stage 1 of the \textsf{SCast} protocol has been omitted from this implementation as we only compare the performance of the two approaches in a crash-free scenario.  As stage 1 only consists of a single round trip delay, its omission from this implementation will not have a significant impact on the results of our experiments.  
 
-\paragraph{P2P Experiment} \hspace{0pt} \\
+%\paragraph{P2P Experiment} \hspace{0pt} \\
+\subsection*{P2P Experiment}
 In order to test the performance of P2P total order commits we repeated the  experiments detailed above, however $c$-nodes coordinate transactions between themselves without utilising any $s$-nodes.  Furthermore, the same cluster of machines were used for all of our experiments to ensure a fair comparison between protocols.   
 
 \section{Performance Evaluation and Comparison}\label{sec:AmaaS_results}
@@ -222,7 +226,8 @@ Referring to Figure \ref{fig:LatencyGraph}, as $|Tx.dst| \geq 4$, BaseP2P's \emp
 
 BaseP2P's superior performance when $Tx.dst < 4$ can be attributed to the additional stages involved when utilising the \emph{AmaaS} model.  For example when BaseService utilises two $s$-nodes ($2N$) the following stages are required: $Tx.c$ sends a request, the \emph{multicast service} \emph{amcast}s it with $|m.dst| = 2$ and returns it to $Tx.c$, who must then multicast $mcast(Tx)$ to $Tx.dst$.  Ignoring the individual message cost of each stage the total number of stages is four, whereas in BaseP2P the only step required is the \emph{abcast}ing of $Tx$.  So although $|m.dst|$ for each \emph{abcast} is less in BaseService ($|m.dst| = 2$) than BaseP2P ($|m.dst| = 3$), the overhead of sending a request to the \emph{multicast service} and back is much greater than the savings offered by reducing $|m.dst|$ by one node.  However, as $|Tx.dst|$ increases, the overhead of BaseP2P's increased $|m.dst|$ becomes significant, to the point where BaseService's additional communication stages becomes less of an overhead than the cost BaseP2P \emph{amcat}ing to a large $m.dst$.  
 
-\paragraph{Summary} \hspace{0pt} \\
+%\paragraph{Summary} \hspace{0pt} \\
+\subsection*{Summary}
 When deploying a large-scale distributed transaction system, higher throughout and lower-latency can be achieved by utilising a separate service to provide \emph{amcast} capabilities when the number of nodes participating in a transaction is greater than three.  
 
 \section{A New Atomic Broadcast Solution is Required}
