@@ -1,6 +1,61 @@
 \chapter{Performance Evaluation}
 
     \graphicspath{{Chapter6-PerformanceEvaluation/Figs/Vector/}{Chapter6-PerformanceEvaluation/Figs/}}
+    
 
+% Probing validation experiments    
+\section{DMC Validation}
+
+% Emulated Transactions
+\section{AmaaS Experiments}
+
+\section{Experimentation}
+	To test our assumption that the \textsf{AmaaS} model would improve transaction performance, we developed an experiment that utilises a simplified version of the \textsf{SCast} Protocol (\ref{sec:scast_protocol}).  The details of these experiments are outlined below. 
+	
+	\subsection*{AmaaS Experiment}
+	We implemented an \textsf{AmaaS} service using the JGroups\citep{JGroups} framework with $n=2$ and $3$ $s$-nodes.  All nodes in the experiment utilised commodity PCs of \emph{3.4GHz Intel Core i7-3770} CPU and 8GB of RAM, running \emph{Fedora 20} and communicating over Gigabit Ethernet. The $s$-nodes are a part of a large university cluster, hence communication delays between them can be quite volatile as they are influenced by other network traffic and by jobs launched by other users.
+	
+	Our experiments are based upon a highly modified version of an existing performance test available in the JGroups\citep{JGroups} framework, that mimics the partial replication of key/values in Infinispan\citep{Infinispan}.  In these experiments we utilise ten $c$-nodes in the same cluster, each of which emulates a transaction system that is reliant on the \textsf{AmaaS} service.  Each $c$-node operates 25 concurrent threads to initiate and coordinate transactions, and a transaction $Tx$ involves a set $Tx.dst$ of $3,4,\ldots,10$ $c$ nodes (including its coordinator). Each $Tx$ consists purely of key/value write operations and hence requires \emph{amcast} for completion. Read requests ($get(k)$) are not emulated, as the retrieval of key/values occurs before $Tx.c$ \emph{amcast}s its $prepare(k)$ message, and therefore has no baring on \emph{amcast} performance.  A thread coordinating a transaction starts the next $Tx'$ as soon as it dispatches commit/abort decision for the current $Tx$. Thus, at any moment, $250$ transactions are in different stages of execution.
+	
+	A coordinator thread submits its \emph{amcast} request for $Tx$, denoted as $req(Tx)$, with some $s$-node; the latter stores such requests in the ARP in the arrival order. The \emph{Send} thread bundles some or all of these requests in the ARP in their arrival order into a message bundle $mb$, which can have a maximum payload of $1kB$, then \emph{amcast}s $mb$ to all other $s$-nodes.  The \emph{Send} thread waits if the ARP is empty and resumes bundling once ARP becomes non-empty. Thus, the number of requests bundled in any $mb$ varies depending on the request arrival rate. Once $req(Tx)$ has been \emph{amcast} to all $s$-nodes, it is returned to $Tx.c$ whom disseminates the message to $Tx.d$.  When all $d \in Tx.dst$ have received $req(Tx)$, the transaction is considered complete and the coordinator thread can start executing $Tx'$.  
+	
+	Stage 1 of the \textsf{SCast} protocol has been omitted from this implementation as we only compare the performance of the two approaches in a crash-free scenario.  As stage 1 only consists of a single round trip delay, its omission from this implementation will not have a significant impact on the results of our experiments.  
+	
+	\subsection*{P2P Experiment}
+	In order to test the performance of P2P total order commits we repeated the  experiments detailed above, however $c$-nodes coordinate transactions between themselves without utilising any $s$-nodes.  Furthermore, the same cluster of machines were used for all of our experiments to ensure a fair comparison between protocols.   
+	
+	\section{Performance Evaluation and Comparison}\label{sec:AmaaS_results}
+	Performance evaluation focuses on the comparison of the TOA protocol, being utilised in a traditional P2P scenario (\emph{TOA-P2P}), with an \textsf{AmaaS} service that implements the \textsf{SCast} protocol and utilises the same TOA protocol between $s$-nodes (\emph{TOA-Service}).
+	
+	Our performance comparison focuses on comparing transaction latency and throughput between TOA-P2P and TOA-Service.  In TOA-Service, latency is measured as the time elapsed between a $c$-node's initial transmission of $req(Tx)$ to some $s$-node, and all members of $Tx.dst$ delivering $mcast(Tx)$ to the experiment application. In TOA-P2P, latency is measured as the time taken for all $Tx.dst$ to deliver $Tx$ to the experiment application. For both approaches, throughput is measured as the average number of \emph{abcast}s delivered by the experiment application per second at each $c$-node.
+	
+	All of our experiments were conducted in isolation in order to prevent any side effects caused by simultaneous execution across the cluster, however we conducted all experiments over approximately the same time period to ensure that the network was under similar loads for all of our experiments. 
+	
+	\begin{figure}[htbp!]
+	 % \centering
+	 \includegraphics[width=\textwidth,height=\textheight,keepaspectratio, clip, trim={2cm 3cm 2cm 4cm}]{Latency}
+	 \caption{AmaaS Latency Comparison}
+	 \label{fig:LatencyGraph}
+	\end{figure}
+	
+	\begin{figure}[htbp!]
+	% \centering
+	 \includegraphics[width=\textwidth,height=\textheight,keepaspectratio, clip, trim={2cm 3cm 2cm 4cm}]{Throughput}
+	 \caption{AmaaS Throughput Comparison}
+	 \label{fig:ThroughputGraph}
+	\end{figure}
+	
+	Figures \ref{fig:LatencyGraph} and \ref{fig:ThroughputGraph} show the latency and throughput results for our experiments, with $2N$ and $3N$ representing an \emph{ordering service} that consists of two and three, $s$-nodes respectively.  Each plot on the graph is an average of three \emph{crash-free} trials; a trial consists of each $c$ node completing $10^4$ transactions for a specific value of $|Tx.dst|$. Thus, TOA-Service receives a total of $10^5$ \emph{amcast} requests in each trial. In TOA-P2P, each $c$ node initiates $10^4$ TOA executions between its peers.  
+	
+	In Figure \ref{fig:LatencyGraph} we can see that when $|Tx.dst| \geq 4$, TOA-P2P's \emph{abcast} latencies increase considerably when compared to the two TOA-Service experiments.  With TOA-P2P experiencing approximately a $25\%$ and $50\%$ increase in average latency when compared to TOA-Service-3N and TOA-Service-2N respectively.  Thus, indicating that \emph{amcast}ing is best provided as a service as the number of clients involved in a transaction increases. Comparing throughput in Figure \ref{fig:ThroughputGraph} leads to similar conclusions, with the steady throughput observed as $|Tx.dst| \rightarrow 10$ also suggesting an absence of node saturation.  
+	
+	TOA-P2P's superior performance when $Tx.dst < 4$ can be attributed to the additional stages involved when utilising the \emph{AmaaS} model.  For example when TOA-Service utilises two $s$-nodes ($2N$) the following stages are required: $Tx.c$ sends a request, the \emph{multicast service} \emph{abcast}s it with $|m.dst| = 2$ to all $s$-nodes and returns it to $Tx.c$, who must then multicast $mcast(Tx)$ to $Tx.dst$.  Ignoring the individual message cost of each stage the total number of stages is four, whereas in TOA-P2P the only step required is the \emph{amcast}ing of $Tx$.  So although $|m.dst|$ for each \emph{amcast} is less in TOA-Service ($|m.dst| = 2$) than TOA-P2P ($|m.dst| = 3$), the overhead of sending a request to the \emph{multicast service} and back is much greater than the savings offered by reducing $|m.dst|$ by one node.  However, as $|Tx.dst|$ increases, the overhead of TOA-P2P's increased $|m.dst|$ becomes significant, to the point where TOA-Service's additional communication stages becomes less of an overhead than the cost of TOA-P2P \emph{amcat}ing to a large $m.dst$.  
+	
+	\subsection*{Summary}
+	When deploying a large-scale distributed transaction system, higher throughout and lower-latency can be achieved by utilising a separate service to provide \emph{amcast} capabilities when the number of nodes participating in a transaction is greater than three.  
+
+\section{ABcast - Infinite Clients}
+
+\section{ABcast - Fault Tolerance}
 
 \section{Summary}
