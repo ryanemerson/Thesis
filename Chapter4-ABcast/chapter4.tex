@@ -339,7 +339,7 @@ Hitherto this chapter has focused on the underlying assumptions made when design
 	        \item[$\boldsymbol{D2}$] - all \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
 	    \end{description}
     
-    \subsubsection*{Acknowledgement Piggybacking}
+    \subsubsection*{Acknowledgement Piggybacking}\label{ssec:base_ack_piggyback}
     In the explanation of \textsf{Base} we assume that each acknowledgement is explicitly sent as dedicated message, however in practice this is an expensive operation in terms of both latency and bandwidth.  Therefore in our implementation of \textsf{Base} we piggyback message acknowledgements on subsequent \emph{rbcast}s sent by an the acknowledging node; acknowledgements are piggybacked onto all copies of $m$, i.e. all $m.copy =0,\ldots,\rho$, or not at all.  Of course this is only appropriate if there is a message waiting to be \emph{rbcast}, otherwise deadlock will occur at all $d \in m.dst$ as an acknowledgement will never be sent.  Consider, node $N_j$ is attempting to send $ack_{N_j}(m)$ to $N_i$, if $N_j$ does not receive an \emph{abcast} request within $\mathcal{A}_d$ time, then an explicit acknowledgement message is sent to $N_i$ containing $ack_{N_j}(m)$, as well as any other pending acknowledgements.  We define $\mathcal{A}_d$ as $\mathcal{A}_d = 2\eta + \omega$ and an explicit acknowledgement as being a dedicated message $m_{ack}$ that is unicast to all $d \in m.dst$ and is not assigned a \emph{rbcast} id; hence only a single copy of $m_{ack}$ is broadcast via reliable UDP.  \footnote{Explicit acknowledgements are not \emph{rbcast} in order to further minimise the bandwidth cost of sending $m_{ack}$.}
     
     \subsubsection*{Aborting rho > 0}
