@@ -158,11 +158,15 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
     
     Our solution, was to propose two new constants $\delta_{min}$ and $\delta_{max}$, which set a lower and upper bound on the calculated $\delta$ value, respectively.  Therefore the new $\delta$ must satisfy $\delta_{min} \leq \delta \leq \delta_{max}$.  The purpose of the lower bound $\delta_{min}$ is to ensure that all broadcasts are sent at a constant, predictable rate, in order to stabilise $x{mx}$ and ensure that the system does not become excessively \emph{bursty}.  Conversely, the upper bound $\delta_{max}$ ensures that if a large number of $Mp$s occur between $x_{mx}$ calculations, the calculated $\delta$ value will not be excessively large and thus wont overly restrict a node's broadcast rate.  Like the other constants used by AFC, $\delta_{min}$ and $\delta_{max}$ are determined before runtime, and therefore appropriate values can be set for each depending on the network environment and the expected throughput of data. 
     
-    \subsubsection*{Message Buckets}
-    So far we have only considered a solution that manages application requests on a per message basis.  
-    %So far our solution has only considered the sending of a single message $m$ at a given time
-    % Need to utilise a Delta_min and Delta_max value in order to ensure that the broadcasting of messages occurs at a constant rate and that delta is not excessively high
+%    \subsubsection*{Leaky Bucket Extension}
+%    So far we have only considered a solution that manages application requests on a per message basis.  A common technique utilised in flow control protocols is the \emph{leaky-bucket} algorithm, which 
+    
     % Introduce the concept of buckets
+    % Messages added to bucket
+    % If a message fills the bucket, then that bucket is ready to send
+    % Subsequent calls to add messages are blocked until the full bucket has been broadcast to abcast
+    % Process restarts itself as soon as the past bucket has been sent
+    % Delay between buckets ensures the broadcast rate
 \section{Limitations}
 
 \section{Summary}
