@@ -24,7 +24,7 @@ The \textsf{UFC} approach works well for deterministic \emph{abcast} protocols s
 
 Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensure that optimal level of throughput are maintained under heavy loads.  Such a protocol should utilise the DMC's measurements to control the send rate of \emph{abcast}s and to preserve the validity of assumption A4 where possible.  The remainder of this chapter details the design and implementation of such a protocol.  
 
-\section{Protocol Design}
+\section{Protocol Design}\label{sec:afc_protocol}
     In contrast to the \textsf{UFC} approach to flow control, our approach does not require additional messages, or the concept of a finite number of credits to restrict a node's transmission rate.  Instead, our solution depends entirely on the latencies measured by the DMC and its associated calculations.  Consequently, our flow control protocol is tightly coupled with the \textsf{ABcast} protocol and is not applicable for more traditional based \emph{abcast} protocol such as TOA.  The remainder of this section describes the rational behind our approach.  
     
     Assumption \textbf{A4} states:

@@ -39,21 +39,53 @@
 	
 	All of our experiments were conducted in isolation in order to prevent any side effects caused by simultaneous execution across the cluster, however we conducted all experiments over approximately the same time period to ensure that the network was under similar loads for all of our experiments. 
 	
-	\begin{figure}[htbp!]
+	Figures \ref{fig:LatencyGraph} and \ref{fig:ThroughputGraph} show the latency and throughput results for our experiments, with $2N$ and $3N$ representing an \textsf{AmaaS} service that consists of two and three, $s$-nodes respectively.  Each plot on the graph is an average of three \emph{crash-free} trials; where a trial consists of each $c$ node completing $10^4$ transactions for a specific value of $|Tx.dst|$. Thus, in all three trials the TOA-Service and ABService each receive a total of $10^5$ \emph{amcast} requests. In TOA-P2P, each $c$ node initiates $10^4$ TOA executions between its peers.  
+	
+	Concerning \textsf{AmaaS} performance, Table \ref{table:emulated_transaction_averages} shows the average number of client requests received, the average number of \emph{abcast} messages sent and the average number of requests bundled into each \emph{abcast}, for all of our experiments that utilised a \textsf{AmaaS} service.  All of the average values are calculated based upon the statistics recorded by each $s$-node during our experiments. 
+	
+    \begin{table}[h]
+  \begin{center}
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+    Experiment & $\#$ Client Requests  & $\#$ \emph{abcast}s & Bundle Rate \\ \hline \hline
+    ABService-2N     & 50000    &    12763.4    &    4 \\ \hline
+    TOA-Service-2N  & 50000    &   16632    &   3 \\ \hline
+    ABService-3N     & 33333.3 &    13416.4  &   2.5 \\ \hline
+    TOA-Service-3N  & 33333.3 &    13507.8 & 2.5 \\ \hline
+    \end{tabular}
+    \caption{Average Node Statistics for Emulated Transaction Experiments}
+    \label{table:emulated_transaction_averages}
+  \end{center}
+\end{table}	
+	
+    Table \ref{table:emulated_transcation_aramis_deliveries} shows the performance of the \textsf{ABcast} protocol in both the ABService-2N and 3N experiments.  It shows the average number of \emph{abcast}s sent per node and the average number of these messages that were delivered by the Aramis protocol, as well as providing the total percentage of \emph{abcast}s that were delivered via Aramis.  Furthermore, this table also details the ratio of $s$-nodes that delivered an \emph{abcast} via Aramis compared to the total number of $s$-nodes utilised.  For example, in the case of ABService-2N we performed $24$ experiments, therefore we have statistics for $48$ $s$-nodes and our records show that only $3$ of these $48$ nodes utilised Aramis to deliver one or more \emph{abcast} message.  
+	
+	\begin{table}[h]
+	  \begin{center}
+	    \begin{tabular}{|c|c|c|c|c|}
+	    \hline
+	    Experiment  & $\#$ \emph{abcast}s & Nodes Effected &  AVG Aramis Deliveries & $\%$ Aramis Deliveries \\ \hline \hline
+	    ABService-2N & 12763.4 & 3:48   & 10.8  & $0.085\%$  \\ \hline
+	    ABService-3N & 13416.4 & 30:72 & 15.3  & $0.114\%$ \\ \hline
+	    \end{tabular}
+	    \caption{Average ABcast Statistics per Node}
+	    \label{table:emulated_transcation_aramis_deliveries}
+	  \end{center}
+	\end{table}	
+	
+	\begin{figure}[tp]
 	 % \centering
-	 \includegraphics[width=\textwidth,height=\textheight,keepaspectratio, clip, trim={2cm 3cm 2cm 3cm}]{Latency2}
+	 \includegraphics[width=\textwidth,height=\textheight,keepaspectratio, clip, trim={2cm 3.5cm 2cm 3cm}]{Latency2}
 	 \caption{AmaaS Latency Comparison}
 	 \label{fig:LatencyGraph}
 	\end{figure}
 	
-	\begin{figure}[htbp!]
+	\begin{figure}[bp]
 	% \centering
-	 \includegraphics[width=\textwidth,height=\textheight,keepaspectratio, clip, trim={2cm 3cm 2cm 3cm}]{Throughput2}
+	 \includegraphics[width=\textwidth,height=\textheight,keepaspectratio, clip, trim={2cm 3.5cm 2cm 3cm}]{Throughput2}
 	 \caption{AmaaS Throughput Comparison}
 	 \label{fig:ThroughputGraph}
-	\end{figure}
-	
-	Figures \ref{fig:LatencyGraph} and \ref{fig:ThroughputGraph} show the latency and throughput results for our experiments, with $2N$ and $3N$ representing an \textsf{AmaaS} service that consists of two and three, $s$-nodes respectively.  Each plot on the graph is an average of three \emph{crash-free} trials; where a trial consists of each $c$ node completing $10^4$ transactions for a specific value of $|Tx.dst|$. Thus, in all three trials the TOA-Service and ABService each receive a total of $10^5$ \emph{amcast} requests. In TOA-P2P, each $c$ node initiates $10^4$ TOA executions between its peers.  
+	\end{figure}	
 	
 	\clearpage
     \subsection{Evaluation}
@@ -65,9 +97,19 @@
 	TOA-P2P's superior performance when $Tx.dst < 4$ can be attributed to the additional stages involved when utilising the \emph{AmaaS} model.  For example when TOA-Service utilises two $s$-nodes ($2N$) the following stages are required: $Tx.c$ sends a request, the \emph{multicast service} \emph{abcast}s it with $|m.dst| = 2$ to all $s$-nodes and returns it to $Tx.c$, who must then multicast $mcast(Tx)$ to $Tx.dst$.  Ignoring the individual message cost of each stage the total number of stages is four, whereas in TOA-P2P the only step required is the \emph{amcast}ing of $Tx$.  So although $|m.dst|$ for each \emph{amcast} is less in TOA-Service ($|m.dst| = 2$) than TOA-P2P ($|m.dst| = 3$), the overhead of sending a request to the \emph{multicast service} and back is much greater than the savings offered by reducing $|m.dst|$ by one node.  However, as $|Tx.dst|$ increases, the overhead of TOA-P2P's increased $|m.dst|$ becomes significant, to the point where TOA-Service's additional communication stages becomes less of an overhead than the cost of TOA-P2P \emph{amcat}ing to a large $m.dst$.  
 	
     \subsubsection*{ABService vs TOA-Service}
-    In Figure \ref{fig:LatencyGraph} we can see that the latencies encountered by the ABService-2N and TOA-Service-2N experiments are very similar regardless of the number of clients involved in a transaction, with the maximum difference between any two plots being no greater than $0.3$ milliseconds.  Interestingly, our experiments show that in the majority of experiments ($5/8$), the ABService does not just match the performance of the TOA-Service, but actually outperforms it.  This superior performance can be attributed to the difference in message cost between the two \emph{abcast} protocols, which is a consequence of the optimisations present in the \textsf{ABcast} protocol ($\S$  \ref{ssec:atomic_broadcast} $\&$ \ref{ssec:base_ack_piggyback}).  The \textsf{ABcast} protocol piggybacks any outstanding message acknowledgements on subsequent message broadcasts, enabling \emph{abcast}s to be executed in a single phase when all nodes are frequently sending \emph{abcast}s.  Whereas, the JGroups implementation of the TOA protocol does not implement any optimisations, and thus, each broadcast always consists of two phases, therefore increasing the average latency encountered by transaction requests.  
+    In Figure \ref{fig:LatencyGraph} we can see that the latencies encountered by the ABService-2N and TOA-Service-2N experiments are very similar regardless of the number of clients involved in a transaction, with the maximum difference between any two plots being no greater than $0.3$ milliseconds.  Interestingly, our experiments show that in the majority of experiments ($5/8$), the ABService does not just match the performance of the TOA-Service, but actually outperforms it.  This superior performance can be attributed to a combination of two factors: the number of requests that are bundled on average per \emph{abcast} and the overall message cost associated with the underlying \emph{abcast} protocol.  
+    
+    The average number of client requests bundled into a single \emph{abcast} can play a decisive role in the latency and throughput of a \textsf{AmaaS} service as the higher the average bundle rate, the lower the total number of \emph{abcast}s required.  As the \emph{abcast}ing of requests between $s$-nodes is the most expensive operation, in terms of bandwidth and latency in the \textsf{AmaaS} model, it is self-evident that reducing their frequency will reduce the average latency encountered by the client requests.  Thus reducing the overall latency of a transaction.  
+    
+    Table \ref{table:emulated_transaction_averages} shows that the average bundle rate for the ABService-2N was $4$ messages, whilst it was only $3$ for TOA-Service-2N.  Therefore, on average a node in TOA-Service-2N sent approximately (INSERT VALUE) more \emph{abcast}s then its counterpart ABService-2N, which partially explains the difference in performance between the two approaches.  
+    
+    The difference in message cost between the two \emph{abcast} protocols is a consequence of the two different approaches to solving \emph{abcast} and the optimisations present in the \textsf{ABcast} protocol ($\S$  \ref{ssec:atomic_broadcast} $\&$ \ref{ssec:base_ack_piggyback}).  The \textsf{ABcast} protocol piggybacks any outstanding message acknowledgements on subsequent message broadcasts, enabling \emph{abcast}s to be executed in a single phase when all nodes are frequently sending \emph{abcast}s.  Whereas, the JGroups implementation of the TOA protocol does not implement any optimisations, and thus, each broadcast always consists of two phases, therefore increasing the average latency encountered by transaction requests.  
 	
 	Correspondingly, it is possible to observe that the average and maximum difference between the latencies encountered in the ABService-3N and TOA-Service-3N experiments is greater than that observed when $N = 2$.  This increase in the performance gap can be attributed to the \textsf{ABcast} optimisations becoming more effective when the number of $s$-nodes increases due to the total number of messages no longer required by \textsf{ABcast} also increasing.  For example, if $N = 3$ and \textsf{ABcast} sends a broadcast, the total message cost for that single \emph{abcast} is only $2$ unicasts, whereas with TOA the total cost is $6$ unicasts due to the two phases required by the protocol.  Clearly, the potential for such reductions in message cost will have a positive effect on the performance of the ABService implementation, especially when service requests are evenly distributed amongst $s$-nodes and are arriving frequently.  
+	
+    Interestingly, in Table \ref{table:emulated_transaction_averages} we can see that the average bundle rate of ABService-3N and TOA-Service-3N are almost the same, yet the difference between the observed latencies in the two approaches has increased.  	Thus in these experiments the average bundle rate has no significant impact on the performance of the two approaches.  
+    
+    The large difference between the average bundle rate observed in ABService-2N and 3N, is a direct consequence of the DMC's calculations and how AFC ($\S$ \ref{sec:afc_protocol}) manages broadcast rates.  Recall that the delay imposed by AFC, for an \emph{abcast} message, increases when latencies start to exceed the previously calculated $x_{mx}$ value, and decreases to $\delta_{min}$ when no such latencies are observed.  When $2 s$-nodes are utilised, the observed $x_{mx}$ is typically lower than $3 s$-nodes, as the number of unicasts sent between $s$-nodes is less; hence the probability of large delays being observed is reduced.  The smaller the average $x_{mx}$ value, the more susceptible the system is to delays periodically exceeding $x_{mx}$.  Therefore, when $2 s$-nodes are utilised the probability of the calculated AFC delay regularly exceeding $\delta_{min}$ increases, which in turn reduces the node's broadcast rate.  Consequently, the number of requests which can accumulate between \emph{abcast}s will increase, and hence the average bundle rate also increases.  When $3 s$-nodes are utilised, the DMC's observations are typically more stable, resulting in less \emph{outlier} latencies being recorded and the broadcast rate being more stable; hence an average bundle rate that is approximately the same as the TOA-Service-3N.  
 	
 	The throughput of the ABService and TOA-Service for both $2N$ and $3N$ follows a very similar pattern to that observed when analysing their latencies.  This is not surprising as the average transaction latency has a direct impact on the average rate of throughput.  Combining the results shown in Figures \ref{fig:LatencyGraph} and \ref{fig:ThroughputGraph}, it is clear to see that the ABService provides comparable performance to that of the TOA-Service and that both of these \textsf{AmaaS} solutions consistently outperform TOA-P2P when $Tx.dst > 3$.  
 	
