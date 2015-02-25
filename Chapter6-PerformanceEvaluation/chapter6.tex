@@ -94,7 +94,7 @@
 	
 	\clearpage
     \subsection{Evaluation}
-    This section is split into two distinct subsections.  First we directly compare the performance of the \textsf{AmaaS} service and the P2P approach, with both experiments utilising the same TOA protocol.  We then evaluate the performance of the ABService in contrast with the previous two approaches, focusing on the differences between the performance of the ABcast and TOA based service.  
+    This section is split into three distinct subsections.  First we directly compare the performance of the \textsf{AmaaS} service and the P2P approach with both experiments utilising the same TOA protocol.  We then evaluate the performance of the ABService in contrast with the previous two approaches, focusing on the differences between the performance of the ABcast and TOA based service.  Finally, we evaluate the performance of \textsf{ABcast}, focusing on how often the \textsf{Aramis} protocol was utilised to deliver messages and its ability to maintain \emph{abcast} guarantees G1-G4.  
     
     \subsubsection*{AmaaS vs P2P}
 	In Figure \ref{fig:LatencyGraph} we can see that when $|Tx.dst| \geq 4$, TOA-P2P's \emph{abcast} latencies increase considerably when compared to the two TOA-Service experiments.  With TOA-P2P experiencing approximately a $25\%$ and $50\%$ increase in average latency when compared to TOA-Service-3N and TOA-Service-2N respectively.  Thus, indicating that \emph{amcast}ing is best provided as a service as the number of clients involved in a transaction increases. Comparing throughput in Figure \ref{fig:ThroughputGraph} leads to similar conclusions, with the steady throughput observed as $|Tx.dst| \rightarrow 10$ also suggesting an absence of node saturation.  
