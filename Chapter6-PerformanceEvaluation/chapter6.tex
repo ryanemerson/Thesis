@@ -50,7 +50,7 @@
 	
     \begin{table}[h]
   \begin{center}
-    \begin{tabular}{|c|c|c|c|}
+    \begin{tabular}{|l|c|c|c|}
     \hline
     Experiment & $\#$ Client Requests  & $\#$ \emph{abcast}s & Bundle Rate \\ \hline \hline
     ABService-2N     & 50000    &    12763.4    &    4 \\ \hline
@@ -67,9 +67,9 @@
 	
 	\begin{table}[h]
 	  \begin{center}
-	    \begin{tabular}{|c|c|c|c|c|}
+	    \begin{tabular}{|l|c|c|c|c|}
 	    \hline
-	    Experiment  & $\#$ \emph{abcast}s & Nodes Effected &  AVG Aramis Deliveries & $\%$ Aramis Deliveries \\ \hline \hline
+	    Experiment  & $\#$ \emph{abcast}s & Nodes Effected &  Avg Aramis Deliveries & $\%$ Aramis Deliveries \\ \hline \hline
 	    ABService-2N & 12763.4 & 3:48   & 10.8  & $0.085\%$  \\ \hline
 	    ABService-3N & 13416.4 & 30:72 & 15.3  & $0.114\%$ \\ \hline
 	    \end{tabular}
@@ -138,11 +138,89 @@
     \subsection{Experimentation}
     The infinite client experiment was implemented using the JGroups framework and all of our experiments utilised the same implementation of \textsf{ABcast} as those discussed in $\S$ \ref{ssec:emulated_transaction_experiments}.  Furthermore, our experiments utilised the same specification of machine as our previous experiments from within the same university cluster.  
     
-    An individual experiment consists of $n$ nodes sending $10^6$ \emph{abcast}s between each other; with each individual node sending $\frac{10^6}{n}$ messages.  Each node sends these broadcasts as fast as possible using a single thread, which represents the \emph{sender} thread utilised in \textsf{SCast} to process the ARP and broadcast requests between $s$-nodes.  As soon as a message has been sent, another broadcast via \textsf{ABcast} is initiated; where the sending of a message consists of it being sent down the JGroups stack, processed and delayed by AFC, before being unicast to all $n$ nodes.  An experiment is considered complete when each node has delivered $10^6$ messages, or if messages have been rejected by a node, then $10^6 - #rejections$.  
+    An individual experiment consists of $n$ nodes sending $10^6$ \emph{abcast}s between each other; with each individual node sending $\frac{10^6}{n}$ messages.  Each node sends these broadcasts as fast as possible using a single thread, which represents the \emph{sender} thread utilised in \textsf{SCast} to process the ARP and broadcast requests between $s$-nodes.  As soon as a message has been sent, another broadcast via \textsf{ABcast} is initiated; where the sending of a message consists of it being sent down the JGroups stack, processed and delayed by AFC, before being unicast to all $n$ nodes.  An experiment is considered complete when each node has delivered $10^6$ messages, or if messages have been rejected by a node, then $10^6 - \#rejections$.  
     
-    All of our experiments record the $m.id$ of each \textsf{ABcast} message, in the order that they were delivered to the application, across several text files.  This allows us to ensure that our implementation is correct and that violations to the \emph{abcast} total order only occur if one or more messages are rejected by \textsf{Aramis}.  For all of our experiments, this was true, therefore we know that the number of total order violations is always equal to the number of \textsf{Aramis} rejections.  Henceforth all references to a message being rejected infers that a violation of the \emph{abcast} total order has occurred.  
+    All of our experiments record the $m.id$ of each \textsf{ABcast} message, in the order that they were delivered to the application, across several text files.  This allows us to ensure that our implementation is correct and that violations to the \emph{abcast} total order only occur if one or more messages are rejected by \textsf{Aramis}.  For all of our experiments, this was true, therefore we know that the number of total order violations is always equal to the number of \textsf{Aramis} rejections.  Henceforth, all references to a message being rejected infers that a violation of the \emph{abcast} total order has occurred.  
     
     \subsection{Results}
+
+%\begin{table}[h]
+%  \begin{center}
+%  \renewcommand{\arraystretch}{1.3}
+%   \begin{tabular}{|l|c|c|c|}
+%    \hline
+%    Experiment & $N_1$   & $N_2$   & $N_3$      \\ \hline \hline
+%    1          & 3003, (0)  & 3385, (0)  & 705, (0)    \\ \hline
+%    2          & 303, (0)    & 353, (0)    & 279, (0)   \\ \hline
+%    3          & 4192, (0)  & 3734, (0)  & 1727, (0)  \\ \hline
+%    4          & 2324, (0)  & 2478, (0)  & 1094, (0)    \\ \hline
+%    5          & 2640, (0)  & 2121, (0)  & 1804, (0)   \\ \hline
+%    6          & 1040, (0)  & 1408, (0)  & 1365, (0)   \\ \hline
+%    7          & 403, (0)    & 2108, (0)  & 2135, (0)   \\ \hline
+%    8          & 1714, (0)  & 1303, (0)  & 1871, (0)   \\ \hline
+%    9          & 2282, (0)  & 1163, (0)  & 3122, (0)   \\ \hline
+%    10        & 143, (0)    & 391, (0)    &  361, (0)   \\ \hline
+%    Total    &18044, (0) &18419, (0) &14463, (0) \\ \hline
+%    \end{tabular}
+%    \caption{Aramis deliveries (failures) for infinite clients - $\rho_{min}$ = 3}
+%    \label{table:infinite_clients_aramis}
+%  \end{center}
+%\end{table}
+%    
+%\begin{table}[h]
+%  \begin{center}
+%  \renewcommand{\arraystretch}{1.3}
+%   \begin{tabular}{|l|c|c|c|}
+%    \hline
+%    Node      & Avg Delivery Latency (ms) & Avg $\Delta_m$ (ms) \\ \hline \hline
+%    $N_1$   & $19.98$                           & $869.34$                   \\ \hline
+%    $N_2$   & $20.43$                           & $823.32$                   \\ \hline
+%    $N_2$   & $20.96$                           & $824.65$                   \\ \hline \hline
+%    Overall   & $20.46$                           & $8391.14$                 \\ \hline
+%    \end{tabular}
+%    \caption{Average \textsf{ABcast} Latencies and Calculated $\Delta_m$ - $\rho_{min}$ = 3}
+%    \label{table:infinite_clients_aramis}
+%  \end{center}
+%\end{table}    
+    
+\begin{table}[h]
+  \begin{center}
+  \renewcommand{\arraystretch}{1.3}
+   \begin{tabular}{|l|c|c|c|}
+    \hline
+    Experiment & $N_1$   & $N_2$   & $N_3$      \\ \hline \hline
+    1          & 9220, (0)  & 7929, (0)  & 6434, (0)    \\ \hline
+    2          & 3348, (0)  & 4555, (0)  & 5008, (0)   \\ \hline
+    3          & 4496, (0)  & 4920, (0)  & 1952, (0)  \\ \hline
+    4          & 5832, (0)  & 6439, (0)  & 4801, (0)    \\ \hline
+    5          & 5320, (0)  & 5757, (0)  & 4066, (0)   \\ \hline
+    6          & 4181, (0)  & 3286, (0)  & 4157, (0)   \\ \hline
+    7          & 1743, (0)  & 2237, (0)  & 2235, (0)   \\ \hline
+    8          & 4188, (0)  & 1846, (0)  & 5421, (0)   \\ \hline
+    9          & 5621, (0)  & 4242, (0)  & 5291, (0)   \\ \hline
+    10        & 2953, (0)  & 5014, (0)  & 3192 , (0)   \\ \hline
+    Total    &46902, (0) &46225, (0) &42557, (0) \\ \hline
+    \end{tabular}
+    \caption{Aramis deliveries (rejections) for infinite clients - $\rho_{min}$ = 1}
+    \label{table:infinite_clients_aramis}
+  \end{center}
+\end{table}
+    
+\begin{table}[h]
+  \begin{center}
+  \renewcommand{\arraystretch}{1.3}
+   \begin{tabular}{|l|c|c|c|}
+    \hline
+    Node      & Avg Delivery Latency (ms) & Avg $\Delta_m$ (ms) \\ \hline \hline
+    $N_1$   & $21.48$                           & $710.34$                   \\ \hline
+    $N_2$   & $23.47$                           & $687.29$                  \\ \hline
+    $N_2$   & $25.45$                           & $767.74$                   \\ \hline \hline
+    Overall   & $23.47$                           & $721.79$                 \\ \hline
+    \end{tabular}
+    \caption{Average \textsf{ABcast} Latencies and Calculated $\Delta_m$ - $\rho_{min}$ = 1}
+    \label{table:infinite_clients_aramis}
+  \end{center}
+\end{table}       
     
     \subsection{Evaluation}
     
