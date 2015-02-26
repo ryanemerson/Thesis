@@ -4,7 +4,7 @@
     
 
 % Probing validation experiments    
-\section{DMC Validation}
+%\section{DMC Validation}
 
 % Emulated Transactions
 \section{AmaaS}
@@ -235,22 +235,22 @@ We executed the experiment detailed in $\S$ \ref{ssec: infinite_experimentation}
     The \textsf{ABcast} protocol is capable of providing low-latency \emph{abcast}s over a sustained period of time in conditions representative of those found in an \textsf{AmaaS} service.  In such conditions, the DMC consistently calculates a $\Delta_m$ value that is small enough to outperform GM services, whilst being sufficiently large to ensure that no violations of \emph{abcast} guarantees occur when messages are delivered by \textsf{Aramis}.  
     
 \section{ABcast - Fault Tolerance}
-    In our prior experiments with \textsf{ABcast} we have evaluated the performance of the protocol in the context of an \textsf{AmaaS} service where no node failures occur.  However, as \textsf{ABcast} has been designed to provide the low-latency performance of GM protocols, whilst allowing for non-blocking message delivery when node crashes occur, it is necessary to ensure that $\Delta_m$ is sufficiently small for message delivery to continue before the GM service detects the crash.  Ultimately, if the GM service is able to detect a node crash before any messages are delivered via the \textsf{Aramis} protocol, then the increased complexity of a hybrid approach is unnecessary.  In such a case, a traditional GM based protocol would be more suitable as there is no risk of the \emph{abcast} total order being violated.  Therefore it was necessary to create an experiment that monitors the number of messages, if any, that are delivered by \textsf{ABcast} in the interim period between a node crashing and the GM service detecting it.  
-   
-   The rest of this section is structured as follows.  First we detail our experiment, along with all of the parameters utilised by \textsf{ABcast}.  We then present the result of our experiments, before providing an evaluation of findings.  
+    In our prior experiments with \textsf{ABcast} we have evaluated the performance of the protocol in the context of an \textsf{AmaaS} service where no node failures occur.  However, as \textsf{ABcast} has been designed to provide the low-latency performance of GM protocols, whilst allowing for non-blocking message delivery when node crashes occur, it is necessary to ensure that $\Delta_m$ is sufficiently small for message delivery to continue before the GM service detects the crash.  Ultimately, if the GM service is able to detect a node crash before any messages are delivered via the \textsf{Aramis} protocol, then the increased complexity of a hybrid approach is unnecessary.  In such a case, a traditional GM based protocol would be more suitable as there is no risk of the \emph{abcast} total order being violated.  Therefore it was necessary to create an experiment that monitors the number of messages, if any, that are delivered by \textsf{ABcast} in the interim period between a node crashing and the GM service detecting it.  Furthermore, our experiments explore the impact of utilising different \textsf{ABcast}'s constant values, such as $\rho_{min}$ and $R$, on the number of messages delivered in this interim period.  More specifically, exploring their impact on the average $\Delta_m$ value calculated by a node and how this impacts the number of messages rejected by \textsf{Aramis}.  
+      
+   The rest of this section is structured as follows.  First we detail the experiment we designed and all of the parameters utilised by \textsf{ABcast}.  We then present the result of our experiments, before providing an evaluation of our findings.  
     
-    \subsection{Experimentation}
-    In order to test the performance of \textsf{ABcast} when a node crashes, we reuse the experiments detailed in $\S$ \ref{ssec: infinite_experimentation}.  However, in these experiments, instead of all $3$ nodes sending a total of $10^6$ \emph{abcast}s, only $2$ of the nodes complete their broadcasts.  The third node, $N_3$, is crashed after sending $50000$ \emph{abcast}s.  As JGroups is implemented in the Java programming language, we crash $N_3$, by crashing the underlying Java Virtual Machine (JVM) not the physical machine.  In order to understand our experiment, it is important to consider the design of the GM service and associated protocols that are utilised in the JGroups framework.  The remainder of this section details these protocols, how we crash the JVM and the constant values utilised by \textsf{ABcast}.  
+    \subsection{Experimentation}\label{ssec:crash_experiment}
+    In order to test the performance of \textsf{ABcast} when a node crashes, we reuse the experiments detailed in $\S$ \ref{ssec: infinite_experimentation}.  However, in these experiments, instead of all $3$ nodes sending a total of $10^6$ \emph{abcast}s, only $2$ of the nodes complete their broadcasts.  The third node, $N_3$, is crashed after sending $50000$ \emph{abcast}s.  As JGroups is implemented in the Java programming language, we crash $N_3$, by crashing the underlying Java Virtual Machine (JVM) not the physical machine.  In order to understand our experiment and why this is necessary, it is important to consider the design of the GM service and associated protocols that are provided by the JGroups framework.  The remainder of this section details these protocols, how we crash the JVM and the different constant values utilised by \textsf{ABcast}.  
     
     The GM service offered by JGroups, GMS, maintains the current view of network members by adding or removing nodes from the view.  This protocol relies on three \emph{failure detection} protocols located below it in the stack to issue \texttt{SUSPECT} messages to the stack when a node is suspected of crashing.  From the bottom of the stack up, these protocols are called \emph{\texttt{FD\_SOCK}}, \emph{\texttt{FD\_ALL}} and \emph{\texttt{VERIFY\_SUSPECT}} \citep{JGroups}.  
     
-    \texttt{FD\_SOCK} is the lowest of the three protocols in the stack, and it utilises a \textquoteleft{}ring' of TCP sockets between each node in a view to ensure that all nodes are operative \footnote{All of the experiments detailed in this thesis utilise UDP packets for sending unicasts, however the TCP sockets are still open as part of the \texttt{FD\_SOCK} protocol and are present purely for failure detection.}.  If a node's TCP socket is abruptly closed, then \texttt{FD\_SOCK} suspects that the node has crashed and issues a \texttt{SUSPECT} message.  Conversely, if a node wishes to leave the view gracefully, i.e it has not crashed, then a leaving message is sent around the ring of TCP sockets before the node closes its socket.    This leaving message is sent when the JGroups shutdown hook is activated during the normal shutdown process of a Java program (calling System.exit()).  
+    \texttt{FD\_SOCK} is the lowest of the three protocols in the stack, and it utilises a \textquoteleft{}ring' of TCP sockets that is established between each node in the current view to detect if one or more nodes become inoperative \footnote{All of the experiments detailed in this thesis utilise UDP packets for sending unicasts, however the TCP sockets are still open as part of the \texttt{FD\_SOCK} protocol and are present purely for failure detection.}.  If a node's TCP socket is abruptly closed, then \texttt{FD\_SOCK} suspects that the node has crashed and issues a \texttt{SUSPECT} message.  Conversely, if a node wishes to leave the view gracefully, i.e it has not crashed, then a leaving message is sent around the ring of TCP sockets before the node closes its socket.    This leaving message is sent when the JGroups shutdown hook is activated during the normal shutdown process of a Java program (calling System.exit() or requesting the process is terminated at the OS level).  
     
-    \texttt{FD\_ALL} is a failure detector protocol that utilises a simple heartbeat protocol \citep{AW98} to issue \texttt{SUSPECT} messages.  Each node periodically sends a heartbeat message to all other nodes in the current view, and suspects another member of crashing if a heartbeat message has not been received after a specified timeout.  By default, \texttt{FD\_ALL} utilises a timeout value equal to  $40$ seconds with each heartbeat message sent every $8$ seconds.  
+    \texttt{FD\_ALL} is a failure detector protocol that utilises a simple heartbeat protocol \citep{AW98} to issue \texttt{SUSPECT} messages.  Each node periodically sends a heartbeat message to all other nodes in the current view, and suspects another member of crashing if a heartbeat message has not been received after a specified timeout.  By default, \texttt{FD\_ALL} utilises a timeout value equal to $40$ seconds with each heartbeat message sent every $8$ seconds.  
     
     Finally, the highest failure detection protocol in the stack, is the \texttt{VERIFY\_SUSPECT} protocol.  This protocol aims to reduce the chances of a node being falsely suspected of crashing by intercepting \texttt{SUSPECT} messages, sent from lower in the stack, and attempting to contact the suspected node for a final time.  If no response is received within $1.5$ seconds, then the \texttt{SUSPECT} message is sent upto the GMS protocol and the node will be excluded from the current view.  Otherwise, the original \texttt{SUSPECT} message is discarded as we know that the suspected node must be alive if it is able to respond to this protocol.  
     
-    The three protocols described above, when used as a triple, provide an effective method for detecting node crashes, with initial experiments showing that the \texttt{FD\_SOCK} protocol was particular effective at detecting crashed nodes as it does not rely on large timeout values.  Therefore, in order for \textsf{ABcast} to deliver messages before GMS detected a crash, the calculated $\Delta_m$ would need to remain relatively small ($ < 2 seconds$) throughout the experiment.  Furthermore, because of \texttt{FD\_SOCK}'s use of Java shutdown hooks, it was not possible for the crashed node in our experiments to be simply exited as a normal application as this would result in the node sending a leaving message to all members in the view and alerting GMS almost instantly that the node was leaving the current view.  Obviously it would not be possible for such a leaving message to be sent if a node actually crashed.  Therefore, it was necessary for us to terminate the JVM in the most disruptive manner possible, in order to replicate the unexpected nature of a real node crash.  We achieved this by using reflection to access the \emph{sun.misc.Unsafe} collections, as show below:
+    The three protocols described above, when used as a triple, provide an effective method for detecting node crashes, with initial experiments showing that the \texttt{FD\_SOCK} protocol was particular effective at detecting crashed nodes as it does not rely on large timeout values.  Therefore, in order for \textsf{ABcast} to deliver messages before GMS detected a crash, the calculated $\Delta_m$ would need to remain relatively small ($\approx < 2$ $seconds$) throughout the experiment.  Furthermore, because of \texttt{FD\_SOCK}'s use of Java shutdown hooks, it was not possible for the crashed node in our experiments to be exited in the normal way as this would result in the node sending a leaving message to all members in the view and alerting GMS almost instantly that the node was leaving the current view.  Obviously it would not be possible for such a leaving message to be sent if a node actually crashed.  Therefore, it was necessary for us to terminate the JVM in the most disruptive manner possible, in order to replicate the unexpected nature of a real node crash.  We achieved this by using reflection to access the \emph{sun.misc.Unsafe} api and crash the JVM.  The code used to crash the JVM is shown below:
     
     \begin{lstlisting}
             Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
@@ -258,12 +258,133 @@ We executed the experiment detailed in $\S$ \ref{ssec: infinite_experimentation}
             ((Unsafe) theUnsafe.get(null)).getByte(0);
     \end{lstlisting}
 
-    As previously stated, we crash the node $N_3$ after it has initiated $50000$ \emph{abcast} requests.  Therefore, we consider the experiment to be complete when both $N_1$ and $N_2$ have delivered $(666666 + 50000 - \#rejection)$ \emph{abcast}s.  
+    As previously stated, we crash the node $N_3$ after it has initiated $50000$ \emph{abcast} requests.  Therefore, we consider each experiment to be complete when both $N_1$ and $N_2$ have delivered $(666666 + 50000 - \#rejection)$ \emph{abcast}s.  For all of our experiments, we utilise the following constant values $\delta_{min} = 1ms$, $\delta_{max} = 10ms$ and $Ss = 10$.  However, we execute our experiments utilising $\rho_{min} = 1,2,3$ and $R=0.9999$ in order to determine the effect of increasing $\Delta_m$ on the number of messages delivered before GM detects a crash.  As well as their impact on \textsf{Aramis}'s likelihood of rejecting a message.  Similarly, we also execute our experiments utilising $\rho_{min} = 1$ and $R=0.99999$, to see the effect of increasing $R$ on $\Delta_m$ and \textsf{Aramis}'s reliability.  
     
     \subsection{Results}
+    Tables \ref{table:crashed_node_rho1}, \ref{table:crashed_node_rho2} and \ref{table:crashed_node_rho3} show the performance of the \textsf{ABcast} protocol in the experiments described in \ref{ssec:crash_experiment}, when $\rho_{min}$ is equal to $1, 2$ and $3$, respectively.  With each table showing the results of ten experiments that were executed with the specified $\rho_{min}$ value.  Each of these tables, show the average $\Delta_m$ value calculated for messages originating at both $N_1$ and $N_2$, as well as the total number of \emph{abcast}s, $\#abcast$ delivered by \textsf{Aramis} in the interim period between node $N_3$ crashing and GMS detecting the crash \footnote{If a column contains $-$ it indicates that no \textsf{Aramis} deliveries occurred before GMS detected $N_3$'s crash.}.  Furthermore, the value in brackets next to this total represents the number of \emph{abcast}s rejected by \textsf{Aramis} in the interim period.  Ultimately, $\#abcast$ shows the throughput gain provided by utilising the probabilistic \textsf{Aramis} protocol, as these \emph{abcast}s would not have been delivered until GMS detected $N_3$'s crash if a GM based protocol had been used for \emph{abcast}ing.   
+
+    Similarly, Table \ref{table:crashed_node_R.99999} shows the performance of \textsf{ABcast} in the same experiments, but with $\rho_{min} = 1$ and the constant $R = 0.99999$.  The fields and columns presented in this table are equivalent to those describe above.  
     
+    \begin{table}[h]
+  \begin{center}
+  \renewcommand{\arraystretch}{1.5}
+    \begin{tabular}{|c|c|c|c|c|}
+    \hline
+    \multirow{2}{*}{$\rho_{min}$} & \multirow{2}{*}{$R$}    & \multirow{2}{1.75cm}{$\#$ of Fail Free Runs} & \multicolumn{2}{|c|}{Failure / Delivery} \\ \cline{4-5}
+                                 &              &                   & $N_1$   & $N_2$             \\ \hline \hline
+    3                           & 0.9999  & $10/10$    & $-$        & $-$                 \\ \hline
+    2                           & 0.9999  & $9/10$      & $-$        & $\frac{1}{19485}$ \\ \hline
+    \multirow{2}{*}{1} & \multirow{2}{*}{0.9999} & \multirow{2}{*}{$8/10$} & $-$ & $\frac{1}{12483}$ \\ 
+                                 &              &                   & $-$        & $\frac{1}{10544}$ \\ \hline
+    1                           &0.99999 & $9/10$      & $-$        & $\frac{1}{17016}$ \\ \hline
+    \end{tabular}
+    \caption{Summary of $\rho_{min}$ and $R$ when Node Crashes Occur}
+    \label{table:crashed_node_summary}
+  \end{center}
+\end{table}    
+    
+    Table \ref{table:crashed_node_summary} provides a summary of all of these previous tables, with each set of experiments represented as a single row and being uniquely identified by the combination of $R$ and $\rho_{min}$ values used in the experiments.  For each experiment, we show the number of experiments that encountered no \textsf{Aramis} failures as a ratio of all experiments, and in experiments where failures did occur we present the number of failures over the number of successful \textsf{Aramis} deliveries that occurred before GMS detected $N_3$'s crash\footnote{In Table \ref{table:crashed_node_summary}, $-$ indicates that not \textsf{Aramis} failures occurred}.  
+     
+\begin{table}[p]
+    \begin{center}
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabular}{|c|c|c|c|c|}
+            \hline
+            \multirow{2}{*}{Experiment} & \multicolumn{2}{|c|}{$N_1$} & \multicolumn{2}{|c|}{$N_2$} \\ \cline{2-5}
+                                                       & $\Delta_m$&\textsf{Aramis} & $\Delta_m$&\textsf{Aramis} \\ \hline \hline
+            1 & 240 & 10544, (0) & 212 & 10544, (1) \\ \hline
+            2 & 553 & 6874, (0) & 527 & 6874, (0) \\ \hline
+            3 & 517 & 17452, (0) & 402 & 17452, (0) \\ \hline
+            4 & 334 & 18487, (0) & 274 & 18483, (0) \\ \hline
+            5 & 426 & 12483, (0) & 322 & 12483, (1) \\ \hline
+            6 & 717 & 4723, (0) & 429 & 4723, (0) \\ \hline
+            7 & 491 & 8936, (0) & 816 & 8936, (0) \\ \hline
+            8 & 510 & 393, (0) & 475 & 392, (0) \\ \hline
+            9 & 478 & 3798, (0) & 931 & 3798, (0) \\ \hline
+            10 & 234 & 17341, (0) & 290 & 17805, (0) \\  \hline
+        \end{tabular}
+        \caption{\textsf{Aramis} deliveries (rejections) before GMS detects $N_3$ has crashed \\ $R=0.9999$, $\rho_{min}=1$}
+        \label{table:crashed_node_rho1}
+    \end{center}
+\end{table}
+
+\begin{table}[p]
+    \begin{center}
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabular}{|c|c|c|c|c|}
+            \hline
+            \multirow{2}{*}{Experiment} & \multicolumn{2}{|c|}{$N_1$} & \multicolumn{2}{|c|}{$N_2$} \\ \cline{2-5}
+                                                       & $\Delta_m$&\textsf{Aramis} & $\Delta_m$&\textsf{Aramis} \\ \hline \hline
+            1 & 664 & 5509, (0) & 580 & 5509, (0) \\ \hline
+            2 & 636 & 13697, (0) & 555 & 13697, (0) \\ \hline
+            3 & 1020 & 2688, (0) & 496 & 2688, (0) \\ \hline
+            4 & 320 & 19481, (0) & 279 & 19485, (1) \\ \hline
+            5 & 331 & 19012, (0) & 400 & 19106, (0) \\ \hline
+            6 & 456 & 2669, (0) & 466 & 2669, (0) \\ \hline
+            7 & 432 & 10823, (0) & 939 & 10823, (0) \\ \hline
+            8 & 271 & 18412, (0) & 272 & 18414, (0) \\ \hline
+            9 & 498 & 5440, (0) & 362 & 5449, (0) \\ \hline
+            10 & 716 & 3611, (0) & 376 & 3611, (0) \\ \hline
+        \end{tabular}
+        \caption{\textsf{Aramis} deliveries (rejections) before GMS detects $N_3$ has crashed \\ $R=0.9999$, $\rho_{min}=2$}
+        \label{table:crashed_node_rho2}
+    \end{center}
+\end{table}
+
+\begin{table}[p]
+    \begin{center}
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabular}{|c|c|c|c|c|}
+            \hline
+            \multirow{2}{*}{Experiment} & \multicolumn{2}{|c|}{$N_1$} & \multicolumn{2}{|c|}{$N_2$} \\ \cline{2-5}
+                                                       & $\Delta_m$&\textsf{Aramis} & $\Delta_m$&\textsf{Aramis} \\ \hline \hline
+            1 & 452 & 17651, (0) & 451 & 21064, (0) \\ \hline
+            2 & 475 & $-$ & 679 & - \\ \hline
+            3 & 754 & 3911, (0) & 515 & 3911, (0)  \\ \hline
+            4 & 355 & 16516, (0) & 515 & 3911, (0)  \\ \hline
+            5 & 214 & 17620, (0) & 503 & 17619, (0)  \\ \hline
+            6 & 386 & 12968, (0) & 694 & 12968, (0)  \\ \hline
+            7 & 453 & 7311, (0) & 345 & 7311, (0)  \\ \hline
+            8 & 632 & 12613, (0) & 546 & 12613, (0)  \\ \hline
+            9 & 356 & 18030, (0) & 569 & 18034, (0)  \\ \hline
+            10 & 695 & 13907, (0) & 511 & 13907, (0)  \\ \hline
+        \end{tabular}
+        \caption{\textsf{Aramis} deliveries (rejections) before GMS detects $N_3$ has crashed \\ $R=0.9999$, $\rho_{min}=3$}
+        \label{table:crashed_node_rho3}
+    \end{center}
+\end{table}
+
+\begin{table}[p]
+    \begin{center}
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabular}{|c|c|c|c|c|}
+            \hline
+            \multirow{2}{*}{Experiment} & \multicolumn{2}{|c|}{$N_1$} & \multicolumn{2}{|c|}{$N_2$} \\ \cline{2-5}
+                                                       & $\Delta_m$&\textsf{Aramis} & $\Delta_m$&\textsf{Aramis} \\ \hline \hline
+            1 & 387 & 17982, (0) & 453 & 17016, (1)  \\ \hline
+            2 & 7507 & 255, (0) & 3804 & 742, (0)  \\ \hline
+            3 & 2019 & 8117, (0) & 1676 & 8117, (0)  \\ \hline
+            4 & 3094 & - & 1899 & -  \\ \hline
+            5 & 264 & 10876, (0) & 416 & 10880, (0)  \\ \hline
+            6 & 683 & 9262, (0) & 605 & 9262, (0)  \\ \hline
+            7 & 244 & 18224, (0) & 301 & 18222, (0)  \\ \hline
+            8 & 1160 & 2207, (0) & 830 & 2207, (0)  \\ \hline
+            9 & 334 & 19058, (0) & 278 & 19060, (0)  \\ \hline
+            10 & 233 & 17588, (0) & 421 & 17586, (0)  \\ \hline
+        \end{tabular}
+        \caption{\textsf{Aramis} deliveries (rejections) before GMS detects $N_3$ has crashed \\ $R=0.99999$, $\rho_{min}=1$}
+        \label{table:crashed_node_R.99999}
+    \end{center}
+\end{table}
+
     \subsection{Evaluation}
+    From Tables \ref{table:crashed_node_rho1}, \ref{table:crashed_node_rho2},  \ref{table:crashed_node_rho3} and \ref{table:crashed_node_R.99999} we can clearly see that the \textsf{ABcast} protocol allows for a large number of \emph{abcast}s to be delivered in the interim period between a node crashing and the GMS protocol detecting it.  With an individual node delivering, on average, greater than $10^4$ \emph{abcast}s and in one case more than double that amount.  Furthermore, out of $40$ experiments there was only two instances when there was no benefit to using the \textsf{ABcast} protocol, and this was when the protocol utilised more conservative constants values of $R=0.99999$ and $\rho_{min}=3$ respectively.  
     
+    In \ref{table:crashed_node_summary}, we can clearly see that increasing the size of $\rho_{min}$ has a direct impact on the reliability of \textsf{Aramis}.  Because the number of \emph{abcast} rejections reaches zero when $\rho_{min}$ is at its largest.  This can be explained by a larger $\rho_{min}$, increasing the calculated $\Delta_m$ value for each \emph{abcast} (as seen in Tables \ref{table:crashed_node_rho1}, \ref{table:crashed_node_rho2},  \ref{table:crashed_node_rho3}) \footnote{The difference in calculated $\Delta_m$ values is not significant between $\rho_{min}=1,2,3$ in our results, however this can be attributed to the varying state of the underlying network.  Our experiments were conducted in sets based upon their constant values, e.g. all ten experiments that utilised $\rho_{min}=1$ and $R=0.9999$ were performed one after the other.  Therefore, as these experiments take several minutes each, the time required to conduct all of the experiments was significant, and as a consequence these experiments were conducted over several days.  Consequently, the load on the underlying network will have varied for each set of experiments.  However, we can still attribute the reduced number of \textsf{Aramis rejections} to an increase in $\Delta_m$, as this variable is calculated based upon latencies that represent the networks current state.  Therefore, if a smaller $\rho_{min}$ value was utilised under the exact same network conditions as the $\rho_{min}=3$ experiments, we know that the calculated $\Delta_m$ value would have been significantly smaller.}.  Conversely, when we increase $R$ from $0.9999$ to $0.99999$, the number of rejections is reduced to one, at the expense of a greatly enlarged $\Delta_m$ (compared to $\rho_{min}=1,2,3$ when $R=0.9999$).  One would expect that this increase in $\Delta_m$ would result in the number of rejections being zero, as is the case in $\rho_{min}=3$ where the average $\Delta_m$ value is much smaller.  However, this is not the case as increasing $R$ not only enlarges $\Delta_m$, but it also inflates $\eta$.  Consequently, the delay between redundant broadcasts of message copies and the maximum $\mathcal{A}_d$ value is also increased.  The increased delay between message broadcasts means that it will take longer for $m.copy > 0$ to reach each destination, which if the original packets of $m.copy = 0$ have been lost, then it is more likely that a copy $m$ will arrive at a destination after $\Delta_m$.  More significant is the increased  $\mathcal{A}_d$ value, as this means that if no \emph{abcast}s are ready to send, then a node will wait longer to send an explicit acknowledgement message.  Resulting in the time between a node being ready to acknowledge a message $m$, and another node receiving the acknowledgement for $m$, increasing, which increases the chances of a subsequent message $m'$ being delivered ahead of $m$ in the total order. Hence, it is more likely for the message $m$ to be rejected by \textsf{Aramis}, which could have been a significant factor in why one of our experiments rejected a message when $R=0.99999$.  
+    
+    Finally, while our experiments show that a larger number of \emph{abcast}s are delivered in the interim period between node failures and detection, we believe that in the event of a \textquoteleft{}real} crash this value could be much higher.  In our experiments we crash the JVM instantly, which results in the TCP sockets utilised by the \texttt{FD_SOCK} protocol being closed immediately.  This means that it is almost certainly the \texttt{FD_SOCK} protocol that detects the failure of $N_3$ each time.  If a crash was preceeded by a slowing down period where node responses become more staggered and the node was unresponsive, but still running and maintaining an open TCP socket, it is highly probable that the total number of \emph{abcast}s sent in the interim period would be much larger, as the alternative failure detection protocol \texttt{FD_ALL} has a default timeout period of $40$ seconds.  
+        
     \subsection{Summary}
-    
+        We have found that utilising the \textsf{ABcast} protocol for \emph{abcast}s, allows for a significant number of messages ($> 10^4$) to be delivered in the interim period between a node crash and a GM protocol detecting it.  Furthermore, we have found that increasing both $\rho_{min}$ and $R$ reduces the chances of \textsf{Aramis} messages being rejected when node crashes occur.  However, increasing $R$ can potentially undermine the \textsf{ABcast} protocol whilst creating a large $\Delta_m$.  Therefore, if a more conservative \textsf{ABcast} protocol is required, it is more effective to increase $\rho_{min}$ then $R$.  
+        
 \section{Summary}
