@@ -36,32 +36,32 @@ In this section we have described the inspiration and rational behind the \texts
 
 \newpage
 \section{Assumptions}
-	This section first defines the four key assumptions made when designing the \textsf{Aramis} protocol. 
+    This section first defines the four key assumptions made when designing the \textsf{Aramis} protocol. 
 
-    \subsection*{Assumptions:}	
-	\begin{description}	
-	% ******** Is this the case? Why?
-		\item [\textbf{A1 - Fault Tolerance}] \hfill \\
-		At most ($n-1$) of $n$ nodes involved in a broadcast can crash. However, 2 or more nodes cannot crash within an interval of some finite duration $D$ that is smaller than a few seconds.
-		
+    \subsection*{Assumptions:}  
+    \begin{description} 
+    % ******** Is this the case? Why?
+        \item [\textbf{A1 - Fault Tolerance}] \hfill \\
+        At most ($n-1$) of $n$ nodes involved in a broadcast can crash. However, 2 or more nodes cannot crash within an interval of some finite duration $D$ that is smaller than a few seconds.
+        
         \item [\textbf{A2 - Synchronised Clocks}] \hfill \\
-		At any moment, clocks of any two operative nodes participating in a \textsf{ABcast} are synchronised.  
-		
-		We meet \textbf{A2} by implementing the well known clock synchronisation algorithm \citep{Cristian:1996:SA:227210.227231}.  The details of our implementation and the parameters used are explored in $\S$ \ref{ssec:clocksynch}.		
-		
-		\item [\textbf{A3 - Reliable Communication}] \hfill \\
-		When an operative node broadcasts $m$ to all $m.dst$, all operative destinations $d \in m.dst$ will eventually receive $m$.  
-		
-		We use reliable UDP protocol to guarantee that all operative nodes receive $m$ in crash-free scenarios.  However, when crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable broadcast, \emph{rbcast}, protocol is required to ensure \textbf{A3}.  The Reliable UDP and \emph{rbcast} protocol we use are explored in detail in $\S$ \ref{ssec:reliable_udp} and $\S$ \ref{ssec:rbcast}, respectively.  
-		
-		\item [\textbf{A4 - Probabilistically Synchronous}] \hfill \\
+        At any moment, clocks of any two operative nodes participating in a \textsf{ABcast} are synchronised.  
+        
+        We meet \textbf{A2} by implementing the well known clock synchronisation algorithm \citep{Cristian:1996:SA:227210.227231}.  The details of our implementation and the parameters used are explored in $\S$ \ref{ssec:clocksynch}.       
+        
+        \item [\textbf{A3 - Reliable Communication}] \hfill \\
+        When an operative node broadcasts $m$ to all $m.dst$, all operative destinations $d \in m.dst$ will eventually receive $m$.  
+        
+        We use reliable UDP protocol to guarantee that all operative nodes receive $m$ in crash-free scenarios.  However, when crashes occur, the use of reliable UDP alone is not enough to ensure that all of the operative destinations receive $m$.  Therefore, a reliable broadcast, \emph{rbcast}, protocol is required to ensure \textbf{A3}.  The Reliable UDP and \emph{rbcast} protocol we use are explored in detail in $\S$ \ref{ssec:reliable_udp} and $\S$ \ref{ssec:rbcast}, respectively.  
+        
+        \item [\textbf{A4 - Probabilistically Synchronous}] \hfill \\
         Let random variable $x$ denote the message communication delay between any pair of operative nodes. The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions from the recent past, will \emph{not} be exceeded during $NT_F$ number of future transmissions that unfold next, where $NT_F \leq NT_P$ with a high probability ($1 - q$).
-		
-    	\textbf{A4} is motivated by previous research conducted by Ezhilchelvan \emph{et al.} \citep{Ezhilchelvan:2010:LPR:1773912.1773927} into PSM, which proposes that the challenges of designing asynchronous distributed systems, namely the FLP impossibility, can be avoided by assuming that the underlying network communication is synchronous to a given probability.  This assumption is a foundation of the \textsf{ABcast} protocol and its ability to provide non-blocking \emph{abcast}, as the variable $x$ is utilised by the \textsf{Aramis} protocol to place an upper bound on the delivery delay of each \emph{abcast} message.  The measurement of $x$, $x_{mx}$ and $q$, as well as past experiments used to validate \textbf{A4}, are presented in $\S$ \ref{ssec:dmc}.  	
-    	
-    	A consequence of this assumption, is that \textsf{ABcast} can only be utilised in data centres and cluster-based environments.  It is not suitable for use over the Internet, or similar networks that are susceptible to large fluctuations in network delays over a short period of time.  This is because frequent fluctuations in network delays would consistently undermine the assumptions of PSM.  
-	\end{description}
-	
+        
+        \textbf{A4} is motivated by previous research conducted by Ezhilchelvan \emph{et al.} \citep{Ezhilchelvan:2010:LPR:1773912.1773927} into PSM, which proposes that the challenges of designing asynchronous distributed systems, namely the FLP impossibility, can be avoided by assuming that the underlying network communication is synchronous to a given probability.  This assumption is a foundation of the \textsf{ABcast} protocol and its ability to provide non-blocking \emph{abcast}, as the variable $x$ is utilised by the \textsf{Aramis} protocol to place an upper bound on the delivery delay of each \emph{abcast} message.  The measurement of $x$, $x_{mx}$ and $q$, as well as past experiments used to validate \textbf{A4}, are presented in $\S$ \ref{ssec:dmc}.   
+        
+        A consequence of this assumption, is that \textsf{ABcast} can only be utilised in data centres and cluster-based environments.  It is not suitable for use over the Internet, or similar networks that are susceptible to large fluctuations in network delays over a short period of time.  This is because frequent fluctuations in network delays would consistently undermine the assumptions of PSM.  
+    \end{description}
+    
 \section{ABcast Components}
 In this section we detail the individual components required by the \textsf{ABcast} protocol.  For each component, we explain its purpose and design; with important implementation details highlighted where appropriate.  All of the protocols presented in this thesis are implemented in Java using the JGroups \citep{JGroups} network framework.  
 
@@ -74,22 +74,22 @@ In this section we detail the individual components required by the \textsf{ABca
     
    Figure \ref{fig:abcast_components} provides an overview of all of the components required by the \textsf{ABcast} protocol; where GM is the Group Membership service provided by JGroups, DMC is the Delay Measurement Component (\ref{ssec:dmc}) and \emph{rbcast} is the Reliable broadcast Component (\ref{ssec:rbcast}).  
 
-	\subsection{Clock Synchronisation}\label{ssec:clocksynch}
-	In order to provide synchronised clocks between nodes executing \textsf{ABcast}, we implemented the probabilistic clock synchronisation algorithm presented in \citep{Cristian:1996:SA:227210.227231} as a dedicated protocol in JGroups.  Cristain's algorithm is a master/slave protocol, that utilises a single master node's clock time to synchronise all of the slave nodes; with each slave periodically issuing a clock synchronisation request to the master in order to synchronise their clocks.  
-			
-			At any moment a slave's clock value is synchronised with the master node with a maximum error rate of $\epsilon$, with probability $\mathcal{P}_\epsilon \geq (1- 10^{-5})$. All of the experiments presented in this thesis utilise clock synchronisation with $\epsilon$ estimated as $1$ millisecond (ms).  A major consideration when estimating $\epsilon$ is the worst-case rate of clock drift between successive synchronisations. Ultimately, the longer the synchronisation interval, the larger the drift rate between clocks.  Estimation of $\epsilon = 1$ usually assumes an interval of $45$ minutes between synchronisations, however we use a shorter $15$ minute interval in order to increase $\mathcal{P}_\epsilon$.
-			
-			As each slave node synchronises its clock value with that of the master, it is possible for any two slave nodes to have a maximum error rate of $2\epsilon$.  This is because a slave $N_i$ could synchronise its clock behind the master's clock value by $\epsilon$ time.  Whereas, another slave $N_j$ could synchronise its clock ahead of the master by $\epsilon$. Hence, it is possible that $N_j.clockValue - N_i.clockValue = 2\epsilon$.  
+    \subsection{Clock Synchronisation}\label{ssec:clocksynch}
+    In order to provide synchronised clocks between nodes executing \textsf{ABcast}, we implemented the probabilistic clock synchronisation algorithm presented in \citep{Cristian:1996:SA:227210.227231} as a dedicated protocol in JGroups.  Cristain's algorithm is a master/slave protocol, that utilises a single master node's clock time to synchronise all of the slave nodes; with each slave periodically issuing a clock synchronisation request to the master in order to synchronise their clocks.  
+            
+            At any moment a slave's clock value is synchronised with the master node with a maximum error rate of $\epsilon$, with probability $\mathcal{P}_\epsilon \geq (1- 10^{-5})$. All of the experiments presented in this thesis utilise clock synchronisation with $\epsilon$ estimated as $1$ millisecond (ms).  A major consideration when estimating $\epsilon$ is the worst-case rate of clock drift between successive synchronisations. Ultimately, the longer the synchronisation interval, the larger the drift rate between clocks.  Estimation of $\epsilon = 1$ usually assumes an interval of $45$ minutes between synchronisations, however we use a shorter $15$ minute interval in order to increase $\mathcal{P}_\epsilon$.
+            
+            As each slave node synchronises its clock value with that of the master, it is possible for any two slave nodes to have a maximum error rate of $2\epsilon$.  This is because a slave $N_i$ could synchronise its clock behind the master's clock value by $\epsilon$ time.  Whereas, another slave $N_j$ could synchronise its clock ahead of the master by $\epsilon$. Hence, it is possible that $N_j.clockValue - N_i.clockValue = 2\epsilon$.  
 
     \subsection{Group Membership}\label{ssec:jgroups_gm}
-	JGroups provides a GM service, called GMS which simply stands for Group Membership Service. GMS works as follows: upon discovering that a new node has joined the group or a node failure has occurred, GMS issues a new view to all of the protocols in the JGroups stack.  It is then the responsibility of the individual protocols to take the appropriate action when a new view is issued.  For example, unblocking message delivery if the local node was waiting for an acknowledgement from a node that is no longer present in the newly issued view.  	
-	
-	\subsection{Reliable UDP}\label{ssec:reliable_udp}
-	JGroups provides a reliable UDP protocol, \textsf{UNICAST3}, which guarantees that all UDP messages sent by a protocol higher in the network stack arrive at their destinations when node crashes do not occur.  This reliable UDP layer is placed below \textsf{ABcast} in the network stack to ensure that when messages are broadcast they are received by all destinations; where a broadcast consists of $m$ being unicast via \textsf{UNICAST3} to each of its intended recipients.  
-	
-	As well as providing reliable UDP unicasts, the \textsf{UNICAST3} protocol provides \emph{node-to-node} ordering as default for each message sent.  This ordering means that if a node $N_i$ sends two consecutive unicast messages, $m_1$ followed by $m_2$, to $N_j$, then $N_j$ will not deliver $m_2$ until it has first delivered $m_1$.  This behaviour is not always appropriate, therefore \textsf{UNICAST3} allows for messages to be sent Out Of Band (OOB), which simply means that messages will be sent reliably but they will be delivered at a destination as soon as they are received, regardless of the messages that have (or have not) been delivered before it.  
-	
-	\subsection{Reliable Broadcast}\label{ssec:rbcast}
+    JGroups provides a GM service, called GMS which simply stands for Group Membership Service. GMS works as follows: upon discovering that a new node has joined the group or a node failure has occurred, GMS issues a new view to all of the protocols in the JGroups stack.  It is then the responsibility of the individual protocols to take the appropriate action when a new view is issued.  For example, unblocking message delivery if the local node was waiting for an acknowledgement from a node that is no longer present in the newly issued view.     
+    
+    \subsection{Reliable UDP}\label{ssec:reliable_udp}
+    JGroups provides a reliable UDP protocol, \textsf{UNICAST3}, which guarantees that all UDP messages sent by a protocol higher in the network stack arrive at their destinations when node crashes do not occur.  This reliable UDP layer is placed below \textsf{ABcast} in the network stack to ensure that when messages are broadcast they are received by all destinations; where a broadcast consists of $m$ being unicast via \textsf{UNICAST3} to each of its intended recipients.  
+    
+    As well as providing reliable UDP unicasts, the \textsf{UNICAST3} protocol provides \emph{node-to-node} ordering as default for each message sent.  This ordering means that if a node $N_i$ sends two consecutive unicast messages, $m_1$ followed by $m_2$, to $N_j$, then $N_j$ will not deliver $m_2$ until it has first delivered $m_1$.  This behaviour is not always appropriate, therefore \textsf{UNICAST3} allows for messages to be sent Out Of Band (OOB), which simply means that messages will be sent reliably but they will be delivered at a destination as soon as they are received, regardless of the messages that have (or have not) been delivered before it.  
+    
+    \subsection{Reliable Broadcast}\label{ssec:rbcast}
     In the event of a node failure Reliable UDP alone is not sufficient to ensure that assumption A3 holds.  This is because its possible for a messages originator, $m.o$, to crash during the unicasting of $m$.  Assume that $m.dst = \{N_i, N_j, N_k\}$ and $m.o = N_i$, if $N_i$ crashes after unicasting $m$ to $N_j$ then $N_k$ will never receive $m$.  Similarly, if $N_i$ crashes during the unicasting of $m$ to $N_j$ it is possible that $N_i$ managed to send $m$ at least once, in which case it may eventually be received by $N_i$.  Both scenarios highlight that an additional protocol is required to ensure that all $m.dst$ receive $m$ in the event of node failures.  
     
     To overcome the limitations of Reliable UDP we have implemented a Reliable Broadcast protocol, called  \emph{rbcast}, that sits above the Reliable UDP layer in the network stack.  This protocol is inspired by the work of  Ezhilchelvan \emph{et al.} \citep{ezhilchelvan2011near}, as it utilises redundant broadcasts in collaboration with PSM, to ensure that all destinations receive a broadcast.  Our \emph{rbcast} protocol has been designed specifically for use with PSM based protocols and consequently utilises some of the values from the DMC ($\S$ \ref{ssec:dmc}) as protocol parameters.  Utilising the values provided by DMC allows  \emph{rbcast} to place a probabilistic timeliness guarantee on each message that is reliably broadcast.  With a high probability, \emph{rbcast} can guarantee that an operative destination will receive a given $m$ within $D_m$ time even if $m.o$ crashes during the initial broadcast of $m$.  The remainder of this section describes the basic \emph{rbcast} protocol, whilst the calculations for $D_m$ are presented in $\S$ \ref{ssec:dmc}.
@@ -107,21 +107,21 @@ In this section we detail the individual components required by the \textsf{ABca
     
     The calculations used to produce $x_{mx}, \eta, \rho$ and $\omega$ are discussed in detail in $\S$ \ref{ssec:dmc}.  
     
-	\subsection{Delay Measurement Component}\label{ssec:dmc}
-        For the sake of clarity, assumption A4 is repeated below:	
+    \subsection{Delay Measurement Component}\label{ssec:dmc}
+        For the sake of clarity, assumption A4 is repeated below:   
         
         \begin{quotation}
             The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions from the recent past, will \emph{not} be exceeded during $NT_F$ number of future transmissions that unfold next, where $NT_F \leq NT_P$ with a high probability ($1 - q$).
         \end{quotation}
-	
+    
         The delay measurement component is responsible for monitoring and observing the network latency of $NT_P$ transmissions from the recent past.  This recent past of latencies is then used to calculate various parameters that are required by the \emph{rbcast} and \textsf{ABcast} protocols for executing \emph{abcasts} in the near future.  Being conservative, we use $NT_F = 10\%$ of $NT_P$ and $NT_P=1000$; so, a \textsf{ABcast} node freshly estimates $x_{mx}$ for every 100 new delays it observes.  Each fresh estimation of $x_{mx}$ results in the recalculation of the following parameters: $\eta, \rho, q$ and $\omega$.  
         
         Latencies are measured by the DMC based upon the timestamp $m.ts$, which is included in every message $m$ that is broadcast via the \emph{rbcast} protocol.  As the clocks of all nodes executing the \textsf{ABcast} protocol are synchronised, it is possible to measure the one-way latency of each message that is received by a node.  For example, a node $N_i$ sends an \emph{rbcast} $m$ to $N_j$, upon receiving $m$, $N_j$ immediately records the latency $x$:
 
         \begin{equation*}
-		     \begin{aligned}
-		         x = (N_j.clockValue - m.ts) + 2\epsilon
-		     \end{aligned}
+             \begin{aligned}
+                 x = (N_j.clockValue - m.ts) + 2\epsilon
+             \end{aligned}
         \end{equation*}        
         
         It is necessary to add $2\epsilon$ to each latency to ensure that if $N_j.clockValue$ is behind $N_i.clockValue$ by the maximum error of $2\epsilon$, a positive latency value is still recorded; this assumes that neither $N_i$ or $N_j$ is the clock master, in which case it is not possible for the max clock difference to be $2\epsilon$, only $\epsilon$, however as \emph{rbcast} operates independent of the clock synch algorithm $2\epsilon$ is pessimistically added to all latencies.  
@@ -136,71 +136,71 @@ In this section we detail the individual components required by the \textsf{ABca
                 The parameter $q$ is the estimated probability that a transmission delay observed in the near future will exceed $x_{mx}$.  We estimate $q$ by observing the ratio of observed delays from the recent past that exceed $95\%$ of the recorded $x_{mx}$; thus, when more delays are observed closer to $x_{mx}$, $q$ tends to be large.  Although unlikely, it is possible that $q$ can be calculated as $1$ if all latencies in the recent past are the same, to avoid this we set a maximum value for $q$, $ q \leq q_{mx}$.  $q_{mx}$ is calculated as: 
 
         \begin{equation*}
-		     \begin{aligned}
-		          q_{mx} = \sqrt{1 - R^{(\frac{1}{n} - 1)}}
-		     \end{aligned}
+             \begin{aligned}
+                  q_{mx} = \sqrt{1 - R^{(\frac{1}{n} - 1)}}
+             \end{aligned}
         \end{equation*}
         
         Where $R$ is a constant defined before run-time that specifies to what probability the system will be \emph{reliable}.  As the system is probabilistic the following must be true $R < 1$.  Note that $q$ cannot be accurately estimated, as it relates to future delays.  Therefore, \textsf{ABcast} uses $q$ estimates in a manner that accounts for potential inaccuracies and only for estimating one other parameter - $\rho$.
-	
-	    \item[\Huge$\boldsymbol{\rho}$] \hfill \\
-	    $\rho$ is the parameter that determines the number of redundant broadcasts that are sent by the \emph{rbcast} protocol, with each broadcast sent $\rho + 1$ times.  The DMC utilies a constant $\rho_{min}$ which determines the lowest possible value for $\rho$ and is configured before runtime.  $\rho_{min}$ allows an application to artificially increase the amount of redundancy provided by the \emph{rbcast} protocol if a greater level of redundancy is required; $\rho_{min} = 1$ by default.
-	    
-	    Note, $\rho = 1$ is sufficient for crash-tolerance, however we estimate it so that at least one copy of $m$ reaches all operative nodes, other than $m.o$, within $x_{mx}$ delay and with a probability $> R$; more precisely, $\rho$ is estimated as the smallest integer that satisfies $\rho \geq \rho_{min}$ and
+    
+        \item[\Huge$\boldsymbol{\rho}$] \hfill \\
+        $\rho$ is the parameter that determines the number of redundant broadcasts that are sent by the \emph{rbcast} protocol, with each broadcast sent $\rho + 1$ times.  The DMC utilies a constant $\rho_{min}$ which determines the lowest possible value for $\rho$ and is configured before runtime.  $\rho_{min}$ allows an application to artificially increase the amount of redundancy provided by the \emph{rbcast} protocol if a greater level of redundancy is required; $\rho_{min} = 1$ by default.
+        
+        Note, $\rho = 1$ is sufficient for crash-tolerance, however we estimate it so that at least one copy of $m$ reaches all operative nodes, other than $m.o$, within $x_{mx}$ delay and with a probability $> R$; more precisely, $\rho$ is estimated as the smallest integer that satisfies $\rho \geq \rho_{min}$ and
 
-		\begin{equation*}
-		    \begin{aligned}
-		        (1-q^{\rho+1})^{n-1} > R
-		    \end{aligned}
-		\end{equation*}
+        \begin{equation*}
+            \begin{aligned}
+                (1-q^{\rho+1})^{n-1} > R
+            \end{aligned}
+        \end{equation*}
 
         which can be re-arranged as:
 
         \begin{equation*}
-		    \begin{aligned}
-		        \rho > \frac{ln(1-R)}{ln(q)} -1 \qquad \mbox{\emph{where}} \qquad R=(R)^{\frac{1}{n-1}}
-		    \end{aligned}
-		\end{equation*}
+            \begin{aligned}
+                \rho > \frac{ln(1-R)}{ln(q)} -1 \qquad \mbox{\emph{where}} \qquad R=(R)^{\frac{1}{n-1}}
+            \end{aligned}
+        \end{equation*}
 
         The inequality assumes that $m$ is multicast exactly ($\rho +1$) times in a crash-free manner and all $n-1$  intended recipients are operative. Both assumptions lead to a \emph{conservative} estimate of $\rho$. Moreover, for a given $R$, an integer $I =\rho_{min}, \rho_{min} + 1, \ldots$, satisfies: 
 
         \begin{equation*}
-		    \begin{aligned}
-		        I < \frac{ln(1-R)}{ln(q)}-1 < I+1
-		    \end{aligned}
-		\end{equation*}
-		
+            \begin{aligned}
+                I < \frac{ln(1-R)}{ln(q)}-1 < I+1
+            \end{aligned}
+        \end{equation*}
+        
         for a wide range of $q$ values; e.g., for $R \approx 0.9999$:
 
         \begin{equation*}
-		    \begin{aligned}
+            \begin{aligned}
                 \frac{ln(1-R)}{ln(q)}-1 < 1 \quad \forall \quad q < 0.01 = 1\%
-		    \end{aligned}
-		\end{equation*}
+            \end{aligned}
+        \end{equation*}
 
         Thus, small inaccuracies in estimating $q$ may not adversely affect $\rho$ estimates.  
 
         \item[\Huge$\boldsymbol{\eta}$] \hfill \\
         $\eta$ is the parameter used by \emph{rbcast} to determine the amount of time to wait between each broadcast of a message copy and is calculated as the largest delay in $n - 1$ transmissions (of a given copy $m$) with probability $R$.  Assuming exponential distribution $n$ is calculated as follows:
         
-		% \eta=-\bar{x}[ln(1-R^{\frac{1}{n-1}})]     
-		% \eta=-\bar{x}[ln(1-R)]  
+        % \eta=-\bar{x}[ln(1-R^{\frac{1}{n-1}})]     
+        % \eta=-\bar{x}[ln(1-R)]  
         \begin{equation*}
-		    \begin{aligned}
-		        \eta=-\bar{x}[ln(1-R^{\frac{1}{n-1}})]  
-		    \end{aligned}
-		\end{equation*}
-		
+            \begin{aligned}
+                \eta=-\bar{x}[ln(1-R^{\frac{1}{n-1}})]  
+            \end{aligned}
+        \end{equation*}
+        
 Where $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
 
         \item[\Huge$\boldsymbol{\omega}$] \hfill \\
         $\omega$ is the parameter utilised by \emph{rbcast} to approximate the PDV encountered by the network.  $\omega$ is simply calculated as:
         
         \begin{equation*}
-		    \begin{aligned}
-		        \omega = \eta - \bar{x}
-		    \end{aligned}
-		\end{equation*}        
+            \begin{aligned}
+                \omega = \eta - \bar{x}
+            \end{aligned}
+        \end{equation*}        
         
         Again, we assume exponential distribution and that $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
         \end{description}
@@ -213,7 +213,7 @@ Where $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
                 \centerline{\includegraphics[width=1.15\textwidth, trim=0.1cm .25cm .1cm .25cm, clip=true]{rbcast_calculations}}
                 \caption[Rbcast Calculations Diagram In a Crash Free Scenario]{Rbcast Calculations In a Crash Free Scenario}
                 \label{fig:rbcast_calc}
-            \end{figure}	
+            \end{figure}    
 
         \subsubsection*{Crash Free Message Originator}
         A node, $N_i$ broadcasts a message $m$ at time $ts$, $m.ts = ts$.  If $N_i$ does not crash then $D$ would be $D_1 = x_{mx} + \rho\eta$, as assumption \textbf{A4} means that $x_{mx}$ is the largest delay that will be encountered by $m$ and $\rho\eta$ accounts for the delays between successive copies of m being broadcast ($m.copy = 0,\ldots,\rho$).  Figure \ref{fig:rbcast_calc} shows the workflow of a message $m$ being \emph{rbcast} to $m.dst = \{N_i, N_j, N_k\}$ in a crash free scenario with $\rho = 2$; the individual parameters of $D_1$ are illustrated to show their significance.  
@@ -221,36 +221,36 @@ Where $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
         Let $g_{D_1}$ be the probability that a destination, $N_j$, does not receive a single copy of $m$ at or before $ts + D1$.  Suppose that no node disseminates a copy of $m$ on behalf of $N_i$, and $\mathcal{P}(x > \xi)$ is the probability that a copy of $m$ takes longer than $\xi$ time to reach $N_{j}$.  The probability that none of the copies of $m$ broadcast at $ts, ts+\eta, \ldots,  ts+\rho \eta$, reaches $N_{j}$ by time $ts+D_1$, is:
         
         \begin{equation*}
-		    \begin{aligned}
-		        g_{D_1}= \mathcal{P}(x > D_1) \times \mathcal{P}(x > D_1 - \eta) \times \ldots \mathcal{P}(x > D_1 - \rho \eta)
-		    \end{aligned}
-		\end{equation*}
+            \begin{aligned}
+                g_{D_1}= \mathcal{P}(x > D_1) \times \mathcal{P}(x > D_1 - \eta) \times \ldots \mathcal{P}(x > D_1 - \rho \eta)
+            \end{aligned}
+        \end{equation*}
 
-		
-		Recall that $q$ is the probability that a delay in $NT_F=100$ future transmissions exceed the maximum $x_{mx}$ observed in the past $NT_P=1000$ transmissions. Since:
+        
+        Recall that $q$ is the probability that a delay in $NT_F=100$ future transmissions exceed the maximum $x_{mx}$ observed in the past $NT_P=1000$ transmissions. Since:
         
         \begin{equation*}
-		    \begin{aligned}
-		        \mathcal{P}(x > D_1 - \rho \eta) = \mathcal{P}(x > x_{mx}) = q
-		    \end{aligned}
-		\end{equation*}
-		
+            \begin{aligned}
+                \mathcal{P}(x > D_1 - \rho \eta) = \mathcal{P}(x > x_{mx}) = q
+            \end{aligned}
+        \end{equation*}
+        
 and $\mathcal{P}(x > \xi)$ decreases as $\xi$ increases, we have $g_{D_1} < q^{\rho+1}$.  Even if $q$ is as high as 1\%, we have $g_{D_1} < 10^{-4}$ when $\rho=1$. If some destination disseminates $m$ on behalf of $N_i$, $\rho$ effectively increases and therefore $g_{D_1}$ reduces further.
 
 When $N_i$ does not crash, a crash of a destination node $N_{k}$ cannot undermine an operative destination $N_{j}$ from receiving $m$. So, the probability that all operative $s$-nodes receive $m$ at or before time $ts +D_1$ is:
 
         \begin{equation*}
-		    \begin{aligned}
-		        (1-Q_1)=(1-g_{D_1})^{n-1}>(1-q^{\rho+1})^{n-1}
-		    \end{aligned}
-		\end{equation*}
+            \begin{aligned}
+                (1-Q_1)=(1-g_{D_1})^{n-1}>(1-q^{\rho+1})^{n-1}
+            \end{aligned}
+        \end{equation*}
 
 %            \begin{figure}[hb] 
 %                \centering    
 %                \centerline{\includegraphics[width=1.1\textwidth]{rbcast_calculations}}
 %                \caption[Rbcast Calculations Diagram In a Crash Free Scenario]{Rbcast Calculations In a Crash Free Scenario}
 %                \label{fig:rbcast_calc}
-%            \end{figure}	
+%            \end{figure}   
 
         \clearpage
         \subsubsection*{Crashed Message Originator}
@@ -259,26 +259,26 @@ Suppose now that $N_i$ crashes before completing redundant transmissions of $m$ 
 If copy $m.copy = 0$ takes at most $x_{mx}$ to reach $N_j$ (which occurs with probability ($1-q$)), $N_j$ would start disseminating on behalf of $N_i$ at or before time:
         
         \begin{equation*}
-		    \begin{aligned}
-		        ts+ x_{mx} + \eta + \omega +\zeta
-		    \end{aligned}
-		\end{equation*}
-		
+            \begin{aligned}
+                ts+ x_{mx} + \eta + \omega +\zeta
+            \end{aligned}
+        \end{equation*}
+        
 Recall that $\zeta$ is the random wait that all disseminating nodes must observe before disseminating $m$, with $\zeta$ uniformly distributed on ($0, \eta$) .  Therefore, assuming that the observed $\zeta$ is the largest possible value possible, $\eta$, let us define: 
 
         \begin{equation*}
-		    \begin{aligned}
-		        D = x_{mx} + 2\eta + \omega + D_1
-		    \end{aligned}
-		\end{equation*}
-		
+            \begin{aligned}
+                D = x_{mx} + 2\eta + \omega + D_1
+            \end{aligned}
+        \end{equation*}
+        
 By assumption \textbf{A1}, no other node can crash until at least $ts+D$. Thus, $N_j$ disseminates $m$, like $N_i$ in the crash-free case, to operative destinations which can now be at most $(n-2)$; so, all operative nodes receive $m$ at or before $ts +D$ with a probability: 
         
         \begin{equation*}
-		    \begin{aligned}
-		        (1-Q) = (1-g_{D_1})^{n-2}\times (1-q)>(1-q^{\rho+1})^{n-2}\times(1-q)
-		    \end{aligned}
-		\end{equation*}
+            \begin{aligned}
+                (1-Q) = (1-g_{D_1})^{n-2}\times (1-q)>(1-q^{\rho+1})^{n-2}\times(1-q)
+            \end{aligned}
+        \end{equation*}
 
 Figure \ref{fig:rbcast_crash_calc} shows the workflow of a message $m$ being \emph{rbcast} by $N_i$ to $m.dst \{N_i, N_j, N_k\}$.  $N_i$ crashes after unicasting $m$ to $N_j$, therefore $N_j$ waits to receive $m.copy > 0$ from $N_i$ for $2\eta + \omega$ time, before disseminating $m$ to the remaining destination $N_k$.  
 
@@ -287,18 +287,18 @@ In the event that $n = 2$, only two scenarios are possible in the event of $N_i$
 To put the two cases together, $n > 2$ and $n = 2$, let boolean $\beta = 1$ if $n>2$ and $0$ if $n=2$; further, let: 
 
         \begin{equation*}
-		    \begin{aligned}
-		        D_m=\beta\times(x_{mx}+2\eta+\omega)+D_1
-		    \end{aligned}
-		\end{equation*}
-		
+            \begin{aligned}
+                D_m=\beta\times(x_{mx}+2\eta+\omega)+D_1
+            \end{aligned}
+        \end{equation*}
+        
 When $N_i$ \emph{rbcast}s $m$ at its clock time $ts$, if some operative $s$-node receives $m$, then every operative $s$-node receives $m$ at or before time $m.ts+D_m$ (as per $N_i$'s clock) with a probability:
 
          \begin{equation*}
-		    \begin{aligned}
-		        \beta\times(1-Q)+(1-\beta)\times(1-Q_1)
-		    \end{aligned}
-		\end{equation*}
+            \begin{aligned}
+                \beta\times(1-Q)+(1-\beta)\times(1-Q_1)
+            \end{aligned}
+        \end{equation*}
 
         \begin{sidewaysfigure}
             \vspace*{-1cm}
@@ -313,12 +313,12 @@ When $N_i$ \emph{rbcast}s $m$ at its clock time $ts$, if some operative $s$-node
             \label{fig:rbcast_crash_calc}
        \end{sidewaysfigure}
 
-	    %\paragraph{NMC Validation}\label{a4_validation}\hspace{0pt} \\
-            	%We conducted a series of experiments to test \textbf{A4}, which were executed on a local computer cluster.  These experiments consisting of a 
-            	% Describe Experiment and execution environment
-				% Results
-				% Analysis
-				
+        %\paragraph{NMC Validation}\label{a4_validation}\hspace{0pt} \\
+                %We conducted a series of experiments to test \textbf{A4}, which were executed on a local computer cluster.  These experiments consisting of a 
+                % Describe Experiment and execution environment
+                % Results
+                % Analysis
+                
 \clearpage
 \section{Atomic Broadcast Protocol}\label{sec:ABcast}
 Hitherto this chapter has focused on the underlying assumptions made when designing the \textsf{ABcast} protocol and the components it requires to function.  This section details the specifics of the hybrid protocol, detailing the specifics of both the \textsf{Aramis} and \textsf{Base} protocols.  First we explore the \textsf{Base} protocol, as this protocol will be responsible for the majority of message deliveries and is the more conventional of the two \emph{abcast} protocols.  We then explore the \textsf{Aramis} protocol, detailing how messages are delivered and rejected as well as other related properties.  
@@ -333,11 +333,11 @@ Hitherto this chapter has focused on the underlying assumptions made when design
     In order to overcome the issues described above, each $d \in m.dst$ must maintain a \emph{vector clock}\citep{Mattern88virtualtime, fidge1988timestamps} that details the last \emph{rbcast} sent by $d$ and the id of the latest message received by each $d \in m.dst$; where the latest message received is the message containing the largest timestamp from a given node.  This vector clock is then included in every $m$ ($m.vc$) and $ack_{d'}(m)$ ($ack_{d'}(m).vc$) sent by a node.  Now lets reconsider the second scenario detailed above.  If $N_j$ receives $ack_{N_i}(m')$ before $m$, it will inspect $ack_{N_i}(m').vc$ and see that the last message that was \emph{rbcast} by $N_i$ was $m$, whose $m.ts < m'.ts$, therefore $N_j$ knows that they must deliver $m$ before $m'$.  For any message $m$, regardless of whether it originated at the current node, it is necessary for the associated acknowledgements and vector clocks to be checked to see if a message is missing from the total order before $m$ can be delivered.  If a node $N_i$ has not received $m$, but has learnt of its existence via a \emph{vector clock} or an acknowledgement, then we consider $m$ to be \emph{known} by $N_i$.  The \textsf{Base} delivery conditions are formalised below:
     
     \paragraph{\textsf{Base} Delivery Rule:}\hspace{0pt} \\
-	    A node, $N_j$ delivers any $m$, via \textsf{Base}, only after $D1_B$ and $D2$ stated below are satisfied:
-	    \begin{description}[labelindent=1cm]
-	        \item[$\boldsymbol{D1_B}$] - $m$ is acknowledged by all nodes other than $m.o$. 
-	        \item[$\boldsymbol{D2}$] - all \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
-	    \end{description}
+        A node, $N_j$ delivers any $m$, via \textsf{Base}, only after $D1_B$ and $D2$ stated below are satisfied:
+        \begin{description}[labelindent=1cm]
+            \item[$\boldsymbol{D1_B}$] - $m$ is acknowledged by all nodes other than $m.o$. 
+            \item[$\boldsymbol{D2}$] - all \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
+        \end{description}
     
     \subsubsection*{Acknowledgement Piggybacking}\label{ssec:base_ack_piggyback}
     In the explanation of \textsf{Base} we assume that each acknowledgement is explicitly sent as dedicated message, however in practice this is an expensive operation in terms of both latency and bandwidth.  Therefore in our implementation of \textsf{Base} we piggyback message acknowledgements on subsequent \emph{rbcast}s sent by an the acknowledging node; acknowledgements are piggybacked onto all copies of $m$, i.e. all $m.copy =0,\ldots,\rho$, or not at all.  Of course this is only appropriate if there is a message waiting to be \emph{rbcast}, otherwise deadlock will occur at all $d \in m.dst$ as an acknowledgement will never be sent.  Consider, node $N_j$ is attempting to send $ack_{N_j}(m)$ to $N_i$, if $N_j$ does not receive an \emph{abcast} request within $\mathcal{A}_d$ time, then an explicit acknowledgement message is sent to $N_i$ containing $ack_{N_j}(m)$, as well as any other pending acknowledgements.  We define $\mathcal{A}_d$ as $\mathcal{A}_d = 2\eta + \omega$ and an explicit acknowledgement as being a dedicated message $m_{ack}$ that is unicast to all $d \in m.dst$ and is not assigned a \emph{rbcast} id; hence only a single copy of $m_{ack}$ is broadcast via reliable UDP.  \footnote{Explicit acknowledgements are not \emph{rbcast} in order to further minimise the bandwidth cost of sending $m_{ack}$.}
@@ -351,40 +351,40 @@ Hitherto this chapter has focused on the underlying assumptions made when design
     As previously stated,  \textsf{Aramis} is a non-blocking probabilistic \emph{abcast} protocol that utilises a calculated delivery delay $\Delta_m$ to place an upper bound on message deliveries.  The \textsf{Aramis} protocol works in conjunction with \textsf{Base} to ensure that message delivery does not become blocked in the event of slow or crashed nodes.  However, the \textsf{Aramis} protocol does not simply deliver each received message after $\Delta_m$ has expired, as this could cause a \emph{known} message to be missed in the total order.  Instead, it utilises the acknowledgements and \emph{vector clocks} that are integral to \textsf{Base} to ensure that \emph{known} messages are not missed from the total order.  Therefore, if a message $m$'s $\Delta_m$ delay expires, the message can only be delivered after all \emph{known} messages that precede $m$ in the total order have been delivered.  The \textsf{Aramis} delivery conditions are formalised below:
     
     \paragraph{\textsf{Aramis} Delivery Rule:}\hspace{0pt} \\
-	    A node, $N_j$ delivers any $m$, via \textsf{Aramis}, only after $D1_A$ and $D2$ stated below are satisfied:
-	    \begin{description}[labelindent=1cm]
-	        \item[$\boldsymbol{D1_A}$] - The clock of $N_i > m.ts + \Delta_{m}$. 
-	        \item[$\boldsymbol{D2}$] - All \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
-	    \end{description}
+        A node, $N_j$ delivers any $m$, via \textsf{Aramis}, only after $D1_A$ and $D2$ stated below are satisfied:
+        \begin{description}[labelindent=1cm]
+            \item[$\boldsymbol{D1_A}$] - The clock of $N_i > m.ts + \Delta_{m}$. 
+            \item[$\boldsymbol{D2}$] - All \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
+        \end{description}
     
     
         \subsubsection*{Calculating $\boldsymbol{\Delta_m}$    }
-		The delivery delay, $\Delta_m$ utilised by \textsf{Aramis} is calculated based upon the values utilised by \emph{rbcast} and produced by the DMC.  Consider the following scenario which explains the rational behind the delays calculation: When any operative node, $N_j$ receives $m$ \emph{rbcast} by $N_i$, all operative nodes receive $m$ with a high probability by time $m.ts + D_m$, as per $N_i$'s clock.  If each recipient piggybacks their $ack(m)$ onto one of its own \emph{rbcast}s within $\mathcal{A}_d$ time after receiving $m$, it is very likely that all $m.dst - \{N_i, N_j\}$ will receive $ack(m)$, as per $N_i$'s clock, before time:
-		
-		\begin{equation*}
-		    \begin{aligned}
-		        m.ts + 2\times{D_m} + \mathcal{A}_d
-		    \end{aligned}
-		\end{equation*}
-		 
-		 Based upon assumption A2, $N_j$'s clock has a maximum difference of $2\epsilon$ compared to $N_i$'s clock, with  probability $\mathcal{P}_\epsilon$, therefore $\Delta_m$ must be increased to cater for this, becoming:
-		
+        The delivery delay, $\Delta_m$ utilised by \textsf{Aramis} is calculated based upon the values utilised by \emph{rbcast} and produced by the DMC.  Consider the following scenario which explains the rational behind the delays calculation: When any operative node, $N_j$ receives $m$ \emph{rbcast} by $N_i$, all operative nodes receive $m$ with a high probability by time $m.ts + D_m$, as per $N_i$'s clock.  If each recipient piggybacks their $ack(m)$ onto one of its own \emph{rbcast}s within $\mathcal{A}_d$ time after receiving $m$, it is very likely that all $m.dst - \{N_i, N_j\}$ will receive $ack(m)$, as per $N_i$'s clock, before time:
+        
         \begin{equation*}
-		    \begin{aligned}
-		        \Delta_m = 2 \times D_m + \mathcal{A}_d + 2\epsilon
-		    \end{aligned}
-		\end{equation*}		
-		
-		Thus, delivering $m$ via \textsf{Aramis} after a node's local clock time is greater than $m.ts + \Delta_m$ will meet \emph{abcast} guarantees G1-G4 with a high probability.
-			    
-		\subsubsection*{Total Order Violations}\label{ssec:abcast_rejection}
-		In the explanations above, we have only considered the conditions required for a message to be successfully \emph{abcast} to all nodes.  However, as \textsf{Aramis} is a probabilistic protocol it is possible for a message to be delivered in the wrong place in the total order, thus violating G4.  For example, a message $m$ arrives at a destination after its proceeding message $m'$ in the total order has already been delivered, such that the total order is $<m', m>$ when it should be $<m, m'>$.  In such a case, their are two course of action possible when $m$ arrives: 1) Deliver $m$ as soon as possible; resulting in two violations of the total order occurring as $m$ has missed its place and then taken another's in the total order.  2) Receive $m$ and throw an exception to the application; resulting in only one violation of the total order, as $m$ is simply missing, but at the expense of violating G1 and G2 as $m$ cannot be delivered by all destinations.  \footnote{Assumption A2 guarantees that all destinations will eventually receive $m$, so if a message is not rejected G1 and G2 always hold.}
-		
-		\textsf{Aramis} seeks to minimise the effects of a miss-ordered message, therefore it employs the second approach and throws an exception when a message has been missed in the total order; we refer to this process as a message being \emph{rejected}.  Explicitly \emph{rejecting} a miss-ordered message from the total order allows for higher levels in the network stack (e.g. \textsf{SCast}) to initiate an appropriate recovery mechanism to mitigate the effects of a miss-ordered message on the system's state.  Furtheremore, it is possible to include the contents of the rejected message in the \emph{rejection} exception in order to provide potential useful data to the application's recovery mechanism.  
-		
-		The remainder of this section focuses on the scenarios in which it is possible for a message to be \emph{rejected} by a receiving node.  When the number of nodes, $n$, involved in an \emph{abcast} is $n=2$ the conditions required for a message to be rejected are different to $n > 2$, therefore we explore $n=2$ and $n>2$ in isolation. Note, for both $n=2$ and $n>2$ it is not possible for a broadcasting node to reject its own message, as by definition a broadcasting node will always receive its own message, hence G2 is always violated if a single node \emph{rejects} a message.  
-		
-		%\paragraph{Assumptions:}\hspace{0pt} \\
+            \begin{aligned}
+                m.ts + 2\times{D_m} + \mathcal{A}_d
+            \end{aligned}
+        \end{equation*}
+         
+         Based upon assumption A2, $N_j$'s clock has a maximum difference of $2\epsilon$ compared to $N_i$'s clock, with  probability $\mathcal{P}_\epsilon$, therefore $\Delta_m$ must be increased to cater for this, becoming:
+        
+        \begin{equation*}
+            \begin{aligned}
+                \Delta_m = 2 \times D_m + \mathcal{A}_d + 2\epsilon
+            \end{aligned}
+        \end{equation*}     
+        
+        Thus, delivering $m$ via \textsf{Aramis} after a node's local clock time is greater than $m.ts + \Delta_m$ will meet \emph{abcast} guarantees G1-G4 with a high probability.
+                
+        \subsubsection*{Total Order Violations}\label{ssec:abcast_rejection}
+        In the explanations above, we have only considered the conditions required for a message to be successfully \emph{abcast} to all nodes.  However, as \textsf{Aramis} is a probabilistic protocol it is possible for a message to be delivered in the wrong place in the total order, thus violating G4.  For example, a message $m$ arrives at a destination after its proceeding message $m'$ in the total order has already been delivered, such that the total order is $<m', m>$ when it should be $<m, m'>$.  In such a case, their are two course of action possible when $m$ arrives: 1) Deliver $m$ as soon as possible; resulting in two violations of the total order occurring as $m$ has missed its place and then taken another's in the total order.  2) Receive $m$ and throw an exception to the application; resulting in only one violation of the total order, as $m$ is simply missing, but at the expense of violating G1 and G2 as $m$ cannot be delivered by all destinations.  \footnote{Assumption A2 guarantees that all destinations will eventually receive $m$, so if a message is not rejected G1 and G2 always hold.}
+        
+        \textsf{Aramis} seeks to minimise the effects of a miss-ordered message, therefore it employs the second approach and throws an exception when a message has been missed in the total order; we refer to this process as a message being \emph{rejected}.  Explicitly \emph{rejecting} a miss-ordered message from the total order allows for higher levels in the network stack (e.g. \textsf{SCast}) to initiate an appropriate recovery mechanism to mitigate the effects of a miss-ordered message on the system's state.  Furtheremore, it is possible to include the contents of the rejected message in the \emph{rejection} exception in order to provide potential useful data to the application's recovery mechanism.  
+        
+        The remainder of this section focuses on the scenarios in which it is possible for a message to be \emph{rejected} by a receiving node.  When the number of nodes, $n$, involved in an \emph{abcast} is $n=2$ the conditions required for a message to be rejected are different to $n > 2$, therefore we explore $n=2$ and $n>2$ in isolation. Note, for both $n=2$ and $n>2$ it is not possible for a broadcasting node to reject its own message, as by definition a broadcasting node will always receive its own message, hence G2 is always violated if a single node \emph{rejects} a message.  
+        
+        %\paragraph{Assumptions:}\hspace{0pt} \\
         \subsubsection*{Message Rejections - $\boldsymbol{n = 2}$}
         A message, $m$, sent by node $N_i$, can only be \emph{rejected} by the other recipient, $N_j$, when a message $m'$ from $N_j$ has been incorrectly delivered before $m$ in the total order; where $m.ts < m'.ts$ but the total order delivers $m'$ first, hence $m$ is \emph{rejected}.  In order for a message to be miss-ordered, both of the two statements below must be true:
         
@@ -397,8 +397,8 @@ Hitherto this chapter has focused on the underlying assumptions made when design
         
         \subsubsection*{Message Rejections - $\boldsymbol{n > 2}$}
         If we assume the same scenario as described in the previous section ($n=2$), but with the addition of atated below are satisfied:
-	    \begin{description}[labelindent=1cm]
-	        \item[$\boldsymbol{D1}$] - The clock of $N_i > m.ts + \Delta_{m}$ ($D1_A$), or $m$ is acknowledged by all nodes other than $m.o$ ($D1_B$).  node $N_k$ that represents all other nodes that are not $N_i$ or $N_j$.  A message is miss-ordered if conditions $1$ and $2$ stated above are true, and one of the following is true:
+        \begin{description}[labelindent=1cm]
+            \item[$\boldsymbol{D1}$] - The clock of $N_i > m.ts + \Delta_{m}$ ($D1_A$), or $m$ is acknowledged by all nodes other than $m.o$ ($D1_B$).  node $N_k$ that represents all other nodes that are not $N_i$ or $N_j$.  A message is miss-ordered if conditions $1$ and $2$ stated above are true, and one of the following is true:
         
         \begin{itemize}
             \item[3a.] $N_j$ and all $N_k$ do not receive $m$ before $m'.ts + \Delta_{m'}$.
@@ -409,12 +409,12 @@ Hitherto this chapter has focused on the underlying assumptions made when design
         If conditions $1,2$ and $3a$ are true, then it is not possible for $m$ to become known to $N_j$ as $m$ will not appear in an acknowledgement or vector clock of any $N_k$.  Similarly, if conditions $1,2$ and $3b$ are true, then $N_j$ will not know of $m$ in time to prevent $m'$ from being delivered before $m$ in the total order.  Similar to when $n=2$, if all three conditions hold (either $3a$ or $3b$), we can guarantee that $m$ and $m'$ are delivered via \textsf{Aramis} at all nodes.  We know that none of the $N_k$ nodes can deliver $m$ or $m'$ via \textsf{Base}, as $N_j$ cannot acknowledge a message until it has received it.  
         
         From both cases, $n=2$ and $n>2$, it is clear to see that in order for a message miss-ordering to occur, a chain of events need to occur that are highly unlikely based upon the probabilistic estimations made by the DMC and \emph{rbcast}.  
-        		
+                
     \subsection{ABcast Delivery Rule}
     Lastly, we present a concise formalisation of the delivery rule for the entire \textsf{ABcast} protocol.  A node, $N_j$ delivers any $m$, via \textsf{ABcast}, only after both $D1$ and $D2$ s
-	        \item[$\boldsymbol{D2}$] - All \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
-	    \end{description}
-	    
+            \item[$\boldsymbol{D2}$] - All \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
+        \end{description}
+        
 \section{Limitations of ABcast}
 \subsection*{Need for a new Flow Control Protocol}
 The \textsf{ABcast} protocol described in this section functions as expected when each node's throughput is low, with the number of requests per second around five hundred.  However, in its current form the protocol has no flow-control, therefore as the number of requests per second increases the system starts to become saturated by requests.  The JGroups project provides an implementation of a credit based flow control protocol, however this is a generic solution that is aimed at deterministic protocols and as such does not take into account the unique requirements of the \textsf{ABcast} protocol nor does it take advantage of its probabilistic calculations.  Ultimately, a new bespoke flow control protocol is required for \textsf{ABcast} that utilises PSM and the measurements of the DMC.  Such a protocol is presented in the next chapter.  
@@ -431,22 +431,38 @@ The \textsf{ABcast} protocol described in this section functions as expected whe
  Unlike traditional \emph{abcast} protocols, such as TOA, it is possible for \textsf{ABcast} to reject messages, thereby preventing them from being delivered to the application outside of the total order ($\S$ \ref{ssec:aramis}).  Performance evaluation in chapter \ref{ch:perf_eval} shows that the likelihood of rejections occurring is very small even when the number of \emph{abcast}s is large, however as such events are possible it is necessary for applications to implement additional logic to accommodate such occurrences.  Therefore, the key limitation of \textsf{ABcast} is the need for applications to incorporate additional logic into their solutions in order to safely utilise the protocol.   
 %Therefore, the application logic required when utilising a traditional \emph{abcast} protocol is much simpler than when utilising \textsf{ABcast}.  
  
-Consider the \textsf{SCast} protocol defined in $\S$ \ref{sec:scast_protocol}.  The current protocol assumes that no message misorderings can occur and that \emph{abcast} guarantees G1-G4 always remain true.  When \textsf{ABcast} is utilised for \emph{abcast}ing client requests between two $s$-nodes, $\{N_i, N_j\}$, it is possible for an \emph{abcast} message, $m$, sent by $N_i$ to be rejected by $N_j$, resulting in the predecessor data stored at $N_j$ being inconsistent with $N_i$'s data.  This inconsistency within the \textsf{AmaaS} service, can lead to conflicts between data replicas at the client level.  For example, Imagine that two clients, $C_i$ and $C_j$ have each started a transaction, $Tx_i$ and $Tx_j$, both of which have the same destination set $dst=\{C_i, C_j\}$.  Client $C_i$ issues a \emph{amcast} request to $N_i$ and $C_j$ does likewise to $N_j$, therefore $N_i$ \emph{abcast}s $Tx_i$ as $m_i$ and $N_j$ \emph{abcast}s $Tx_j$ as $m_j$.  If both \emph{abcast}s are successfully delivered, in the order $<m_i, m_j>$, then the predecessor data attached to the response message for $Tx_i$ will be the id of $m_h$, and for $Tx_j$'s response message it will be $m_i$.  Thus, if clients $C_i$ or $C_j$ receive the \emph{amcast} for $Tx_j$ first, they will know that they cannot delivery this message until they have first received $Tx_i$, because the id of $m_i$ is specified in the predecessor data.  However, if $m_i$ is rejected by $N_j$, then the predecessor data associated with $Tx_j$ will be wrong, as $N_i$ knows of $Tx_i$ but $N_j$ does not.  This results in the response message of $Tx_j$, $rsp(Tx_j)$ stating that its predecessor is $m_h$ not $m_i$, therefore it is possible for $C_j$ to deliver $Tx_j$ before $Tx_i$, resulting in nodes $C_i$ and $C_j$ having inconsistent data.  We refer to this as an \emph{amcast} violation, as it is the guarantees of the \emph{amcast} protocol \textsf{SCast} that have been violated.  In the case of Infinispan, an \emph{amcast} violation would cause two replicas of a key/value pair to have different values, which would cause issues for both Infinispan and its applications.  
+Consider the \textsf{SCast} protocol defined in $\S$ \ref{sec:scast_protocol}.  The current protocol assumes that no message misorderings can occur and that \emph{abcast} guarantees G1-G4 always remain true.  When \textsf{ABcast} is utilised for \emph{abcast}ing client requests between two $s$-nodes, $\{N_i, N_j\}$, it is possible for an \emph{abcast} message, $m_i$, sent by $N_i$ to be rejected by $N_j$, resulting in the predecessor data stored at $N_j$ being inconsistent with $N_i$'s data.  This inconsistency within the \textsf{AmaaS} service, can lead to conflicts between data replicas at the client level.  For example, Imagine that two clients, $C_i$ and $C_j$ have each started a transaction, $Tx_i$ and $Tx_j$, both of which have the same destination set $dst=\{C_i, C_j\}$.  Client $C_i$ issues a \emph{amcast} request to $N_i$ and $C_j$ does likewise to $N_j$, therefore $N_i$ \emph{abcast}s $Tx_i$ as $m_i$ and $N_j$ \emph{abcast}s $Tx_j$ as $m_j$.  If both \emph{abcast}s are successfully delivered, in the order $<m_i, m_j>$, then the predecessor data attached to the response message for $Tx_i$ will be the id of $m_h$, and for $Tx_j$'s response message it will be $m_i$.  Thus, if clients $C_i$ or $C_j$ receive the \emph{amcast} for $Tx_j$ first, they will know that they cannot delivery this message until they have first received $Tx_i$, because the id of $m_i$ is specified in the predecessor data.  However, if $m_i$ is rejected by $N_j$, then the predecessor data associated with $Tx_j$ will be wrong, as $N_i$ knows of $Tx_i$ but $N_j$ does not.  This results in the response message of $Tx_j$, $rsp(Tx_j)$ stating that its predecessor is $m_h$ not $m_i$, therefore it is possible for $C_j$ to deliver $Tx_j$ before $Tx_i$, resulting in nodes $C_i$ and $C_j$ having inconsistent data.  We refer to this as an \emph{amcast} violation, as it is the guarantees of the \emph{amcast} protocol \textsf{SCast} that have been violated.  
 
-Violations of the \emph{amcast} ordering, as described above, can only occur if the service's response message, $rsp(Tx_j)$, containing the incomplete predecessor data, is received by a client node, before the response message containing the correct data, $rsp(Tx_i)$.  If $rsp(Tx_i)$ is received first by a client, $C_j$, then $Tx_i$ will be delivered to the application \footnote{Assuming $rsp(Tx_h)$ has already been received and $Tx_h$ delivered.}.  When $rsp(Tx_j)$ is received, $C_j$ is able to deduce that the predecessor of $Tx_j$ specified in $rsp(Tx_j)$, $Tx_h$, has already been delivered and that another transaction, $Tx_i$, exists with a smaller timestamp than $Tx_j$, therefore $Tx_j$ must come after $Tx_i$ in the total order and $Tx_j$ can safely be delivered. Conversely, if $rsp(Tx_j)$ is received first by $C_j$ it will delivered to the application as $Tx_h$ has already been delivered and $Tx_j$ is unaware of $Tx_i$.  However, when $C_j$ receives $rsp(Tx_i)$, it becomes aware that $Tx_i$'s specified predecessor was not the last message to be delivered and that $Tx_i$ should have preceded the last delivered message $Tx_j$.  It is not possible for $C_j$ to undeliver $Tx_j$, but $C_j$ can throw an exception containing the missed transaction, $Tx_i$, in order to alert the application (Infinispan) that a \emph{amcast} violation has occurred, so that steps can be taken to mitigate the consequences of such a violation.  
+%In the case of Infinispan, an \emph{amcast} violation would cause two replicas of a key/value pair to have different values, which would cause issues for both Infinispan and its applications.  
 
-In the previous paragraphs we have presented the consequences of a \emph{abcast} rejection occurring within an \textsf{AmaaS} service.  We now present a solution for handling rejections between $s$-nodes, and for handling \emph{amcast} violations that occur as a result of these rejections.  In our explanations, all client nodes are assumed to be running the Infinispan application.  As in the previous examples, we consider a service consisting of only two nodes for simplicity and these nodes are called $N_i$ and $N_j$.  Furthermore, we assume that the $Tx.dst$ sets of all transactions have overlapping nodes, if no overlaps existed, then it would not be possible for a \emph{amcast} violation to occur.  More specifically, we assume that $Tx.dst = {C1,C2}$ for all transactions.  
+Violations of the \emph{amcast} ordering, as described above, can only occur if the service's response message, $rsp(Tx_j)$, containing the incomplete predecessor data, is received by a client node before the response message containing the correct data, $rsp(Tx_i)$.  If $rsp(Tx_i)$ is received first by a client, $C_j$, then $Tx_i$ will be delivered to the application \footnote{Assuming $rsp(Tx_h)$ has already been received and $Tx_h$ delivered.}.  When $rsp(Tx_j)$ is received, $C_j$ is able to deduce that the predecessor of $Tx_j$ specified in $rsp(Tx_j)$, $Tx_h$, has already been delivered and that another transaction, $Tx_i$, exists with a smaller timestamp than $Tx_j$, therefore $Tx_j$ must come after $Tx_i$ in the total order and $Tx_j$ can safely be delivered. Conversely, if $rsp(Tx_j)$ is received first by $C_j$ it will delivered to the application as $Tx_h$ has already been delivered and $Tx_j$ is unaware of $Tx_i$.  However, when $C_j$ receives $rsp(Tx_i)$, it becomes aware that $Tx_i$'s specified predecessor was not the last message to be delivered and that $Tx_i$ should have preceded the last delivered message $Tx_j$.  It is not possible for $C_j$ to undeliver $Tx_j$, but $C_j$ can throw an exception containing the missed transaction, $Tx_i$, in order to alert the application (Infinispan) that a \emph{amcast} violation has occurred.  Thus allowing steps to be taken to mitigate the consequences of such a violation.  
+
+In the previous paragraphs we have presented the conditions required for a \emph{amcast} violation to occur when utilising the \textsf{SCast} protocol.  We now present a solution for handling rejections between $s$-nodes, and for handling \emph{amcast} violations that occur as a result of these rejections.  In our explanations, all client nodes are assumed to be running the Infinispan application.  As in the previous examples, we consider a service consisting of only two nodes for simplicity and these nodes are called $N_i$ and $N_j$.  Furthermore, we assume that the $Tx.dst$ sets of all transactions have overlapping nodes, if no overlaps existed, then it would not be possible for a \emph{amcast} violation to occur.  More specifically, we assume that $Tx.dst = {C1,C2}$ for all transactions.  
 
     \subsubsection*{Handling $s$-node rejections}
-    Assume that $s$-nodes, $N_i$ and $N_j$ \emph{abcast} messages $m_i$ and $m_j$ respectively, and the total order is $<m_i, m_j>$.  If $N_j$ rejects $m_i$ because it has delivered $m_j$ in its place, then $N_j$'s predecessor data would record $m_j$'s id as the last transaction that interacted with clients $C1$ and $C2$.  By definition $N_i$ is guaranteed to deliver its own message $m_i$.  Assume that $N_i$ also delivers $m_j$, in this case $N_i$'s predecessor data will also state that the last transaction involving clients $C1$ and $C2$ was $m_j.id$.  Therefore, no updates are required to a node's predecessor data when a message is rejected, if the previous transaction associated with a client has an $id$ with a timestamp greater than the rejected message.  However, if the message id associated with a client node is less than the rejected message it is necessary for the id of the rejected message to be associated with the client node, otherwise it would be possible for a future client response to specify incorrect predecessor data.  This scenario only occurs if none of the transactions that are delivered to $N_j$, in the interim period between $m_i$'s correct place in the total order and its actual arrival time, do not concern all of the clients involved in $m_i.dst$.  
+    Assume that $s$-nodes, $N_i$ and $N_j$ \emph{abcast} messages $m_i$ and $m_j$ respectively, and the total order is $<m_i, m_j>$.  If $N_j$ rejects $m_i$ because it has delivered $m_j$ in its place, then $N_j$'s predecessor data would record $m_j$'s id as the last transaction that interacted with clients $C1$ and $C2$.  By definition $N_i$ is guaranteed to deliver its own message $m_i$.  Assume that $N_i$ also delivers $m_j$, in this case $N_i$'s predecessor data will also state that the last transaction involving clients $C1$ and $C2$ was $m_j.id$.  Therefore, no updates are required to a node's predecessor data when a message is rejected, if the previous transaction associated with a client has an $id$ with a timestamp greater than the rejected message.  However, if the message id associated with a client node is less than the rejected message it is necessary for the id of the rejected message to be associated with the client node, otherwise it would be possible for a future client response to specify incorrect predecessor data.  This scenario only occurs if none of the transactions that are delivered to $N_j$, in the interim period between $m_i$'s correct place in the total order and its rejection time, do not concern all of the clients involved in $m_i.dst$.  
     
     %Both transactions, $Tx_i$ and $Tx_j$ contained within $m_i$ and $m_j$ contain a write operation on the same key/value pair $(k,v)$, with $Tx_i$ setting $v=5$ and $Tx_j$ setting $v=10$.  
         
     \subsubsection*{Reducing the chances of \emph{amcast} Violations}
-    Assume that the $s$-nodes, $N_i$ and $N_j$ are utilised in the same scenario as the previous sections.  We have previously stated that it is only possible for \emph{amcast} violations to occur if an $s$-node rejects the \emph{abcast} message associated with $Tx_i$, and a subsequent transaction, $Tx_j$, which utilises one or more of the client nodes in $Tx_i$, is received at one of these clients before $Tx_i$.  
+    Assume that the $s$-nodes, $N_i$ and $N_j$ are utilised in the same scenario as the previous sections, with $m_i$ being rejected by $N_j$ and $N_i$ delivering both $m_i$ and $m_j$ in that order.  Recall, that it is only possible for an \emph{amcast} violation to occur, when $m_i$ is rejected by one of the $s$-nodes, and that it is not possible for a message originator to reject its own message.  This leads to the node $N_j$ associating incorrect predecessor data to $Tx_j$ when a response is sent to $Tx_j.c$, which causes a \emph{amcast} violation if $N_j$'s $rsp(Tx_j)$ is received by any of $Tx_j.dst$ before $N_i$'s $rsp(Tx_i)$.  Therefore, in order to reduce the chances of \emph{amcast} violations, it is necessary to reduce the possibility of $rsp(Tx_j)$ being delivered before $rsp(Tx_i)$ sent by $N_i$.  
+    
+    By the properties of \textsf{ABcast} we know that it in order for a message to be rejected, it is necessary for both messages to have been delivered by \textsf{Aramis} ($\S$ \ref{ssec:aramis}).  Therefore, assuming the worst case scenario that, $m_i$ and $m_j$ have identical timestamp values, we know that $N_i$ will deliver each message no sooner than $\Delta_{m_i}$ and $\Delta_{m_j}$ time, whereas $N_j$ will deliver $m_j$ at $\Delta_{m_j}$ and reject $m_i$ when it eventually arrives.  Therefore, we know that $N_i$ will unicast $rsp(Tx_i)$ at $\approx \Delta_{m_i}$ and $N_j$ will do likewise for $rsp(Tx_j)$ at $\approx \Delta_{m_j}$.  In this worse-case scenario it is likely that both response messages will be unicast from the service at approximately the same time, however in most cases the timestamp of messages $m_i$, $m_j$ may differ by several milliseconds, meaning that it is probable that the response message associated with $m_i$ will have a headstart on $m_j$, thereby reducing the chances of $m_j$'s response being received first by clients.  
+    
+    Knowing that response messages with inconsistent predecessor data will be sent at approximately the same time, allows us to utilise an additional timeout period that must be observed by clients.  When a message, $m_i$, is delivered via \textsf{Aramis} at $m.o$ ($s$-node that received the request), it is possible that $m_i$ may have been rejected by another $s$-node.  Therefore, we propose that if $m_i$ is delivered via \textsf{aramis} by the originator, then the corresponding $rsp(Tx_i)$ should be flagged so that each client knows that a \emph{amcast} violation is possible.  Each client node must then observe a timeout period $T$ after receiving $rsp(Tx_i)$\footnote{$T$ is specified by the $s$-node sending $rsp(Tx_i)$, and is included in its message header.}, in order to allow for any \emph{amcast}'s that were rejected by $N_i$ to be received before delivering $Tx_i$.  For example, if a client $C_j$ first receives $rsp(Tx_j)$, which does not contain $Tx_i$ in its predecessor data, it sees that $rsp(Tx_j)$ has been flagged and waits $T$ time before delivering $Tx_j$. In this $T$ time is possible, but not guaranteed, that the missing predecessor message $Tx_i$ will be received and that the \emph{amcast} violation will be avoided.  
+    
+    There are two problems with utilising such a timeout.  The first, is that the values of $\Delta$ will be different for each message originator, therefore it is possible for $\Delta_{m_i} < \Delta_{m_j}$, which undermines our assumptions if this difference is greater than the difference between the timestamps of $m_i$ and $m_j$.  To overcome this limitation, it is necessary for each node to record the maximum difference between its own calculations of $\Delta$ and the values calculated by other $s$-nodes.  This time difference is then utilised as a provisional value of $T$, $T_p$, with the final value of $T$ being determined by a weighting specified by the system administrator before runtime.  For example, if the administrator wanted the system to be more pessimistic they could calculate the final $T$ value as $T=2 \times T_p$, or optimistically as $T=1.1 \times T_p$.  
+    
+    The second problem of utilising timeout $T$, is that it will increase the latency of an \emph{amcast} when the service had to utilise \textsf{Aramis} to \emph{abcast} its request.  Furthermore, it is possible that this increased latency could still result in an \emph{amcast} violation.  The effects of $T$ over a large number of \emph{amcast}s should be minimal, as textsf{Aramis} deliveries are rare when $s$-node crashes are absent.  When crashes do occur, the total delivery delay for an \emph{amcast} is $\approx T + \Delta + unicast cost$ which based upon our findings in $\S$ \ref{ch:perf_eval} will still be smaller then the time required for the GM service to detect the crash, hence this solution still provides lower latency then the traditional deterministic approach.  The fact that \emph{amcast} violations cannot be avoided entirely is a consequence of the probabilistic approach utilised by \textsf{ABcast}, therefore it is necessary for additional provisions to be in place at the Infinispan level to cater for when such violations do occur.  
     
     \subsubsection*{Infinispan - Recovering from \emph{amcast} Violations}
-
-
+    In the event that one or more \emph{amcast} violations occur, it is necessary for the client application to be able to recover from such events.  In this subsection, we present a recovery mechanism that can be employed by the Infinispan transaction manager at each client node in the event of a violation occurring.  
+    
+%    Our solution is inspired by compensating transactions ($INSERT_REF$) and the use of transaction logs to revert state when conflicts occur between transactions.  
+%    
+%     and requires each client's transaction manager to store a history of the past $x$ transactions received by this node.  For each transaction the manager needs to store the values of all key/value pairs before the transaction was executed and the transaction itself.  
+%    
+%     along with the previous value associated with all of the key/value pairs stored on this node that are modified by a transaction.  
+    
 \section{Summary}
 This chapter presented \textsf{ABcast} - a new hybrid protocol that utilises both a deterministic (\textsf{Base}) and probabilistic (\textsf{Aramis}) protocol in order to create a non-blocking \emph{abcast} solution.  We detail the protocol's assumptions and required components, before detailing the delivery and rejection criteria of the two protocols.  Finally, we motivate the need for a flow control protocol that utilises the DMC's PSM calculations in order to maximise the throughput of the \textsf{ABcast}  protocol.  
