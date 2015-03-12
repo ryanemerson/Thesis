@@ -1,11 +1,11 @@
-%*****************************************************************************************
-%*********************************** First Chapter ***************************************
-%*****************************************************************************************
-
-\chapter{Introduction}  %Title of the First Chapter
-
-%\ifpdf
-%    \graphicspath{{Chapter1-Introduction/Figs/Raster/}{Chapter1-Introduction/Figs/PDF/}{Chapter1-Introduction/Figs/}}
-%\else
+\chapter{Introduction}
+    % **************************** Define Graphics Path **************************
     \graphicspath{{Chapter1-Introduction/Figs/Vector/}{Chapter1-Introduction/Figs/}}
-%\fi
+    
+    The emergence and proliferation of mainstream cloud computing has facilitated the creation of a large number of Internet-scale web services and applications.  Such services serve millions of users across the globe simultaneously and are required to cater for increasingly large numbers of read and write operations on data with response times in the range of milliseconds. Cloud computing is ideal for such data loads, as it enables the web service to scale horizontally by dynamically acquiring resources as the rate or size of requests increases.  
+    
+    Traditionally, applications would utilise a Relational Database Management System (RDBMS) for storing and retrieving data.  However, as Internet scale services such as Facebook, Twitter and Google continued to receive increasing numbers of user requests, it became clear that RDBMS systems were unable to cope with such huge quantities of data \citep{DBLP:journals/corr/MoniruzzamanH13}.  The traditional approach to scaling RDBMS, was to scale \emph{vertically}, by utilising increasingly powerful and expensive servers to handle user requests.  Such an approach is not truly scalable as the maximum levels of performance will always be limited by the capabilities of the latest technology, the cost of hardware and the associated running costs.  Alternatively, it is possible to horizontally scale RDBMS solutions by partitioning data across several nodes in order to increase the number of machines that can handle user requests.  However, as RDBMS systems depend on a rigid data-schema to structure data, horizontal partitioning is difficult in practice and often requires input from system administrators to maximise its effectiveness \citep{Han:6106531}.          
+    
+    RDBMS's inability to elastically scale, has led to the emergence of NoSQL databases as an alternative storage solution.  These databases typically offer simpler data models and relaxed consistency criteria than traditional RDBMS systems, in order to: $(i)$ avoid the need for predefined data schemas that hinder elasticity and $(ii)$ reduce the overhead of replicating data across multiple nodes \citep{Cattell:2011:SSN:1978915.1978919}.  
+    
+    %Due to the global nature of these services and the high levels of demand they experience, it is typical for multiple cloud data-centres to be utilised.   Typically, these data-centres are dispersed over several continents in order to provide low-latency round trip times between a service and its users, by distributing the service itself to servers in the same region as the user.  Furthermore, utilising multiple data-centres allows for high levels of availability and fault-tolerance in the event of a single data-centre being compromised.  
