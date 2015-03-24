@@ -257,7 +257,7 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
 	        The WSC determines whether a read operation, $v = get(k)$, in a transaction $Tx_j$, has been invalidated by a concurrent transaction $Tx_i$ committing a $update(k, v')$ operation during the lifetime of $Tx_j$.  If $Tx_i$ has committed a write operation on $k$ between $Tx_j$ performing $get(k)$ and $update(k, v+1)$, then the WSC will detect this and allow the transaction manager to abort $Tx$ so that the erroneous value $v+1$ is not committed.  
 
         
-	    \subsubsection{Two-phase Commit Protocol}
+	    \subsubsection{Two-phase Commit Protocol}\label{ssec:2PC}
 	       The Two-phase commit protocol (2PC)\citep{Bernstein:1996:PTP:261193} is the traditional approach to coordinating distributed transactions, and as such its benefits and limitations are well understood.  Infinispan utilises the 2PC protocol for coordinating both optimistic and pessimistic transactions.  
 	       
            \subsubsection*{Example Scenario} \label{transaction_scenario} 
