@@ -357,16 +357,19 @@ As previously stated ($\S$ \ref{replication_schemes}), full replication is not s
                 \label{fig:TOA}
             \end{figure}	 			
 			
-			The advantage of utilising $m.o$ as a central coordinator, opposed to all $m.dst$ acknowledging each other, is that the total number of messages involved in a single \emph{amcast} is reduced as $\left\vert m.dst \right\vert$ increases.  The total remote message cost for TOA and Newtop is expressed below:
+			The advantage of utilising $m.o$ as a central coordinator, opposed to all $m.dst$ acknowledging each other, see Figure \ref{fig:newtop}, is that the total number of messages involved in a single \emph{amcast} is reduced as $\left\vert m.dst \right\vert$ increases.  The total remote message cost for TOA and Newtop is expressed below:
+            
+%            Note that $x (x + 1) > 3x \quad \forall x > 2$, i.e. when $|m.dst| > 3$.  
 			
-			\begin{equation*}
-		     \begin{aligned}
-		       x &= \left\vert m.dst-\{m.o\} \right\vert \\
-		       TOA & = 3x \\
-		       Newtop & = x + x^2
-		     \end{aligned}
-		    \end{equation*}
-
+			\begin{samepage}
+                Let $x = |m.dst| -1$.  In TOA, $m.o$ transmits $2x$ messages and the other nodes in $m.dst$ transmit $1$ ack each.  So TOA's message cost is $3x$.  Whereas, in Newtop, each node in $m.dst$ sends $x$ messages each, hence the cost is $x(x+1)$.  Note that:
+				\begin{equation*}
+				x (x + 1) > 3x \quad \forall \quad x > 2
+			    \end{equation*}
+			    
+			     \emph{i.e.} when $|m.dst| > 3$.
+            \end{samepage}
+            
 	        \subsubsection*{TOA Limitations}
 			The TOA protocol suffers from the same limitations as other GM based protocols, most notably that message delivery is blocked in the presence of node failures.  In the context of Infinispan total order transactions, a crashed node $c$ will cause all transactions that interact with $c$ to block until the GM service issues a new view.  This causes the \emph{liveness} of all nodes interacting with $c$ to be lost in the interim period, as the blocked transactions will not be able to commit, resulting in a loss of throughput.  
 	        
