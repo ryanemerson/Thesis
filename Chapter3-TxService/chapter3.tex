@@ -72,21 +72,23 @@ The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-no
 
 	\subsection*{Client Requirements}
 	\begin{itemize}
-		\item [\textbf{CR1}] Clients must be able to send \emph{amcast}s to multiple destination sets that may overlap.
+		\item [\textbf{CR1}] A $c$-node must be able to send \emph{amcast}s to multiple destination sets that may overlap.
 		
-		\item [\textbf{CR2}] The service must provide a consistent total order $m.ts$ on messages irrespective of the $s$-node handling a clients request, or the $c$-node from which the clients request originated.  
+		\item [\textbf{CR2}] A $c$-node should be able to submits its \emph{amcast} requests to any one of the correct $s$-nodes.  
 		
-		\item [\textbf{CR3}] Client nodes must be informed of $m_i$ when handling $m_j$, if $m_i.dst \cap m_j.dst$ to ensure that $m_i$ is not missed by a $c$-node in $m_i.dst$.  
+		\item [\textbf{CR3}] Upon receiving \emph{amcast} $m_j$ via the ordering service, a $c$-node must be able to deduce every $m_i$ that is ordered before $m_j$ and has itself as a multicast destination:
+		\begin{equation*}
+		    \mbox{all}\; m_i : \quad c\mbox{-node} \in m_i.dst \cap m_j.dst \;\mbox{\underline{and}}\; m_i \;\mbox{is ordered before}\; m_j
+		\end{equation*}
 	\end{itemize}
 	
-%	\paragraph{Service Requirements} \hspace{0pt}
     \subsection*{Service Requirements}
 	\begin{itemize}
 		\item [\textbf{S1}] The service must provide crash-tolerance ($s\text{-nodes} > 1$).
 		
-		\item [\textbf{S2}] The service must be highly available and non-blocking in the event of $s$-node failures.  Necessary to prevent the entire cluster becoming blocked if a $s$-node fails.   
-		
-		\item [\textbf{S3}] All service nodes must process client requests in the exact same order to maintain a consistent state between all $s$-nodes.  This prevents a $c$-node from receiving conflicting ordering data, for example two distinct $m$ being allocated the same global timestamp.  
+		\item [\textbf{S2}] The service must be highly available and non-blocking in the event of an $s$-node crashing or being suspected of having crashed.  
+				
+		\item [\textbf{S3}] All $s$-nodes must process client requests in the exact same order.
 		
 		\item [\textbf{S4}] All $s$-nodes should be able to handle client requests, to allow for high availability and to prevent a single $s$-node becoming a performance bottleneck.
 	\end{itemize}
