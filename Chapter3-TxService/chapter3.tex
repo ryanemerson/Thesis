@@ -68,7 +68,7 @@ We call this system model Atomic Multicast as a Service (\textsf{AmaaS}), and re
     
 	
 \section{AmaaS Requirements}\label{sec:absaas_requirements}
-The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-nodes.  This section will explore the requirements that need to be met in order for the \textsf{AmaaS} model to be effective.  We consider requirements from the perspective of both clients, $c$-nodes, and the multicast service, $s$-nodes.
+The \textsf{AmaaS} model consists of two distinct entities: $s$-nodes and $c$-nodes.  This section will explore the requirements that need to be met in order for the \textsf{AmaaS} model to be effective.  We consider requirements from the perspective of both clients, $c$-nodes, and the multicast service, $s$-nodes.
 
 	\subsection*{Client Requirements}
 	\begin{itemize}
@@ -90,20 +90,24 @@ The \textsf{AbaaS} model consists of two distinct entities: $s$-nodes and $c$-no
 				
 		\item [\textbf{S3}] All $s$-nodes must process client requests in the exact same order.
 		
-		\item [\textbf{S4}] All $s$-nodes should be able to handle client requests, to allow for high availability and to prevent a single $s$-node becoming a performance bottleneck.
+		\item [\textbf{S4}] All $s$-nodes should be able to handle client requests.  %, to allow for high availability and to prevent a single $s$-node becoming a performance bottleneck.
 	\end{itemize}
 
 \section{SCast: Atomic Multicast Protocol for AmaaS}\label{sec:scast_protocol}
-We have developed a protocol for the \textsf{AmaaS} model, which we call \textsf{SCast}; as the protocol offers atomic ordering for multicast messages as a service, hence Service Multicast - \textsf{SCast}.  \textsf{SCast} satisfies all of the requirements specified in $\S$ \ref{sec:absaas_requirements} with the exception of S2.  S2 cannot be satisfied by our protocol directly, rather \textsf{SCast} relies on a \emph{abcast} protocol to guarantee S1, S3 and S4, therefore in order for S2 to be satisfied, the underlying \emph{abcast} protocol must not block in the presence of node failures.  
+We have developed a protocol for the \textsf{AmaaS} model, which we call \textsf{SCast}; as the protocol offers atomic ordering for multicast messages as a service, hence Service Multicast - \textsf{SCast}.  The \textsf{SCast} protocol enables atomic multicasting by $c$-nodes utilising an ordering service, precisely defining the interactions required between $c$-nodes and the ordering service in order to ensure the atomicity of each multicast.  
 
-\textsf{SCast} defines how client nodes utilise the ordering information provided by the multicast service and how they interact with the service, as well as how the service nodes handle client requests and maintain their replicated state, therefore \textsf{SCup} is explained from the perspective of both client and service nodes.  We then discuss the fault-tolerance of \textsf{SCup}, exploring how the atomicity of the protocol is maintained in the event of node crashes at various stages of the protocols execution and how the \emph{multicast service} can tolerate split brain partitions.  
+Inside the ordering service, the \textsf{SCast} protocol maintains a replicated state machine amongst $s$-nodes that stores the total order timestamps attributed to $c$-node requests.  \textsf{SCast}'s ability to meet requirements S1 - S3, is dependant on the characteristics of this underlying \emph{abcast} protocol utilised  for state machine replication between $s$-nodes, with only S4 guaranteed regardless of the \emph{abcast} protocol used \footnote{This can be guaranteed even if a leader based \emph{abcast} protocol is utilised, as client requests can simply be forwarded to the leader node.  Such an approach can be seen in both Chubby and Zookeeper}.  For example, consider requirement S2, if the underlying \emph{abcast} protocol is GM based, hence it blocks in the event of a node crash, then it is not possible for S2 to be met as $s$-nodes will become blocked when an $s$-node fails as no \emph{abcast} messages will be sent until the crash is discovered.  Therefore, the performance and characteristics of an ordering service that implements the \textsf{SCast} protocol is tightly coupled to that of the underlying \emph{abcast} protocol utilised for state machine replication between $s$-nodes.  
 
-In the explanations below we assume that Infinispan is executing a 1-Phase Total Order transaction, without a second WSC phase, and that the transaction has already been successfully executed locally.  Finally, we refer to a collection of $s$-nodes providing the \emph{amcast} service as the \emph{multicast service}.  
+As \textsf{SCast} defines how $c$-nodes interact with the ordering service and how $s$-nodes maintain a replicated state, it is necessary for the protocol to be explained from the perspective of both client and service nodes.  The remainder of this section is structured as follows: First we provide a succinct overview of the \textsf{SCast} protocol, before exploring in-detail each stage of the protocol and its significance.  We then discuss the crash-tolerance of \textsf{SCast} and how atomicity is maintained in the event of a node crash or a split brain scenario.  
 
+In the explanations below we assume that Infinispan is executing a 1-Phase Total Order transaction, without a second WSC phase, and that the transaction has already been successfully executed locally.  Finally, we refer to a collection of $s$-nodes providing the \emph{amcast} service as the \emph{ordering service}.  
 
+    
+    \subsection{Protocol Overview}    
+    
     \subsection{Protocol Details}
     \subsubsection*{Client Nodes}
-    Stage 1 of the client \textsf{SCup} protocol starts once a transaction coordinator, $Tx_i.c$, has completed its local execution of $Tx_i$ it is ready to \emph{amcast} a $prepare(Tx_i)$ message to $Tx_i.dst$ as required by the total order commit protocol.  Each stage of the client protocol and its purpose are detailed below:
+    Stage 1 of the client \textsf{SCast} protocol starts once a transaction coordinator, $Tx_i.c$, has completed its local execution of $Tx_i$ it is ready to \emph{amcast} a $prepare(Tx_i)$ message to $Tx_i.dst$ as required by the total order commit protocol.  Each stage of the client protocol and its purpose are detailed below:
     \begin{description}
     
         \item[1. Delegate Backup Coordinator] \hfill \\
@@ -134,7 +138,7 @@ In the explanations below we assume that Infinispan is executing a 1-Phase Total
         \item[1. Receive Client Request] \hfill \\
             Upon receiving $req(Tx_i)$, each $s$-node places the request in its \emph{Abcast Request Pool} (ARP), which is a bounded queue for storing requests before they are \emph{abcast} to all $s$-nodes.  If an $s$-node's ARP becomes full, subsequent requests from $c$-nodes are rejected until space becomes available in the ARP.  When a $c$-node request is rejected a \emph{reject} response is sent to $Tx_i.c$.  If $Tx_i.c$ receives a \emph{reject} response from all $s$-nodes, then it can either abort $Tx_i$ or resend the \emph{amcast} request to another $s$-node after a configurable amount of time.    
             
-            The ARP is necessary to ensure that if the \emph{ordering service} starts to become overloaded by client requests their is a 'feedback' mechanism that makes clients aware of the services current limitations, allowing clients to restrict user operations if necessary.  Utilising an ARP is also essential for providing message bundling, which as described in \ref{ssec:abaas_optimisations} is an effective optimisation for improving the throughput of the \emph{multicast service}.  
+            The ARP is necessary to ensure that if the \emph{ordering service} starts to become overloaded by client requests their is a 'feedback' mechanism that makes clients aware of the services current limitations, allowing clients to restrict user operations if necessary.  %Utilising an ARP is also essential for providing message bundling, which as described in \ref{ssec:abaas_optimisations} is an effective optimisation for improving the throughput of the \emph{multicast service}.  
             
         \item[2. Process ARP] \hfill \\
         A single thread, called the \emph{send} thread, is utilised for retrieving requests from the ARP and \emph{abcast}ing them to all $s$-nodes for ordering.  The \emph{send} thread retrieves ordering requests from the ARP in their arrival order, and bundles them into a single message bundle $mb$, before \emph{abcast}ing $mb$ to all $s$-nodes.  If the ARP is empty, then the \emph{send} thread waits for the ARP to become non-empty before resuming \emph{abcast}ing.  
