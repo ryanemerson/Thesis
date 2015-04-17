@@ -150,10 +150,10 @@ In this section we detail the individual components required by the \textsf{ABca
         For the sake of clarity, assumption A4 is repeated below:   
         
         \begin{quotation}
-            The maximum delay, $x_{mx}$, estimated by observing $NT_P$ number of transmissions from the recent past, will \emph{not} be exceeded during $NT_F$ number of future transmissions that unfold next, where $NT_F \leq NT_P$ with a high probability ($1 - q$).
+            Let $x_{mx}$ be the maximum delay estimated at time $t$ by observing $NT_P$ transmissions in the recent past: The delay $x_{mx}$ will not be exceeded in any of $NT_F$, $NT_F \leq NT_P$, transmissions to unfold after $t$ with probability $(1 - q)$; where $q$ can be estimated with reasonable accuracy.  
         \end{quotation}
     
-        The delay measurement component is responsible for monitoring and observing the network latency of $NT_P$ transmissions from the recent past.  This recent past of latencies is then used to calculate various parameters that are required by the \emph{rbcast} and \textsf{ABcast} protocols for executing \emph{abcasts} in the near future.  Being conservative, we use $NT_F = 10\%$ of $NT_P$ and $NT_P=1000$; so, a \textsf{ABcast} node freshly estimates $x_{mx}$ for every 100 new delays it observes.  Each fresh estimation of $x_{mx}$ results in the recalculation of the following parameters: $\eta, \rho, q$ and $\omega$.  
+        The delay measurement component is responsible for monitoring and observing the network latency of $NT_P$ transmissions from the recent past.  These latencies are then used to calculate various parameters that are required by \emph{rbcast} (and by \textsf{Aramis}) for executing \emph{abcasts} in the near future.  Being conservative, we use $NT_F = 10\%$ of $NT_P$ and $NT_P=1000$; so, a \textsf{ABcast} node freshly estimates $x_{mx}$ for every 100 new delays it observes.  Each fresh estimation of $x_{mx}$ results in the recalculation of the following parameters: $\eta, \rho, q$ and $\omega$.  
         
         Latencies are measured by the DMC based upon the timestamp $m.ts$, which is included in every message $m$ that is broadcast via the \emph{rbcast} protocol.  As the clocks of all nodes executing the \textsf{ABcast} protocol are synchronised, it is possible to measure the one-way latency of each message that is received by a node.  For example, a node $N_i$ sends an \emph{rbcast} $m$ to $N_j$, upon receiving $m$, $N_j$ immediately records the latency $x$:
 
@@ -163,7 +163,7 @@ In this section we detail the individual components required by the \textsf{ABca
              \end{aligned}
         \end{equation*}        
         
-        It is necessary to add $2\epsilon$ to each latency to ensure that if $N_j.clockValue$ is behind $N_i.clockValue$ by the maximum error of $2\epsilon$, a positive latency value is still recorded; this assumes that neither $N_i$ or $N_j$ is the clock master, in which case it is not possible for the max clock difference to be $2\epsilon$, only $\epsilon$, however as \emph{rbcast} operates independent of the clock synch algorithm $2\epsilon$ is pessimistically added to all latencies.  
+        It is necessary to add $2\epsilon$ to each latency to ensure that if $N_j.clockValue$ is behind $N_i.clockValue$ by the maximum error of $2\epsilon$, a positive latency value is still recorded.  
                                 
         The remainder of this section explores each of the parameters provided by the DMC, explaining what they represent and how they are calculated.  
         
@@ -171,62 +171,110 @@ In this section we detail the individual components required by the \textsf{ABca
         \item[\Huge$\boldsymbol{x_{mx}}$] \hfill \\
         $x_{mx}$ is simply the largest latency out of the $NT_P$ latencies observed in the recent past.  
         
-        \item[\Huge$\boldsymbol{q}$] \hfill \\
-                The parameter $q$ is the estimated probability that a transmission delay observed in the near future will exceed $x_{mx}$.  We estimate $q$ by observing the ratio of observed delays from the recent past that exceed $95\%$ of the recorded $x_{mx}$; thus, when more delays are observed closer to $x_{mx}$, $q$ tends to be large.  Although unlikely, it is possible that $q$ can be calculated as $1$ if all latencies in the recent past are the same, to avoid this we set a maximum value for $q$, $ q \leq q_{mx}$.  $q_{mx}$ is calculated as: 
-
-        \begin{equation*}
-             \begin{aligned}
-                  q_{mx} = \sqrt{1 - R^{(\frac{1}{n} - 1)}}
-             \end{aligned}
-        \end{equation*}
-        
-        Where $R$ is a constant defined before run-time that specifies to what probability the system will be \emph{reliable}.  As the system is probabilistic the following must be true $R < 1$.  Note that $q$ cannot be accurately estimated, as it relates to future delays.  Therefore, \textsf{ABcast} uses $q$ estimates in a manner that accounts for potential inaccuracies and only for estimating one other parameter - $\rho$.
-    
         \item[\Huge$\boldsymbol{\rho}$] \hfill \\
-        $\rho$ is the parameter that determines the number of redundant broadcasts that are sent by the \emph{rbcast} protocol, with each broadcast sent $\rho + 1$ times.  The DMC utilies a constant $\rho_{min}$ which determines the lowest possible value for $\rho$ and is configured before runtime.  $\rho_{min}$ allows an application to artificially increase the amount of redundancy provided by the \emph{rbcast} protocol if a greater level of redundancy is required; $\rho_{min} = 1$ by default.
+        $\rho$ is the parameter that determines the number of redundant broadcasts sent by the \emph{rbcast} protocol, with a given $m$ being broadcast $\rho + 1$ times.  To determine $\rho$, we define $R$ as the probability that at least one of $(\rho + 1)$ transmissions of $m$ by $m.o$ reaches all operative destinations within $x_{mx}$; where $R$ is a configuration parameter specified before runtime.  
         
-        Note, $\rho = 1$ is sufficient for crash-tolerance, however we estimate it so that at least one copy of $m$ reaches all operative nodes, other than $m.o$, within $x_{mx}$ delay and with a probability $> R$; more precisely, $\rho$ is estimated as the smallest integer that satisfies $\rho \geq \rho_{min}$ and
-
-        \begin{equation*}
+        The probability that a given operative destination receives at least one of $(\rho + 1)$ transmissions from $m.o$, is:
+        
+        \begin{equation}
             \begin{aligned}
-                (1-q^{\rho+1})^{n-1} > R
+                1 - q^{\left( \rho + 1 \right)}
             \end{aligned}
-        \end{equation*}
-
-        which can be re-arranged as:
-
-        \begin{equation*}
+        \end{equation}
+        
+        Given that there can be $(n - 1)$ operative destinations at any time, we require:
+        
+        \begin{equation}
             \begin{aligned}
-                \rho > \frac{ln(1-R)}{ln(q)} -1 \qquad \mbox{\emph{where}} \qquad R=(R)^{\frac{1}{n-1}}
+                \left[1 - q^{\left(\rho + 1\right)}\right]^{\left(n - 1\right)} \quad > \quad R
             \end{aligned}
-        \end{equation*}
+        \end{equation}
+        
+        \begin{equation} \label{eq:q_mx}
+            \begin{aligned}
+                \left[1 - q^{\left(\rho + 1\right)}\right]^{\left(n - 1\right)} \quad > \quad R ^{\left(\frac{1}{n - 1}\right)} \quad = \quad \tilde{R}
+            \end{aligned}
+        \end{equation}
+        
+        Rearranging, taking in both sides and accounting for the fact that $\ln(a) < 0$ for  $0 < a < 1$, we set:
+        
+        \begin{equation}
+            \begin{aligned}
+                \left(\rho + 1\right) \quad > \quad \frac{\ln\left( 1 - \tilde{R} \right)}{\ln\left(q \right)}, \quad \forall \quad q \neq 1
+            \end{aligned}
+        \end{equation}
 
-        The inequality assumes that $m$ is multicast exactly ($\rho +1$) times in a crash-free manner and all $n-1$  intended recipients are operative. Both assumptions lead to a \emph{conservative} estimate of $\rho$. Moreover, for a given $R$, an integer $I =\rho_{min}, \rho_{min} + 1, \ldots$, satisfies: 
+        \emph{i.e}:        
+        
+        \begin{equation} \label{eq:rho_ie}
+            \begin{aligned}
+                \rho \quad > \quad \frac{\ln\left(1 - \tilde{R}\right)}{\ln(q)} - 1, \quad \forall \quad q < 1
+            \end{aligned}
+        \end{equation}
+        
+        Later, we show that $\rho$ needs to be at least one to tolerate the crash of $m.o$.  So, $\rho$ is the smallest integer that satisfies:
+        
+        \begin{equation}
+            \begin{aligned}
+                \rho \quad > \quad maximum \left\{ \rho_{min}, \quad \frac{\ln\left(1 - \tilde{R}\right)}{\ln(q)} - 1 \right\}
+            \end{aligned}
+        \end{equation}
+        
+        Where $\rho_{min} \geq 1$ is a configuration parameter specified before runtime.  Observe that, for a given $R$, an integer $I =\rho_{min}, \rho_{min} + 1, \ldots$, satisfies: 
 
         \begin{equation*}
             \begin{aligned}
-                I < \frac{ln(1-R)}{ln(q)}-1 < I+1
+                I \quad < \quad  \frac{ln \left(1 - \tilde{R}\right)}{ln(q)} - 1 \quad < \quad I + 1
             \end{aligned}
         \end{equation*}
         
-        for a wide range of $q$ values; e.g., for $R \approx 0.9999$:
+        for a wide range of $q$ values; e.g., for $R \approx 0.9999$ and $n = \ldots$
 
         \begin{equation*}
             \begin{aligned}
-                \frac{ln(1-R)}{ln(q)}-1 < 1 \quad \forall \quad q < 0.01 = 1\%
+                \frac{ln(1- \tilde{R})}{ln(q)}-1 < 1 \quad \forall \quad q < 0.01 = 1\%
             \end{aligned}
         \end{equation*}
 
-        Thus, small inaccuracies in estimating $q$ may not adversely affect $\rho$ estimates.  
+        This implies that small inaccuracies in estimating $q$ may not adversely affect $\rho$ estimates.  
+
+        \item[\Huge$\boldsymbol{q}$] \hfill \\
+                The parameter $q$ is the estimated probability that a transmission delay observed in the near future will exceed $x_{mx}$.  We estimate $q$ by assuming that each $x$ in $NT_p$ increases by $5\%$ in the near future.  So, the estimated set of transmission delays (with regards to $x_{mx}$) in the near future is:
+                
+        \begin{equation*}
+            \begin{aligned}
+                \left\{ x \text{ in } NT_p \quad  | \quad 1.05 \times x \quad > \quad x_{mx} \right\}
+            \end{aligned}
+        \end{equation*}
+                
+        Note that:
+         \begin{equation*}
+            \begin{aligned}
+                1.05 \times x \quad > \quad x_{mx} \quad \Rightarrow \quad \frac{x_{mx}}{1 + 0.05 } \approx 0.95 x_{mx}
+            \end{aligned}
+        \end{equation*}
+                
+        So,
+            \begin{equation*}
+            \begin{aligned}
+                q  = \frac{\text{Number of Transmissions in } NT_p \text{that exceeds } 95\% x_{mx}}{|NT_P|}
+            \end{aligned}
+        \end{equation*}
+        
+                It is possible that $q$ is calculated close to $1$ if many latencies in the recent past are within $95\%$ of $x_{mx}$.  As $q -> 1, \rho -> \infty$ from equation \ref{eq:rho_ie}.  To deal with such extreme cases, we fix an upper bound $\rho_{mx}$, $\rho_{mx} > \rho_{mn}$.  We use $\rho_{mx}$ in equation \ref{eq:q_mx} and find $q$ to be the largest value that satisfies:
+                
+       \begin{equation*}
+            \begin{aligned}
+                q \quad < \quad \left(1 - \tilde{R}\right)^{\left(\frac{1}{\rho_{mx} + 1} \right)}
+            \end{aligned}
+        \end{equation*}
 
         \item[\Huge$\boldsymbol{\eta}$] \hfill \\
         $\eta$ is the parameter used by \emph{rbcast} to determine the amount of time to wait between each broadcast of a message copy and is calculated as the largest delay in $n - 1$ transmissions (of a given copy $m$) with probability $R$.  Assuming exponential distribution $n$ is calculated as follows:
         
-        % \eta=-\bar{x}[ln(1-R^{\frac{1}{n-1}})]     
-        % \eta=-\bar{x}[ln(1-R)]  
         \begin{equation*}
             \begin{aligned}
-                \eta=-\bar{x}[ln(1-R^{\frac{1}{n-1}})]  
+                \eta=-\bar{x}[ln(1-\tilde{R})]  
             \end{aligned}
         \end{equation*}
         
