@@ -107,7 +107,22 @@ In this section we detail the individual components required by the \textsf{ABca
     \subsection{Reliable Broadcast}\label{ssec:rbcast}
     In the event of a node failure reliable UDP alone is not sufficient to ensure that assumption A3 holds.  This is because it is possible for a messages originator, $m.o$, to crash during the unicasting of $m$.  Assume that $m.dst = \{N_i, N_j, N_k\}$ and $m.o = N_i$, if $N_i$ crashes after unicasting $m$ to $N_j$ only, then $N_k$ will never receive $m$.  Similarly, if $N_i$ crashes during the unicasting of $m$ to $N_j$ it is possible that $N_i$ managed to send $m$ before crashing, in which case $m$ may eventually be received by $N_j$.  Both scenarios highlight that an additional protocol is required to ensure that all $m.dst$ receive $m$ in the event of $m.o$ crashing.  
     
-    To overcome the limitations of Reliable UDP we have implemented a Reliable Broadcast protocol, called  \emph{rbcast}, that sits above the Reliable UDP layer in the network stack.  This protocol is inspired by the work of  Ezhilchelvan \emph{et al.} \citep{ezhilchelvan2011near}, as it utilises redundant broadcasts in collaboration with PSM, to ensure that all destinations receive a broadcast.  Our \emph{rbcast} protocol has been designed specifically for use with PSM based protocols and consequently utilises some of the values from the DMC ($\S$ \ref{ssec:dmc}) as protocol parameters.  Utilising the values provided by DMC allows  \emph{rbcast} to place a probabilistic timeliness guarantee on each message that is reliably broadcast.  With a high probability, \emph{rbcast} can guarantee that an operative destination will receive a given $m$ within $D_m$ time even if $m.o$ crashes during the initial broadcast of $m$.  The remainder of this section describes the basic \emph{rbcast} protocol, whilst the calculations for $D_m$ are presented in $\S$ \ref{ssec:dmc}.
+    To overcome the limitations of Reliable UDP we have implemented a Reliable Broadcast protocol, called  \emph{rbcast}, that sits above the Reliable UDP layer in the network stack.  This protocol is inspired by the work of  Ezhilchelvan \emph{et al.} \citep{ezhilchelvan2011near}, as it utilises redundant broadcasts in collaboration with PSM, to ensure that all destinations receive a broadcast.  Our \emph{rbcast} protocol has been designed specifically for use with PSM based protocols and consequently utilises some of the values from the DMC ($\S$ \ref{ssec:dmc}) as protocol parameters.  
+    
+    Below, we state the guarantees provided by the \emph{rbcast} protocol.  In stating them, we assume two primitives $rbcast(m)$ and $rb.deliver(m)$, which are described in detail later on in this section.
+    
+    \subsubsection*{Probabilistic Guarantees of \emph{rbcast}}
+    
+        \begin{description}
+		    \item [\textbf{RB1}] - \emph{Probabilistic RB-Validity}: If the source of $m$ does not crash until it completes \emph{rbcasting} $m$, then all operative $s$-nodes $rb.deliver(m)$ within a delay of at most $D_m$ with probability $R$.  
+		    
+		    \item [\textbf{RB2}] - \emph{Probabilistic Agreement}: If $m.o$ crashes during $rbcast(m)$ and if any $s$-node $rb.delivers$ $m$, then all operative $s$-nodes $rb.deliver$ $m$ within $D_m$ of $rbcast(m)$ with probability $R$.  
+		
+		
+		    \item [\textbf{RB3}] - \emph{Uniform Integrity}: Any $s$-node $rb.delivers$ $m$ at most once.  
+\end{description}
+    
+    RB1, RB2 and RB3 are directly used when implementing \textsf{Aramis}, to provide G1-P, G2-P and G3, as defined in section \ref{ssec:aramis}.  The remainder of this section describes the basic \emph{rbcast} protocol, whilst the calculations of $D_m$ are presented in $\S$ \ref{ssec:dmc}.
     
     \subsubsection*{The \emph{rbcast} protocol}
     All messages broadcast via \emph{rbcast} include a tuple $\{m.o, m.seq\#, m.ts\}$ that uniquely identifies the broadcast.  Where $m.o$, short for message originator, is the address of the node that initiates a broadcast message; $m.seq\#$ is a sequence number unique to each $m.o$ that is incremented after each broadcast and $m.ts$ is a timestamp of $m.o$'s synchronised clock.  Note that the first two values of the tuple are sufficient to uniquely identify a broadcast.
