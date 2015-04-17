@@ -37,7 +37,17 @@ The remainder of this chapter is structured as follows:  First we introduce the 
 
 As the \textsf{ABcast} protocol utilises the probabilistic protocol \textsf{Aramis}, it is possible for a node not to have received an \emph{abcast} $m$ at all when that node uses \textsf{Aramis} for delivery.  However, as previously stated, \textsf{Aramis} is carefully designed to keep the probability of meeting G1 and G2 close to 1.  Furthermore, as \textsf{Aramis} is only used when \textsf{Base} is slow or a node failures occurs, the probability of an \emph{abcast} message $m$ being missed in the total order is the product of two very small probabilities; \textsf{Base} not being able to deliver $m$ and \textsf{Aramis} failing $m$.  Therefore, in reality the occurrence of a node not delivering an \emph{abcast} $m$ is rare.   
 
-In this section we have described the inspiration and rationale behind the \textsf{ABcast} protocol, as well as presenting some high-level details of how the hybrid protocol functions.  In the next section we present the underlying assumptions made when designing \textsf{ABcast}, before detailing the specific components required to implement the protocol.  We then take in-depth look at both the \textsf{Aramis} and \textsf{Base} protocols, detailing the specifics of each protocol's delivery conditions as well as the maths behind \textsf{Aramis}'s probabilistic guarantees.  This is followed by an exploration of potential recovery strategies that can be utilised by an \textsf{AmaaS} service in the event of an \textsf{ABcast} message not meeting guarantees G1 and G4.  Lastly, we motivate the need for a new flow control protocol in order to maximise the effectiveness of the \textsf{ABcast} protocol.  
+    \subsection{ABcast Guarantees}
+    Below, we state the guarantees provided by the \textsf{ABcast} protocol.  
+    
+    \begin{description}
+    \item [\textbf{G1-P}] - \emph{Probabilistic Validity}: If the source of $m_i$ does not crash until it \emph{abcast}s $m_i$, then all operative destinations of $m_i$ deliver $m_i$ with probability $R$ which is user-defined and is close to $1$.  
+    
+    \item [\textbf{G2-P}] - \emph{Probabilistic Agreement}: If the source of $m_i$ crashes while \emph{abcast}ing $m_i$, and if any destination delivers $m_i$, then all operative
+destinations of $m_i$ deliver $m_i$ with probability $R$.  
+    \item [\textbf{G3}] - \emph{Uniform Integrity}: As defined in section \ref{sec:atomic_guarantees}.
+    \item [\textbf{G4}] - \emph{Uniform Total Order}: As defined in section \ref{sec:atomic_guarantees}.
+\end{description}
 
 \newpage
 \section{Assumptions}
