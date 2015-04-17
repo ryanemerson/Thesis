@@ -26,7 +26,7 @@ Ezhilchelvan and Shrivastava\citep{Ezhilchelvan:2010:LPR:1773912.1773927} introd
 \section{Atomic Broadcast and Multicast Protocols} \label{sec:atomic_guarantees}
 Atomic broadcast and atomic multicast protocols, \emph{abcast} and \emph{amcast} for short, are \emph{one-to-many} network protocols that provide specific guarantees on message delivery to ensure that messages are delivered reliably and in the same order at all destinations; where delivery is the passing of a message up the network stack to a higher level protocol or application.  
 
-Below we consider the guarantees required by broadcast and multicast protocols, in order for them to be considered atomic.  For the purpose of brevity, we refer only to \emph{abcast} here, however these guarantees also apply to \emph{amcast}s.  The following guarantees must be maintained to ensure that a broadcast is atomic, with regard to the delivery order and the set of destinations that deliver the message.  
+Below we consider the guarantees required by broadcast and multicast protocols, in order for them to be considered atomic.  For the purpose of brevity, we refer only to \emph{amcast} here, however these guarantees also apply to \emph{abcast}s.  The following guarantees must be maintained to ensure that a broadcast is atomic, with regard to the delivery order and the set of destinations that deliver the message.  
 
 \begin{itemize}
     \item [\textbf{G1}] - \emph{Validity}: If the source of $m_i$ does not crash until it \emph{abcast}s $m_i$, then all operative destinations of $m_i$ deliver $m_i$.
@@ -37,9 +37,9 @@ destinations of $m_i$ must deliver $m_i$.
 common destinations, then all such destinations that deliver both $m_i$ and $m_j$, must deliver them in an identical order (i.e. either $<m_i, m_j>$ or $<m_j, m_i>$)
 \end{itemize}
 
-As previously stated, message delivery is a one-time, irreversible operation that occurs when a message is passed up from the \emph{abcast} protocol to the next layer in the network stack. Once a message has been delivered, it cannot be undelivered, therefore any violations of message guarantees cannot be undone at the \emph{abcast} level.  Therefore meeting G1-G4 presents two challenges, C1 and C2, that need to be met by all \emph{abcast} protocols.
+As previously stated, message delivery is a one-time, irreversible operation that occurs when a message is passed up from the \emph{amcast} protocol to the next layer in the network stack. Once a message has been delivered, it cannot be undelivered, therefore any violations of message guarantees cannot be undone at the \emph{amcast} level.  Therefore meeting G1-G4 presents two challenges, C1 and C2, that need to be met by all \emph{amcast} protocols.
 
-Consider $m$ is to be \emph{abcast} to a set of destinations $m.dst$, where $m.dst$ contains the source of an \emph{abcast} message, as the receiving of the message incurs no additional network cost and enables the source application to receive its own message.  C1 and C2 are stated below:
+Consider $m$ is to be \emph{amcast} to a set of destinations $m.dst$, where $m.dst$ contains the source of an \emph{amcast} message, as the receiving of the message incurs no additional network cost and enables the source application to receive its own message.  C1 and C2 are stated below:
 \begin{itemize}
     \item[\textbf{C1}] - If an operative $d \in m.dst$ receives $m$, then every operative
      $d' \in m.dst$ must be able to receive $m$ so that G1 and G2 are not violated.
@@ -47,7 +47,7 @@ Consider $m$ is to be \emph{abcast} to a set of destinations $m.dst$, where $m.d
 to deliver $m$ so that G3 and G4 are not violated.
 \end{itemize}
 
-Meeting both C1 and C2 is not a trivial task, as such there is a large amount of literature\cite{Defago:2004:TOB:1041680.1041682} on \emph{abcast} protocols spanning several decades.  From the literature, it is clear that there exists two distinct approaches to solving the challenges of \emph{abcast} and \emph{amcast}; \emph{Quorum based} and \emph{Group Membership} dependent protocols.  This section will describe each of these approaches and explore notable examples of each approach.  
+Meeting both C1 and C2 is not a trivial task, as such there is a large amount of literature\cite{Defago:2004:TOB:1041680.1041682} on \emph{amcast} protocols spanning several decades.  From the literature, it is clear that there exists two distinct approaches to solving the challenges of \emph{abcast} and \emph{amcast}; \emph{Quorum based} and \emph{Group Membership} dependent protocols.  This section will describe each of these approaches and explore notable examples of each approach.  
 	
 	\subsection{Atomic Broadcast vs Atomic Multicast}
 	So far we have considered \emph{abcast} and \emph{amcast} protocols to be \emph{one-to-many} network protocols, that must satisfy guarantees G1-G4 in order to be considered atomic.  However, there are key differences between broadcast and multicast protocols.  Below we provide a definition for both broadcast and multicast protocols and explore the strengths and limitations of each type.  
