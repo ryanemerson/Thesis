@@ -433,7 +433,7 @@ When $N_i$ \emph{rbcast}s $m$ at its clock time $ts$, if some operative $s$-node
                 
 \clearpage
 \section{Atomic Broadcast Protocol}\label{sec:ABcast}
-Hitherto this chapter has focused on the underlying assumptions made when designing the \textsf{ABcast} protocol and the components it requires to function.  This section focuses on how the hybrid protocol functions, detailing the specifics of both the \textsf{Aramis} and \textsf{Base} protocols.  First we explore the \textsf{Base} protocol, as this protocol will be responsible for the majority of message deliveries and is the more conventional of the two \emph{abcast} protocols.  We then explore the \textsf{Aramis} protocol, detailing how messages are delivered and rejected as well as other related properties.  
+Hitherto this chapter has focused on the underlying assumptions made when designing the \textsf{ABcast} protocol and the components it requires to function.  This section focuses on how the hybrid protocol functions, detailing the specifics of both the \textsf{Aramis} and \textsf{Base} protocols.  First we explore the \textsf{Base} protocol, as this protocol will be responsible for the majority of message deliveries and is the more conventional of the two \emph{abcast} protocols.  We then explore the \textsf{Aramis} protocol, detailing how it utilises the guarantees of \emph{rbcast} to calculate $\Delta_m$.   This followed by a formal definition of \textsf{ABcast}'s delivery conditions.  Finally, we discuss how the \textsf{ABcast}'s reliance on the DMC requires an initialisation period to be observed by the protocol before \emph{abcast}ing can begin.  
 
     \subsection{Base}
     The \textsf{Base} protocol is based upon the NewTop \citep{Ezhilchelvan:1995:NFG:876885.880005} algorithm discussed in $\S$ \ref{ssec:newtop}, with a few key differences motivated by our use of synchronised clocks and PSM.  
@@ -494,43 +494,43 @@ Hitherto this chapter has focused on the underlying assumptions made when design
         
         \textbf{Note:} By delivering $m$ at $m.ts + \Delta_m$, $\Delta_m > 2 \times D$, \textsf{Aramis} indeed meets  the validity (G1-P) and agreement (G2-P) guarantees with a probability much larger than the user specified value of $R$.  
                 
-        \subsubsection*{Total Order Violations}\label{ssec:abcast_rejection}
-        In the explanations above, we have only considered the conditions required for a message to be successfully \emph{abcast} to all nodes.  However, as \textsf{Aramis} is a probabilistic protocol it is possible for a message to be delivered in the wrong place in the total order, thus violating G4.  For example, a message $m$ arrives at a destination after its proceeding message $m'$ in the total order has already been delivered, such that the total order is $<m', m>$ when it should be $<m, m'>$.  In such a case, their are two course of action possible when $m$ arrives: 1) Deliver $m$ as soon as possible; resulting in two violations of the total order occurring as $m$ has missed its place and then taken another's in the total order.  2) Receive $m$ and throw an exception to the application; resulting in only one violation of the total order, as $m$ is simply missing, but at the expense of violating G1 and G2 as $m$ cannot be delivered by all destinations.  \footnote{Assumption A2 guarantees that all destinations will eventually receive $m$, so if a message is not rejected G1 and G2 always hold.}
-        
-        \textsf{Aramis} seeks to minimise the effects of a miss-ordered message, therefore it employs the second approach and throws an exception when a message has been missed in the total order; we refer to this process as a message being \emph{rejected}.  Explicitly \emph{rejecting} a miss-ordered message from the total order allows for higher levels in the network stack (e.g. \textsf{SCast}) to initiate an appropriate recovery mechanism to mitigate the effects of a miss-ordered message on the system's state.  Furtheremore, it is possible to include the contents of the rejected message in the \emph{rejection} exception in order to provide potential useful data to the application's recovery mechanism.  
-        
-        The remainder of this section focuses on the scenarios in which it is possible for a message to be \emph{rejected} by a receiving node.  When the number of nodes, $n$, involved in an \emph{abcast} is $n=2$ the conditions required for a message to be rejected are different to $n > 2$, therefore we explore $n=2$ and $n>2$ in isolation. Note, for both $n=2$ and $n>2$ it is not possible for a broadcasting node to reject its own message, as by definition a broadcasting node will always receive its own message, hence G2 is always violated if a single node \emph{rejects} a message.  
-        
-        %\paragraph{Assumptions:}\hspace{0pt} \\
-        \subsubsection*{Message Rejections - $\boldsymbol{n = 2}$}
-        A message, $m$, sent by node $N_i$, can only be \emph{rejected} by the other recipient, $N_j$, when a message $m'$ from $N_j$ has been incorrectly delivered before $m$ in the total order; where $m.ts < m'.ts$ but the total order delivers $m'$ first, hence $m$ is \emph{rejected}.  In order for a message to be miss-ordered, both of the two statements below must be true:
-        
-        \begin{enumerate}
-            \item $N_j$ broadcasts $m'$ with $m'.ts > m.ts$ and $m$ does not arrive at $N_j$ before $m'.ts + \Delta_{m'}$.  
-            \item $N_j$ does not receive an acknowledgement for $m$, or any subsequent broadcasts sent by $N_i$, before $m'.ts + \Delta_m'$.   
-        \end{enumerate}
-        
-        If condition one is not true, i.e. $m$ arrives before $m'.ts + \Delta_{m'}$, then $N_j$ has received $m$ before $m'$'s delivery time and therefore $N_j$ will not miss $m$ in the total order.  Similarly, if condition two is not true, then $N_j$ will know that a message sent by $N_i$ is missing as soon as it inspects the received acknowledgement, attached \emph{vector clock} or the $seq\#$ included in the id of the received message.  For both conditions to hold, it is necessary for $m$ and $m'$ to be delivered via the \textsf{Aramis} protocol at all nodes.  This is because the \textsf{Base} protocol relies on acknowledgments to deliver messages, therefore if \textsf{Base} delivers a message condition two cannot be true.  
-        
-                \subsubsection*{Message Rejections - $\boldsymbol{n > 2}$}
-        If we assume the same scenario as described in the previous section ($n=2$), but with the addition of a node $N_k$ that represents all other nodes that are not $N_i$ or $N_j$.  A message is miss-ordered if conditions $1$ and $2$ stated above are true, and one of the following is true:
-        
-        \begin{itemize}
-            \item[3a.] $N_j$ and all $N_k$ do not receive $m$ before $m'.ts + \Delta_{m'}$.
-            
-            \item[3b.] $N_j$ does not receive an acknowledgement for $m$ from any $N_k$, or a message from any $N_k$ that has received $m$, before $m'.ts + \Delta_{m'}$.  
-        \end{itemize}
-        
-        If conditions $1,2$ and $3a$ are true, then it is not possible for $m$ to become known to $N_j$ as $m$ will not appear in an acknowledgement or vector clock of any $N_k$.  Similarly, if conditions $1,2$ and $3b$ are true, then $N_j$ will not know of $m$ in time to prevent $m'$ from being delivered before $m$ in the total order.  Similar to when $n=2$, if all three conditions hold (either $3a$ or $3b$), we can guarantee that $m$ and $m'$ are delivered via \textsf{Aramis} at all nodes.  We know that none of the $N_k$ nodes can deliver $m$ or $m'$ via \textsf{Base}, as $N_j$ cannot acknowledge a message until it has received it.  
-        
-        From both cases, $n=2$ and $n>2$, it is clear to see that in order for a message to be misordered, a chain of events need to occur that are highly unlikely based upon the probabilistic estimations made by the DMC and \emph{rbcast}.  
-        		
-    \subsection{ABcast Delivery Rule}
-    Lastly, we present a concise formalisation of the delivery rule for the entire \textsf{ABcast} protocol.  A node, $N_j$ delivers any $m$ via \textsf{ABcast}, only after both $D1$ and $D2$ stated below are satisfied:
+        \subsection{Aramis and Base - \textsf{ABcast}}
+        The \textsf{ABcast} protocol, is a hybrid solution that combines the delivery conditions of the \textsf{Aramis} and \textsf{Base} protocols.  Here we present a concise formalisation of the delivery rule for the entire \textsf{ABcast} protocol.  A node, $N_j$ delivers any $m$ via \textsf{ABcast}, only after both $D1$ and $D2$ stated below are satisfied:
 	    \begin{description}[labelindent=1cm]
-	        \item[$\boldsymbol{D1}$] - The clock of $N_i > m.ts + \Delta_{m}$ ($D1_A$), or $m$ is acknowledged by all nodes other than $m.o$ ($D1_B$). 
+	        \item[$\boldsymbol{D1}$] - The clock of $N_i > m.ts + \Delta_{m}$ ($D1_A$) or $m$ is acknowledged by all nodes other than $m.o$ ($D1_B$). 
+	        
 	        \item[$\boldsymbol{D2}$] - All \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
 	    \end{description}
+	    
+        \subsubsection*{Extremely Delayed \emph{rbcast} Messages}\label{ssec:abcast_rejection}
+        As \textsf{Aramis} is a probabilistic protocol it is possible for a message $m$ to be $rb.delivered$ at a destination after its proceeding message $m'$ in the total order has already been $ab.delivered$; where $ab.delivered$ refers to a $m$ being delivered by \textsf{ABcast}.  In such a case, there is one of two actions possible:
+
+        \begin{itemize}
+            \item    Deliver $m$ as soon as possible; resulting in a violation of G4 but not of G1 and G2.  
+            
+            \item    Discard $m$ and throw an exception to the application; resulting in no violation of G4, but at the expense of violating G1 and G2.  
+        \end{itemize}                
+        
+        \textsf{Aramis} takes the second option and throws an exception when a $rb.delivered$ message is not $ab.delivered$; we refer to this process as a message being \emph{rejected}.  Explicitly \emph{rejecting} a message from the $ab.delivery$ allows for higher levels in the network stack (e.g. \textsf{SCast}) to initiate an appropriate recovery mechanism to mitigate the effects of G1 and G2 violations on the system's state.  Furthermore, it is possible to include the contents of the rejected message in the \emph{rejection} exception in order to provide potentially useful data to the application's recovery mechanism.  
+        
+        \subsubsection*{Message Rejections}
+        A message, $m$, sent by node $N_i$, can only be \emph{rejected} by another recipient, $N_j$, when a message $m'$ from $N_j$ has been incorrectly delivered before $m$ in the total order; where $m.ts < m'.ts$ but $m'$ is incorrectly $ab.delivered$ first.  In order for $m'$ to be $ab.delivered$ ahead of $m$, resulting in $m$ being\emph{rejected} by $N_j$, it is necessary for both of the statements below to be true:
+        
+        \begin{enumerate}
+            \item    $N_j$ \emph{rbcasts} $m'$ with $m'.ts > m.ts$, but $m$ is not $rb.delivered$ by $N_j$ before $m'.ts + \Delta_{m'}$.
+            
+            \item    $N_j$ does not receive an acknowledgement for $m'$, or any \emph{rbcasts} sent after $m$ by $N_i$, before $m'.ts + \Delta_{m'}$.  
+        \end{enumerate}
+        
+        If condition one is not true, i.e. $N_j$ $rb.delivers$ $m$ before $m'.ts + \Delta_{m'}$, then $N_j$ has received $m$ before $m'$'s delivery time and therefore $N_j$ will not miss $m$ in the total order.  Similarly, if condition two is not true, then $N_j$ will know that a message sent by $N_i$ is missing as soon as it inspects the received acknowledgement, attached \emph{vector clock} or the $seq\#$ of the $rb.delivered$ message.  When both conditions hold, it is guaranteed that $m'$ will be $ab.delivered$ via \textsf{Aramis}, as it is impossible for \textsf{Base} to $ab.deliver$ a message if condition two is true.  
+        
+        The rules presented above can be extended to cater for when $n > 2$.  Assuming the same scenario described above, we introduce $N_k$ which represents all nodes involved in an \emph{abcast} that are not $N_i$ or $N_j$.  A message is \emph{rejected} by a node $N_j$ if conditions $1$ and $2$ are true, as well as the condition stated below:
+        
+         \begin{itemize}
+            \item[3.] $N_j$ does not $rb.deliver$ an acknowledgement of $m$ from any $N_k$, and it does not $rb.deliver$ a \emph{rbcast} from any $N_k$, that has $rb.delivered$ $m$, before $m'.ts + \Delta_{m'}$ \footnote{Where $m'.ts + \Delta_{m'}$ is based upon $N_j$'s local clock.}.  
+        \end{itemize}
+        
+        If conditions $1,2$ and $3$ are true it is not possible for $m$ to be known by $N_j$ before $m'.ts + \Delta_{m'}$.  This is because $m$ has not been $rb.delivered$ by $N_j$ and $N_j$ does not know of $m$ as $m$ has not been acknowledged, or described in a vector clock, by any $N_k$, before $m'$ is $ab.delivered$ by $N_j$.  
         
         
     \subsection{Initialisation Period}
