@@ -114,15 +114,15 @@ In this section we detail the individual components required by the \textsf{ABca
     \subsubsection*{Probabilistic Guarantees of \emph{rbcast}}
     
         \begin{description}
-		    \item [\textbf{RB1}] - \emph{Probabilistic RB-Validity}: If the source of $m$ does not crash until it completes \emph{rbcasting} $m$, then all operative $s$-nodes $rb.deliver(m)$ within a delay of at most $D_m$ with probability $R$.  
+		    \item [\textbf{RB1}] - \emph{Probabilistic RB-Validity}: If the source of $m$ does not crash until it completes \emph{rbcasting} $m$, then all operative $s$-nodes $rb.deliver(m)$ within a delay of at most $D$ with probability $R$.  
 		    
-		    \item [\textbf{RB2}] - \emph{Probabilistic Agreement}: If $m.o$ crashes during $rbcast(m)$ and if any $s$-node $rb.delivers$ $m$, then all operative $s$-nodes $rb.deliver$ $m$ within $D_m$ of $rbcast(m)$ with probability $R$.  
+		    \item [\textbf{RB2}] - \emph{Probabilistic Agreement}: If $m.o$ crashes during $rbcast(m)$ and if any $s$-node $rb.delivers$ $m$, then all operative $s$-nodes $rb.deliver$ $m$ within $D$ of $rbcast(m)$ with probability $R$.  
 		
 		
 		    \item [\textbf{RB3}] - \emph{Uniform Integrity}: Any $s$-node $rb.delivers$ $m$ at most once.  
 \end{description}
     
-    RB1, RB2 and RB3 are directly used when implementing \textsf{Aramis}, to provide G1-P, G2-P and G3, as defined in section \ref{ssec:aramis}.  The remainder of this section describes the basic \emph{rbcast} protocol, whilst the calculations of $D_m$ are presented in $\S$ \ref{ssec:dmc}.
+    RB1, RB2 and RB3 are directly used when implementing \textsf{Aramis}, to provide G1-P, G2-P and G3, as defined in section \ref{ssec:aramis}.  The remainder of this section describes the basic \emph{rbcast} protocol, whilst the calculations of $D$ are presented in $\S$ \ref{ssec:dmc}.
     
     \subsubsection*{The \emph{rbcast} protocol}
     All messages broadcast via \emph{rbcast} include a tuple $\{m.o, m.seq\#, m.ts\}$ that uniquely identifies the broadcast.  Where $m.o$, short for message originator, is the address of the node that initiates a broadcast message; $m.seq\#$ is a sequence number unique to each $m.o$ that is incremented after each broadcast and $m.ts$ is a timestamp of $m.o$'s synchronised clock.  Note that the first two values of the tuple are sufficient to uniquely identify a broadcast.
@@ -182,11 +182,11 @@ In this section we detail the individual components required by the \textsf{ABca
         
         Latencies are measured by the DMC based upon the timestamp $m.ts$, which is included in every message $m$ that is broadcast via the \emph{rbcast} protocol.  As the clocks of all nodes executing the \textsf{ABcast} protocol are synchronised, it is possible to measure the one-way latency of each message that is received by a node.  For example, a node $N_i$ sends an \emph{rbcast} $m$ to $N_j$, upon receiving $m$, $N_j$ immediately records the latency $x$:
 
-        \begin{equation*}
+        \begin{equation}
              \begin{aligned}
                  x = (N_j.clockValue - m.ts) + 2\epsilon
              \end{aligned}
-        \end{equation*}        
+        \end{equation}        
         
         It is necessary to add $2\epsilon$ to each latency to ensure that if $N_j.clockValue$ is behind $N_i.clockValue$ by the maximum error of $2\epsilon$, a positive latency value is still recorded.  
                                 
@@ -247,78 +247,78 @@ In this section we detail the individual components required by the \textsf{ABca
         
         Where $\rho_{min} \geq 1$ is a configuration parameter specified before runtime.  Observe that, for a given $R$, an integer $I =\rho_{min}, \rho_{min} + 1, \ldots$, satisfies: 
 
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
                 I \quad < \quad  \frac{ln \left(1 - \tilde{R}\right)}{ln(q)} - 1 \quad < \quad I + 1
             \end{aligned}
-        \end{equation*}
+        \end{equation}
         
         for a wide range of $q$ values; e.g., for $R \approx 0.9999$ and $n = \ldots$
 
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
                 \frac{ln(1- \tilde{R})}{ln(q)}-1 < 1 \quad \forall \quad q < 0.01 = 1\%
             \end{aligned}
-        \end{equation*}
+        \end{equation}
 
         This implies that small inaccuracies in estimating $q$ may not adversely affect $\rho$ estimates.  
 
         \item[\Huge$\boldsymbol{q}$] \hfill \\
                 The parameter $q$ is the estimated probability that a transmission delay observed in the near future will exceed $x_{mx}$.  We estimate $q$ by assuming that each $x$ in $NT_p$ increases by $5\%$ in the near future.  So, the estimated set of transmission delays (with regards to $x_{mx}$) in the near future is:
                 
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
                 \left\{ x \text{ in } NT_p \quad  | \quad 1.05 \times x \quad > \quad x_{mx} \right\}
             \end{aligned}
-        \end{equation*}
+        \end{equation}
                 
         Note that:
-         \begin{equation*}
+         \begin{equation}
             \begin{aligned}
                 1.05 \times x \quad > \quad x_{mx} \quad \Rightarrow \quad \frac{x_{mx}}{1 + 0.05 } \approx 0.95 x_{mx}
             \end{aligned}
-        \end{equation*}
+        \end{equation}
                 
         So,
-            \begin{equation*}
+            \begin{equation}
             \begin{aligned}
                 q  = \frac{\text{Number of Transmissions in } NT_p \text{ that exceeds } 95\% x_{mx}}{|NT_P|}
             \end{aligned}
-        \end{equation*}
+        \end{equation}
         
                 It is possible that $q$ is calculated close to $1$ if many latencies in the recent past are within $95\%$ of $x_{mx}$.  As $q -> 1, \rho -> \infty$ from equation \ref{eq:rho_ie}.  To deal with such extreme cases, we fix an upper bound $\rho_{mx}$, $\rho_{mx} > \rho_{mn}$.  We use $\rho_{mx}$ in equation \ref{eq:q_mx} and find $q$ to be the largest value that satisfies:
                 
-       \begin{equation*}
+       \begin{equation}
             \begin{aligned}
                 q \quad < \quad \left(1 - \tilde{R}\right)^{\left(\frac{1}{\rho_{mx} + 1} \right)}
             \end{aligned}
-        \end{equation*}
+        \end{equation}
 
         \item[\Huge$\boldsymbol{\eta}$] \hfill \\
         $\eta$ is the parameter used by \emph{rbcast} to determine the amount of time to wait between each broadcast of a message copy and is calculated as the largest delay in $(n - 1)$ transmissions (of a given copy $m$) with probability $R$.  Assuming exponential distribution $n$ is calculated as follows:
         
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
                 \eta=-\bar{x}[ln(1-\tilde{R})]  
             \end{aligned}
-        \end{equation*}
+        \end{equation}
         
 Where $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
 
         \item[\Huge$\boldsymbol{\omega}$] \hfill \\
         $\omega$ is the parameter utilised by \emph{rbcast} to approximate the PDV encountered by the network.  $\omega$ is simply calculated as:
         
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
                 \omega = \eta - \bar{x}
             \end{aligned}
-        \end{equation*}        
+        \end{equation}        
         
         Again, we assume exponential distribution and that $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
         \end{description}
 
-        \subsection*{Probabilistic Timeliness Guarantee - $\boldsymbol{D_m}$}
-        The \emph{rbcast} protocol utilies the parameters provided by the DMC to apply a probabilistic timeliness guarantee to each broadcast sent by a node.  This timeliness guarantee ensures, with a high probability that all recipient nodes receive a message within $D_m$ time after the initial broadcast of $m$ was sent.  The remainder of this subsection details how $D_m$ is calculated and the rationalee behind the values used.  First we consider the calculations required for a broadcast where the originator does not crash, before exploring the modifications required to tolerate such a crash.  
+        \subsection*{Calculating \emph{rbcast} Guarantees}
+        For simplicity, let us consider a single $m$ \emph{rbcast} by $s$-node $N_i$ as per its clock time $ts$; we will also observe time as per the clocks of $N_i$ (which is assumed to function correctly even when $N_i$ is crashed).  Let $D = x_{mx} + 2\eta + \omega + D_1$ and $D_1 = \rho\eta + x_{mx}$; Let $x$, as before, denote a delay.  
 
         \begin{figure}[hb]
                 \centering    
@@ -327,70 +327,76 @@ Where $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
                 \label{fig:rbcast_calc}
             \end{figure}    
 
-        \subsubsection*{Crash Free Message Originator}
-        A node, $N_i$ broadcasts a message $m$ at time $ts$, $m.ts = ts$.  If $N_i$ does not crash then $D$ would be $D_1 = x_{mx} + \rho\eta$, as assumption \textbf{A4} means that $x_{mx}$ is the largest delay that will be encountered by $m$ and $\rho\eta$ accounts for the delays between successive copies of m being broadcast ($m.copy = 0,\ldots,\rho$).  Figure \ref{fig:rbcast_calc} shows the workflow of a message $m$ being \emph{rbcast} to $m.dst = \{N_i, N_j, N_k\}$ in a crash free scenario with $\rho = 2$; the individual parameters of $D_1$ are illustrated to show their significance.  
+        \subsubsection*{RB1 - Probabilistic RB-Validity}
+        When $N_i$ does not crash until it completes $rbcast(m)$, it carries out $(\rho + 1)$ broadcasts at time $ts, (ts + \eta) \ldots (ts + \rho\eta)$.
         
-        Let $g_{D_1}$ be the probability that a destination, $N_j$, does not receive a single copy of $m$ at or before $ts + D1$.  Suppose that no node disseminates a copy of $m$ on behalf of $N_i$, and $\mathcal{P}(x > \xi)$ is the probability that a copy of $m$ takes longer than $\xi$ time to reach $N_{j}$.  The probability that none of the copies of $m$ broadcast at $ts, ts+\eta, \ldots,  ts+\rho \eta$, reaches $N_{j}$ by time $ts+D_1$, is:
+        Let $g_{D_1}$ be the probability that a destination, $N_j$, does not receive a single copy of $m$ at or before $ts + D_1$.  Suppose that $\mathcal{P}(x > \xi)$ is the probability that a copy of $m$ takes longer than $\xi$ time to reach $N_{j}$.  The probability that none of the copies of $m$ broadcast at $ts, ts+\eta, \ldots,  ts+\rho \eta$, reaches $N_{j}$ by time $ts+D_1$, is:
         
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
                 g_{D_1}= \mathcal{P}(x > D_1) \times \mathcal{P}(x > D_1 - \eta) \times \ldots \mathcal{P}(x > D_1 - \rho \eta)
             \end{aligned}
-        \end{equation*}
+        \end{equation}
 
         
-        Recall that $q$ is the probability that a delay in $NT_F=100$ future transmissions exceed the maximum $x_{mx}$ observed in the past $NT_P=1000$ transmissions. Since:
+        Recall that $q$ is the probability that a delay in $NT_F=100$ future transmissions exceed the maximum $x_{mx}$ observed in the past $NT_P=1000$ transmissions. Since $\mathcal{P}(x > \xi)$ decreases as $\xi$ increases, we have:
         
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
-                \mathcal{P}(x > D_1 - \rho \eta) = \mathcal{P}(x > x_{mx}) = q
+                \mathcal{P}(x > D_1 - \rho \eta) \geq \mathcal{P}(x > x_{mx}) = q
             \end{aligned}
-        \end{equation*}
+        \end{equation}
         
-and $\mathcal{P}(x > \xi)$ decreases as $\xi$ increases, we have $g_{D_1} < q^{\rho+1}$.  Even if $q$ is as high as 1\%, we have $g_{D_1} < 10^{-4}$ when $\rho=1$. If some destination disseminates $m$ on behalf of $N_i$, $\rho$ effectively increases and therefore $g_{D_1}$ reduces further.
+    and
 
-When $N_i$ does not crash, a crash of a destination node $N_{k}$ cannot undermine an operative destination $N_{j}$ from receiving $m$. So, the probability that all operative $s$-nodes receive $m$ at or before time $ts +D_1$ is:
-
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
-                (1-Q_1)=(1-g_{D_1})^{n-1}>(1-q^{\rho+1})^{n-1}
+                g_{D_1} < q^{(\rho + 1)}
             \end{aligned}
-        \end{equation*}
+        \end{equation}        
+        
+    So, the probability that all operative $s$-nodes receive a $m$ at or before time $ts + D$ is:        
 
-%            \begin{figure}[hb] 
-%                \centering    
-%                \centerline{\includegraphics[width=1.1\textwidth]{rbcast_calculations}}
-%                \caption[Rbcast Calculations Diagram In a Crash Free Scenario]{Rbcast Calculations In a Crash Free Scenario}
-%                \label{fig:rbcast_calc}
-%            \end{figure}   
-
+        \begin{equation}\label{eq:rb_validity}
+            \begin{aligned}                
+                \left[1 - g_{D_1}\right] ^ {(n - 1)} > \left[1 - q ^ {(\rho + 1)} \right] ^{(n - 1)}
+            \end{aligned}
+        \end{equation}
+        
+        Recall that $\left[1 - q ^ {(\rho + 1)} \right] ^{(n - 1)} > R$ is used to estimate $\rho$ when $q \leq 1$.  Therefore, the probability that RB1 is met for $D > D_1$ is larger than the user specified $R$.  In fact, the power $(\rho + 1)$ in \ref{eq:rb_validity} is a lower bound and assumes that no destination timesout and acts on behalf of $N_i$.  
+        
+        Figure \ref{fig:rbcast_calc} shows the workflow of a message $m$ being \emph{rbcast} to $m.dst = \{N_i, N_j, N_k\}$ in a crash free scenario with $\rho = 2$; the individual parameters of $D_1$ are illustrated to show their significance.  
+                
         \clearpage
-        \subsubsection*{Crashed Message Originator}
-Suppose now that $N_i$ crashes before completing redundant transmissions of $m$ and $n>2$. Consider the worst case that only one node, $N_j$, has $m$ with $m.copy=0$. (If $N_u$ has $m.copy>0$, then $N_i$ crashed only after it completed broadcasting $m.copy >= 0$, therefore some node other than $N_j$ has $m$ with a high probability).
+        \subsubsection*{RB2 - Probabilistic Agreement}
+Suppose now that $N_i$ crashes before completing the redundant transmissions of $m$ and $n>2$.  Suppose also that only one node, $N_j$, has $m$ with $m.copy=0$. This is the worst case to be considered because if $N_j$ $m.copy>0$, then $N_i$ crashed only after it completed broadcasting $m.copy \geq 0$, therefore some node other than $N_j$ also has $m$; the more destinations which receive some copy of $m$, the more likely it is that $rbcast(m)$ is completed.  On the other hand, if no destination receives any copy of $m$ from the crashed $N_i$, then the case for discussion does not exist.  
 
 If copy $m.copy = 0$ takes at most $x_{mx}$ to reach $N_j$ (which occurs with probability ($1-q$)), $N_j$ would start disseminating on behalf of $N_i$ at or before time:
         
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
                 ts+ x_{mx} + \eta + \omega +\zeta
             \end{aligned}
-        \end{equation*}
+        \end{equation}
         
 Recall that $\zeta$ is the random wait that all disseminating nodes must observe before disseminating $m$, with $\zeta$ uniformly distributed on ($0, \eta$) .  Therefore, assuming that the observed $\zeta$ is the largest possible value possible, $\eta$, let us define: 
 
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
                 D = x_{mx} + 2\eta + \omega + D_1
             \end{aligned}
-        \end{equation*}
+        \end{equation}
         
-By assumption \textbf{A1}, no other node can crash until at least $ts+D$. Thus, $N_j$ disseminates $m$, like $N_i$ in the crash-free case, to operative destinations which can now be at most $(n-2)$; so, all operative nodes receive $m$ at or before $ts +D$ with a probability: 
+By assumption \textbf{A1}, no other node can crash until at least $ts+D$. Thus, $N_j$ disseminates $m$, like $N_i$ in the crash-free case, to operative destinations which can now be at most $(n-2)$; so the approximate probability that all operative nodes receive $m$ at or before $ts +D$ is:
+
+%                (1-Q) = (1-g_{D_1})^{n-2}\times (1-q)>(1-q^{\rho+1})^{n-2}\times(1-q)
         
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
-                (1-Q) = (1-g_{D_1})^{n-2}\times (1-q)>(1-q^{\rho+1})^{n-2}\times(1-q)
+                \left[1-Q\right] &= \left[1 - g_{D_1}\right] ^{(n - 2)} \times \left[1-q\right] > \left[1-q ^ {(\rho + 1)}\right] ^ {(n - 2)} \times \left[1-q\right] \\[2em]
+                & = \frac{1 - q}{1-q^{(\rho + 1)}} \times \left[1 - q ^ {(\rho + 1)}\right] ^ {(n - 1)}
             \end{aligned}
-        \end{equation*}
+        \end{equation}
 
 Figure \ref{fig:rbcast_crash_calc} shows the workflow of a message $m$ being \emph{rbcast} by $N_i$ to $m.dst \{N_i, N_j, N_k\}$.  $N_i$ crashes after unicasting $m$ to $N_j$, therefore $N_j$ waits to receive $m.copy > 0$ from $N_i$ for $2\eta + \omega$ time, before disseminating $m$ to the remaining destination $N_k$.  
 
@@ -398,19 +404,19 @@ In the event that $n = 2$, only two scenarios are possible in the event of $N_i$
 
 To put the two cases together, $n > 2$ and $n = 2$, let boolean $\beta = 1$ if $n>2$ and $0$ if $n=2$; further, let: 
 
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
-                D_m=\beta\times(x_{mx}+2\eta+\omega)+D_1
+                D=\beta\times(x_{mx}+2\eta+\omega)+D_1
             \end{aligned}
-        \end{equation*}
+        \end{equation}
         
-When $N_i$ \emph{rbcast}s $m$ at its clock time $ts$, if some operative $s$-node receives $m$, then every operative $s$-node receives $m$ at or before time $m.ts+D_m$ (as per $N_i$'s clock) with a probability:
+When $N_i$ \emph{rbcast}s $m$ at its clock time $ts$, if some operative $s$-node receives $m$, then every operative $s$-node receives $m$ at or before time $m.ts+D$ (as per $N_i$'s clock) with a probability:
 
-         \begin{equation*}
+         \begin{equation}
             \begin{aligned}
                 \beta\times(1-Q)+(1-\beta)\times(1-Q_1)
             \end{aligned}
-        \end{equation*}
+        \end{equation}
 
         \begin{sidewaysfigure}
             \vspace*{-1cm}
@@ -471,21 +477,21 @@ Hitherto this chapter has focused on the underlying assumptions made when design
     
     
         \subsubsection*{Calculating $\boldsymbol{\Delta_m}$    }
-        The delivery delay, $\Delta_m$ utilised by \textsf{Aramis} is calculated based upon the values utilised by \emph{rbcast} and produced by the DMC.  Consider the following scenario which explains the rationalee behind the delays calculation: When any operative node, $N_j$ receives $m$ \emph{rbcast} by $N_i$, all operative nodes receive $m$ with a high probability by time $m.ts + D_m$, as per $N_i$'s clock.  If each recipient piggybacks their $ack(m)$ onto one of its own \emph{rbcast}s within $\mathcal{A}_d$ time after receiving $m$, it is very likely that all $m.dst - \{N_i, N_j\}$ will receive $ack(m)$, as per $N_i$'s clock, before time:
+        The delivery delay, $\Delta_m$ utilised by \textsf{Aramis} is calculated based upon the values utilised by \emph{rbcast} and produced by the DMC.  Consider the following scenario which explains the rationalee behind the delays calculation: When any operative node, $N_j$ receives $m$ \emph{rbcast} by $N_i$, all operative nodes receive $m$ with a high probability by time $m.ts + D$, as per $N_i$'s clock.  If each recipient piggybacks their $ack(m)$ onto one of its own \emph{rbcast}s within $\mathcal{A}_d$ time after receiving $m$, it is very likely that all $m.dst - \{N_i, N_j\}$ will receive $ack(m)$, as per $N_i$'s clock, before time:
         
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
-                m.ts + 2\times{D_m} + \mathcal{A}_d
+                m.ts + 2\times{D} + \mathcal{A}_d
             \end{aligned}
-        \end{equation*}
+        \end{equation}
          
          Based upon assumption A2, $N_j$'s clock has a maximum difference of $2\epsilon$ compared to $N_i$'s clock, with  probability $\mathcal{P}_\epsilon$, therefore $\Delta_m$ must be increased to cater for this, becoming:
         
-        \begin{equation*}
+        \begin{equation}
             \begin{aligned}
-                \Delta_m = 2 \times D_m + \mathcal{A}_d + 2\epsilon
+                \Delta_m = 2 \times D + \mathcal{A}_d + 2\epsilon
             \end{aligned}
-        \end{equation*}     
+        \end{equation}     
         
         Thus, delivering $m$ via \textsf{Aramis} after a node's local clock time is greater than $m.ts + \Delta_m$ will meet \emph{abcast} guarantees G1-G4 with a high probability.
                 
@@ -589,30 +595,30 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
        
     When a latency $x$ exceeds $x_{mx}$, we refer to this as a Marginal Peak $Mp$, as $x_{mx}$ is the boundary (margin) value and $Mp$ a latency that has peaked beyond the margin; we record $Mp$ as the difference between $x$ and $x_{mx}$, thus $Mp = x - x_{mx}$.  It is possible that multiple $x$ values will exceed $x_{mx}$, in which case we record all $Mp$ values and refer to the total number of $Mp$ values as $\#Mp$.   Once all $Mp$ values have been recorded, we calculate the variable $\mu$; which along with the current $x_{mx}$ value determines the amount that a node's broadcast rate should be restricted.  We calculate $\mu$ as:
     
-    \begin{equation*}
+    \begin{equation}
 		     \begin{aligned}
 		         \mu = \frac{Mp + Mp'+,\ldots,+ Mp''}{Max(\#Mp, Ss)}
 		     \end{aligned}
-    \end{equation*} 
+    \end{equation} 
     
     Where $Ss$, which stands for sample size, is an integer constant defined before runtime that is used as a divisor when $\#Mp < Ss$.  The purpose of $Ss$ when calculating $\mu$, is to reduce the effects of a small number ($\#Mp < Ss$) of $Mp$ values from severely restricting a node's broadcast rate.  For example, consider  $x_{mx} = 2ms$ and a single $Mp$ occurs where latency $x$, $x = 4ms$, this would result in $Mp = 2ms$.  If the calculation of $\mu$ did not utilise $Ss$, then $\mu = 2$, which would produce a large flow control delay, which in turn would result in the broadcast rate being reduced significantly and the flow control becoming overly restrictive.  However, when we utilise the $Ss$ constant, the influence of a small number of latencies on the calculated $\mu$ value can be reduced; a large $Ss$ value marginalises their impact, whilst a small $Ss$ value promotes it.  The level of flow control required by a system is determined by its use case, therefore we defined $Ss$ as a constant specified before runtime in order to allow system administrators greater control of the protocol's behaviour.  
     
     The $\mu$ variable is used alongside $x_{mx}$ to calculate $\gamma$, where $\gamma$ is calculated as:
     
-    \begin{equation*}
+    \begin{equation}
 		     \begin{aligned}
 		         \gamma = \frac{x_{mx} + \mu}{x_{mx}}
 		     \end{aligned}
-    \end{equation*} 
+    \end{equation} 
     
     \subsubsection*{Calculating a New Broadcast Rate}
     Let $\lambda_1$ represent the current broadcast rate of a given node, which we calculate as follows:
 
-    \begin{equation*}
+    \begin{equation}
 		     \begin{aligned}
 		         \lambda_1 = \frac{1}{m'.Fc_{ts} - m''.Fc_{ts}}
 		     \end{aligned}
-    \end{equation*} 
+    \end{equation} 
     
     Where $m.FC_{ts}$ is a timestamp recorded for each message as it is sent to \textsf{ABcast} for broadcasting and $m''$ and $m'$ are the two messages that were handled by AFC prior to $m$, where $m''.Fc_{ts} < m'.Fc_{ts}$.  If $m''$ and $m'$ do not exist it is not possible to calculate the current broadcast rate, as no two messages have previously been sent, instead a default delay is utilised between broadcasts.  
     
@@ -620,11 +626,11 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
     
     Once the current broadcast rate has been ascertained, it can be used alongside the $\gamma$ variable to calculate a new broadcast rate for this node and the duration of the delay that needs to be observed by $m$ to implement it.  A new delay duration for $m$ is not required if $\gamma = 0$ as this means that no $Mp$ values have been observed and $\lambda_1$ does not need to be reduced, therefore the delay value utilised by the previous message is still valid.  Conversely if $\gamma > 1$, we know that at least one $Mp$ has occurred and it is necessary for $\lambda_1$ to be reduced to a smaller rate.  We represent this new smaller rate as $\lambda_2$, where $\lambda_2 < \lambda_1$ and $\lambda_2$ is calculated as follows:
     
-      \begin{equation*}
+      \begin{equation}
 		     \begin{aligned}
 		         \lambda_2 = \lambda_1 \times e ^{ ({\frac{1-\gamma}{C}})}
 		     \end{aligned}
-    \end{equation*} 
+    \end{equation} 
     
     To reduce a node's broadcast rate it is necessary to increase the delay observed between each subsequent message broadcast.  This is achieved by increasing $\lambda_1$ by $\delta$ such that:
     
