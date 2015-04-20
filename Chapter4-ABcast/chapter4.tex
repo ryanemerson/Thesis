@@ -467,29 +467,32 @@ Hitherto this chapter has focused on the underlying assumptions made when design
     \paragraph{\textsf{Aramis} Delivery Rule:}\hspace{0pt} \\
         A node, $N_j$ delivers any $m$, via \textsf{Aramis}, only after $D1_A$ and $D2$ stated below are satisfied:
         \begin{description}[labelindent=1cm]
-            \item[$\boldsymbol{D1_A}$] - The clock of $N_i > m.ts + \Delta_{m}$. 
+            \item[$\boldsymbol{D1_A}$] - The clock of $N_i > m.ts + \Delta_{m}$, where $\Delta_{m} = 2(D + \epsilon) + \mathcal{A}_d$.
+            
             \item[$\boldsymbol{D2}$] - All \emph{known} $m'$, with $m'.ts < m.ts$ have been delivered.
         \end{description}
     
     
-        \subsubsection*{Calculating $\boldsymbol{\Delta_m}$    }
-        The delivery delay, $\Delta_m$ utilised by \textsf{Aramis} is calculated based upon the values utilised by \emph{rbcast} and produced by the DMC.  Consider the following scenario which explains the rationalee behind the delays calculation: When any operative node, $N_j$ receives $m$ \emph{rbcast} by $N_i$, all operative nodes receive $m$ with a high probability by time $m.ts + D$, as per $N_i$'s clock.  If each recipient piggybacks their $ack(m)$ onto one of its own \emph{rbcast}s within $\mathcal{A}_d$ time after receiving $m$, it is very likely that all $m.dst - \{N_i, N_j\}$ will receive $ack(m)$, as per $N_i$'s clock, before time:
+        \subsubsection*{Calculating $\boldsymbol{\Delta_m}$}
+        Let us, for simplicity, assume that $\epsilon = 0$.  The explanation is twofold.  First, recall that \emph{rbcast} guarantees on agreement: if $N_i$ \emph{rbcast}s $m$ and if any operative $s$-node (be it $N_i$ or otherwise) $rb.delivers$ $m$, all destination nodes $rb.delivers$ $m$ before $m.ts + D$ with probability $R$.  
+        
+        Secondly, the aim of \textsf{Aramis} to aid delivery of \emph{abcast} messages when \textsf{Base} is blocked due to node crashes.  So, delivery by \textsf{Aramis} is delayed until all acknowledgements are $rb.delivered$ when there are no crashes.  Since an operative node can acknowledge at most $\mathcal{A}_d$ time after $rb.delivering$ $m$, we have:
         
         \begin{equation}
             \begin{aligned}
-                m.ts + 2\times{D} + \mathcal{A}_d
+                \Delta_m \geq D + \mathcal{A}_d + D
             \end{aligned}
         \end{equation}
-         
-         Based upon assumption A2, $N_j$'s clock has a maximum difference of $2\epsilon$ compared to $N_i$'s clock, with  probability $\mathcal{P}_\epsilon$, therefore $\Delta_m$ must be increased to cater for this, becoming:
+        
+        Accounting for the clock synchronisation error rate of $2\epsilon$, we calculate $\Delta_m$ as:
         
         \begin{equation}
             \begin{aligned}
-                \Delta_m = 2 \times D + \mathcal{A}_d + 2\epsilon
+                \Delta_m = 2(D + \epsilon) +  \mathcal{A}_d
             \end{aligned}
-        \end{equation}     
+        \end{equation}
         
-        Thus, delivering $m$ via \textsf{Aramis} after a node's local clock time is greater than $m.ts + \Delta_m$ will meet \emph{abcast} guarantees G1-G4 with a high probability.
+        \textbf{Note:} By delivering $m$ at $m.ts + \Delta_m$, $\Delta_m > 2 \times D$, \textsf{Aramis} indeed meets  the validity (G1-P) and agreement (G2-P) guarantees with a probability much larger than the user specified value of $R$.  
                 
         \subsubsection*{Total Order Violations}\label{ssec:abcast_rejection}
         In the explanations above, we have only considered the conditions required for a message to be successfully \emph{abcast} to all nodes.  However, as \textsf{Aramis} is a probabilistic protocol it is possible for a message to be delivered in the wrong place in the total order, thus violating G4.  For example, a message $m$ arrives at a destination after its proceeding message $m'$ in the total order has already been delivered, such that the total order is $<m', m>$ when it should be $<m, m'>$.  In such a case, their are two course of action possible when $m$ arrives: 1) Deliver $m$ as soon as possible; resulting in two violations of the total order occurring as $m$ has missed its place and then taken another's in the total order.  2) Receive $m$ and throw an exception to the application; resulting in only one violation of the total order, as $m$ is simply missing, but at the expense of violating G1 and G2 as $m$ cannot be delivered by all destinations.  \footnote{Assumption A2 guarantees that all destinations will eventually receive $m$, so if a message is not rejected G1 and G2 always hold.}
