@@ -31,6 +31,19 @@
 \usepackage{changepage}
 \usepackage{multirow}
 \usepackage{bm}
+\usepackage{centernot}
+
+% Code to create double \prec symbol
+\usepackage[utf8]{inputenc}
+\DeclareFontFamily{U}{mathb}{\hyphenchar\font45}
+\DeclareFontShape{U}{mathb}{m}{n}{
+<-6> mathb5 <6-7> mathb6 <7-8> mathb7
+<8-9> mathb8 <9-10> mathb9
+<10-12> mathb10 <12-> mathb12
+}{}
+\DeclareSymbolFont{mathb}{U}{mathb}{m}{n}
+\DeclareMathSymbol{\llcurly}{\mathrel}{mathb}{"CE}
+\DeclareMathSymbol{\ggcurly}{\mathrel}{mathb}{"CF}
 % ************************* Algorithms and Pseudocode **************************
 
 %\usepackage{algpseudocode} 
