@@ -323,33 +323,40 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
          \item[\emph{Local Tx Execution}]  \hfill \\
          If a $c$-node, $Tx_i.c$, crashes during or directly after the local execution of a transaction, $Tx_i$, then no action needs to be taken as no interactions with other $c$-nodes or $s$-nodes have occurred.  
 		
-		\item[\emph{Stage 1}]  \hfill \\
-		If $Tx_i.c$ crashes during the creation of a backup coordinator then two scenarios are possible:
+		\item[\emph{During C1}]  \hfill \\
+		If $Tx_i.c$ crashes during the creation of a backup coordinator node, $Tx_i.bc$, then two scenarios are possible:
 		    \begin{itemize}
-			    \item    The backup coordinator never receives the $prepare(Tx_i)$ message, in which case the transaction  can only be aborted as its contents have been lost.  
-			    \item    The backup coordinator successfully receives the $prepare(Tx_i)$ message and attempts to acknowledge the original coordinator.  The original coordinator will never receive the acknowledgement as it has crashed; however, the backup coordinator will still restart the multicasting process from stage 1 of the protocol. The backup coordinator takes over from the original coordinator as soon as the group membership protocol has detected the crash and issued a new view to the client nodes.  
+			    \item    $Tx_i.bc$ never receives the $prepare(Tx_i)$ message, in which case the transaction  can only be aborted as its contents have been lost.  
+			    \item    $Tx_i.bc$ successfully receives the $prepare(Tx_i)$ message and attempts to acknowledge $Tx_i.c$; who will never receive $Tx_i.bc$'s acknowledgment as it has crashed.  In which case, the GM service will detect that $Tx_i.c$ has crashed and issue a new view to the network.  Upon receiving this view, $Tx_i.bc$ deduces that $Tx_i.c$ has crashed and becomes the new active coordinator, $Tx_i.\tilde{c}$, for $Tx_i$ and restarts the multicast process at stage C1.  
 		    \end{itemize}     
 		    
-		\item[\emph{Stage 2}]  \hfill \\
-        If $Tx_i.c$ crashes before or during the sending of a request $r$ to the ordering service, then the backup coordinator simply restarts the multicast process when the GM service recognises that $Tx_i.c$ has crashed.  It is possible that the $s$-node that $r$ was sent to, $N_s$, will still receive $r$, in which case $r$ will be processed as normal by the $s$-node.  When the backup coordinator sends a new ordering request to the service for $Tx_i$, $r'$, this request is also processed.  The ordering service accepts the request which is delivered first by the \emph{abcast} protocol and sends a response to the transaction coordinator specified in the accepted request.  Assuming that both coordinators send $r$ and $r'$ to $N_s$: If the $s$-nodes deliver $r$ first in the total order, then a response is  sent to the original coordinator of $Tx_i$ as $N_s$ is unaware that this $c$-node has crashed.  However, when $N_s$ delivers $r'$ it deduces that both $r$ and $r'$ concern $Tx_i$ and that $r'$ will only have been issued if the original coordinator had crashed, therefore $N_s$ resends the original $rsp(Tx_i)$ message to the coordinator of $r'$.  Similarly, it is possible that $r'$ is sent to a different $s$-node than $r$, $N_s'$, in which case $N_s'$ will also resend the original $rsp(Tx_i)$ message, as $N_s'$ must have received both $r$ and $r'$ as per the guarantees of \emph{abcast}.  
+		\item[\emph{During C2}]  \hfill \\
+        If $Tx_i.c$ crashes before or during the sending of a request $r$ to the ordering service, then $Tx_i.bc$ simply restarts the multicast process at stage C1 when the GM service recognises that $Tx_i.c$ has crashed.  
+        
+        It is possible that the $s$-node that $r$ was sent to, $N_s$, will still receive $r$, in which case $r$ will be processed as normal by the $s$-node.  When $bc$ sends a new ordering request to the service for $Tx_i$, $r'$, this request is also processed.  The ordering service accepts the request which is delivered first by the \emph{abcast} protocol and sends a response to the $Tx_i.\tilde{c}$ specified in the accepted request.  Assuming that both coordinators send $r$ and $r'$ to $N_s$: If the $s$-nodes deliver $r$ first in the total order, so that $r \prec r'$, then a response is sent to $Tx_i.c$ as $N_s$ is unaware that this $c$-node has crashed.  However, when $N_s$ delivers $r'$ it deduces that both $r$ and $r'$ concern $Tx_i$ and that $r'$ will only have been issued if $Tx_i.c$ had crashed.  Therefore $N_s$ resends the original $rsp(Tx_i)$ message associated with $r$ to the $Tx_i.\tilde{c}$ specified in $r'$ and the \emph{abcast} message of $r'$ is discarded without updating the $order\_history$.  
+        
+        Similarly, it is possible that $r'$ is sent to a different $s$-node than $r$, $N_s'$, in which case $N_s'$ will also resend the original $rsp(Tx_i)$ message, as $N_s'$ must have received both $r$ and $r'$ as per the guarantees of \emph{abcast}.  
         
         In addition to the various scenarios described above, it is also possible that $r$ was never received, in which case the $s$-node that received $r'$ will send a response message to the coordinator of $r'$ as if it were a normal request.  
         
-        \item[\emph{Stage 3}]  \hfill \\
-        If $Tx_i.c$ crashes before receiving a response from the ordering service, then the backup coordinator takes over and restarts the multicast process.  When the backup coordinators request is received by an $s$-node, the $s$-node checks its recent history of processed requests and returns the ordering data assigned to this transaction.  The size of the recent history stored by the service should be configurable to allow for varying levels of resilience.   This is because as the size of the past history increases, the chances of a prior transaction ordering being discarded decreases.  Thus a larger record provides a greater level of fault-tolerance, but at the expense of utilising more system resources.  
+        \item[\emph{During C3}]  \hfill \\
+        If $Tx_i.c$ crashes before receiving a response from the ordering service, then $Tx_i.bc$ takes over and restarts the multicast process.  When $Tx_i.bc$'s request is received by an $s$-node, the $s$-node checks its recent history of processed requests and returns the ordering response message associated with $Tx_i$.  The size of the recent history stored by the service should be configurable to allow for varying levels of resilience.   This is because as the size of the past history increases, the chances of a prior response message being discarded decreases.  Thus a larger record provides a greater level of fault-tolerance, but at the expense of utilising more system resources.  
         
-        \item[\emph{Stage 4}]  \hfill \\
-        If $Tx_i.c$ crashes before the multicasting of $mcast(Tx_i)$ to all $d \in Tx_i.dst$ has finished, then two scenarios are possible:
-           \begin{itemize}
-			    \item    The backup coordinator has received $mcast(Tx_i)$ from $Tx_i.c$, in which case the backup coordinator can simply restart the multicasting process (Stage 4).
-			    \item    The backup coordinator has not received $mcast(Tx_i)$ from $Tx_i.c$, in which case the protocol must be restarted.  
-		    \end{itemize}  
+        \item[\emph{During C4}]  \hfill \\
+                TODO
+        % Mention solution, but also talk about TOA's inability to handle such a scenario.                 
+                
+%        If $Tx_i.c$ crashes before the multicasting of $mcast(Tx_i)$ to all $d \in Tx_i.dst$ has finished, then two scenarios are possible:
+%           \begin{itemize}
+%			    \item    The backup coordinator has received $mcast(Tx_i)$ from $Tx_i.c$, in which case the backup coordinator can simply restart the multicasting process (Stage 4).
+%			    \item    The backup coordinator has not received $mcast(Tx_i)$ from $Tx_i.c$, in which case the protocol must be restarted.  
+%		    \end{itemize}  
     \end{description}
     
 	\subsubsection*{Service Node Crash}
 	\begin{description}
-       \item[\emph{Stage 1-3}] \hfill \\
-       If a $s$-node crashes while a $Tx_i.c$ is issuing a service request, then the request will simply timeout and the $Tx_i.c$ will resend the request to another $s$-node.  Its possible that the request was \emph{abcast} to other $s$-nodes before the crash, in which case the other $s$-nodes will process the request and simply return the established ordering for a transaction when subsequent requests are received from the transaction coordinator.  
+       \item[\emph{Stage S1-S4}] \hfill \\
+       If an $s$-node, $N_s$ crashes after $Tx_i.c$ has sent an ordering request, $r$, to $N_s$, then $Tx_i.c$ will timeout waiting for a response for $r$ and will resend the request to another $s$-node as $r'$.    It is possible for $r$ to have been \emph{abcast} to other $s$-nodes before $N_s$ crashed, in which case, the other $s$-nodes will deliver and process $r$ as a normal request.  As $N_s$ has crashed, a $rsp()$ message will not be sent to $Tx_i.c$, due to no correct $s$-node satisfying the condition $snid = m.snid$.  However, as all other $s$-nodes in the ordering service have delivered $r$, a $rsp()$ message will exist at all correct $s$-nodes.  Therefore, when $r'$ is sent to a correct $s$-node, the original $rsp()$ message which was associated with $r$ will be returned to $Tx_i.c$.  
     \end{description}
     
     \subsection{Fault Tolerance: Split Brain}
