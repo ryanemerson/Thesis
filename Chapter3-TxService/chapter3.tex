@@ -109,7 +109,7 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
     The \textsf{SCast} protocol is a deterministic \emph{amcast} protocol, therefore for all \emph{amcast}s the protocol ensures that guarantees G1-G4, as stated in section \ref{sec:atomic_guarantees}, are met.      
     
     \subsection{Protocol Details} \label{ssec:scast_details}
-    In this section we explore the inner workings of each stage of the \textsf{SCast} protocol detailed in \ref{sec:scast_overview}.  We describe each stage in the order in which they are executed by the protocol, and assume a single transaction $Tx_i$ is attempting to \emph{amcast} its $prepare()$ message to all $Tx_i.dst$.  For the sake of clarity, each stage of the protocol utilises the same numbering and naming scheme as section \ref{sec:scast_overview}. Furthermore, all stages which are enacted by $c$-nodes are distinguished by an offset background and sidebar.  
+    In this section we explore the inner workings of each stage of the \textsf{SCast} protocol detailed in \ref{sec:scast_overview}.  We describe each stage in the order in which they are executed by the protocol, and assume a single transaction $Tx_i$ is attempting to \emph{amcast} its $prepare()$ message to all $Tx_i.dst$.  For the sake of clarity, each stage of the protocol utilises the same numbering and naming scheme as section \ref{sec:scast_overview}. Furthermore, all stages which are enacted by $c$-nodes are distinguished by an offset background and vertical bar in the left margin.  
     
     \renewenvironment{leftbar}[1][\hsize]
 	{%
@@ -128,25 +128,25 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
     \begin{enumerate}
         \leftbar
         \litem{C1 - Delegate Backup Coordinator} 
-        For the purposes of fault-tolerance the first stage of the protocol is for $Tx_i.c$ to create a backup coordinator; where $Tx_i.c$ always denotes the original coordinator for transaction $Tx_i$.  $Tx_i.c$ selects any destination, $d$, $d \in Tx_i.dst$, and sends it the payload of the message ($prepare(Tx_i)$) that is to be multicast to $Tx_i.dst$.  $Tx_i.c$ then waits for an acknowledgement of receipt from $d$ before proceeding to stage 2 of the protocol.  If an acknowledgement is not received within a configurable amount of time, then $Tx_i.c$ simply selects another destination $d'$ from $Tx_i.dst$ and restarts the process.  
+        For the purpose of fault-tolerance, the first stage of the protocol is for $Tx_i.c$ to create a backup coordinator; where $Tx_i.c$ denotes the original coordinator for transaction $Tx_i$.  $Tx_i.c$ selects any destination, $d$, $d \in Tx_i.dst$, and sends it the payload of the message that is to be multicast to $Tx_i.dst$ ($prepare(Tx_i)$).  $Tx_i.c$ then waits for an acknowledgement of receipt from $d$ before proceeding to stage 2 of the protocol.  If an acknowledgement is not received within a configurable amount of time, then $Tx_i.c$ simply selects another destination $d'$ from $Tx_i.dst$ and restarts the process.  
         
-        The purpose of creating a backup transaction coordinator is to allow for the possibility that the $Tx_i.c$ may crash during the multicast process.  In the event of $Tx_i.c$ crashing, the group membership service for $c$-nodes detects the crash and the backup coordinator assumes responsibility for multicasting $prepare(Tx_i)$ to all $d \in Tx_i.dst - \{Tx_i.c\}$.  We denote the currently active transaction coordinator as $Tx_i.\tilde{c}$ and the original coordinator as $Tx_i.c$.  
+        The purpose of creating a backup transaction coordinator is to allow for the possibility that $Tx_i.c$ may crash during the multicast process.  In the event of $Tx_i.c$ crashing, the group membership service for $c$-nodes detects the crash and the backup coordinator assumes responsibility for multicasting $prepare(Tx_i)$ to all $d \in Tx_i.dst - \{Tx_i.c\}$.  In order to accommodate such occurrences, we denote the currently active transaction coordinator as $Tx_i.\tilde{c}$ and the original coordinator as $Tx_i.c$; $Tx_i.\tilde{c} = Tx_i.c$ if $Tx_i.c$ does not crash.  
         
-        When $Tx_i.\tilde{c}$ takes over from the crash $Tx_i.c$, it completely restarts the multicast process and selects another node from $Tx_i.dst$ to be a backup coordinator.  In the unlikely event that the original coordinator and multiple backup coordinators crash, it is possible that there wont be a member of $Tx_i.dst$ left to utilise as a backup coordinator.  In which case a backup will not be created, as $Tx_i.\tilde{c}$ will be the last destination alive in $Tx_i.dst$, therefore if $Tx_i.\tilde{c}$ crashes the transaction is aborted by default.  
+        When $Tx_i.\tilde{c}$ takes over from the crashed $Tx_i.c$, it completely restarts the multicast process and selects another node from $Tx_i.dst$ to be a backup coordinator.  In the unlikely event that the original coordinator and multiple backup coordinators crash, it is possible that there wont be a member of $Tx_i.dst$ left to utilise as a backup coordinator.  In which case a backup will not be created, as $Tx_i.\tilde{c}$ will be the last destination alive in $Tx_i.dst$, therefore if $Tx_i.\tilde{c}$ crashes the transaction is aborted by default.  
         \endleftbar
         
         \leftbar        
         \litem{C2 - Request Ordering}
         Once a backup coordinator has been established, it is possible for the transaction coordinator to request a multicast ordering from the service.  \emph{Amcast}s are initiated by the $Tx_i.c$ randomly selecting a $s$-node, $N_s$, from the \emph{ordering service} and sending an \emph{amcast} request to that node - $req(Tx_i) -> N_s$; where $req(Tx_i)$ contains $Tx_i.dst$, $Tx_i.\tilde{c}$ and the unique id of the transaction, $Tx_i.id$.  Hence, $req(Tx_i) = \{Tx_i.id, Tx_i.dst, Tx_i.\tilde{c}\}$.  
         
-        The content of the $prepare(Tx_i)$ message is not sent to $N_s$ as we only require a global order for $Tx_i$, therefore the contents of the message to be \emph{amcast} to $Tx_i.dst$ is irrelevant and including it would only increase bandwidth usage.  However, $req(Tx_i)$ must include $Tx_i.dst$ as this is the destination set of the \emph{amcast} that $Tx_i.c$ is trying to send, and the \emph{ordering service} needs this data to ensure that requirements CR1, CR2 and CR3 are satisfied.  
+        The content of the $prepare(Tx_i)$ message is not sent to $N_s$ as we only require a global order for $Tx_i$, therefore the contents of the message to be \emph{amcast} to $Tx_i.dst$ is irrelevant and including it in the payload would increase bandwidth usage.  However, $req(Tx_i)$ must include $Tx_i.dst$ as this is the destination set of the \emph{amcast} that $Tx_i.c$ is trying to send, and the \emph{ordering service} needs this data to ensure that requirements CR1, CR2 and CR3 are satisfied.  
         \endleftbar
         
-        \paragraph{Wait for a response from the \emph{ordering service} $\ldots$} \hfill \\
+        \paragraph{\textit{Wait for a response from the ordering service $\ldots$}} \hfill \\
                 If $Tx_i.\tilde{c}$ does not receive an ordering from the \emph{ordering service} after a specified timeout, then a different $s$-node, $N_s'$, is selected and the ordering request is resent - $req(Tx_i) -> N_s'$.
         
         \litemSn{S1 - Receive Request}
-            Upon receiving $req(Tx_i)$, an $s$-node places the request in its \emph{Abcast Request Pool} (ARP), which is a bounded queue for storing requests before they are \emph{abcast} to all $s$-nodes.  If an $s$-node's ARP becomes full, subsequent requests from $c$-nodes are rejected until space becomes available in the ARP.  When a $c$-node request is rejected a \emph{reject} response is sent to $Tx_i.c$.  If $Tx_i.c$ receives a \emph{reject} response from all $s$-nodes, then it can either abort $Tx_i$ or resend the \emph{amcast} request to another $s$-node after a configurable amount of time \footnote{This cycle will not continue indefinitely, as eventually the transaction will timeout and abort.}.  The ARP is necessary to ensure that if the \emph{ordering service} starts to become overloaded by client requests there is a \textquoteleft{}feedback' mechanism that makes $c$-nodes aware of the service's current limitations and allows clients to restrict user operations if necessary. 
+            Upon receiving $req(Tx_i)$, an $s$-node places the request in its \emph{Abcast Request Pool} (ARP), which is a bounded queue for storing requests before they are \emph{abcast} to all $s$-nodes.  If an $s$-node's ARP becomes full, subsequent requests from $c$-nodes are rejected until space becomes available in the ARP.  When a $c$-node request is rejected a \emph{reject} response is sent to $Tx_i.\tilde{c}$.  If $Tx_i.\tilde{c}$ receives a \emph{reject} response from all $s$-nodes, it can either abort $Tx_i$ or resend the \emph{amcast} request to another $s$-node after a configurable amount of time \footnote{This cycle will not continue indefinitely, as eventually the transaction will timeout and abort.}.  The ARP is necessary to ensure that if the \emph{ordering service} starts to become overloaded by client requests there is a \textquoteleft{}feedback' mechanism that makes $c$-nodes aware of the service's current limitations and allows clients to restrict user operations if necessary. 
             
         \litemSn{S2 - Send Atomic Broadcast}
         A single thread, called the \emph{send} thread, is utilised for retrieving requests from the ARP and \emph{abcast}ing them to all $s$-nodes for ordering.  The \emph{send} thread retrieves an ordering request from the ARP and sends an \emph{abcast}, $m$, to all $s$-nodes containing the request.  Requests are retrieved from the ARP in the order that they were originally received (FIFO), however if no requests exist in the ARP then the \emph{send} thread waits for the pool to become non-empty before resuming \emph{abcast}ing.  
@@ -213,9 +213,9 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
         and we denote this relationship as \scalebox{1.5}{$\quad \tilde{m} \llcurly_d m$}.  
         
         \paragraph{c. Maintaining the Total Order} \hfill \\
-         Once an order has been associated with $Tx_i$ and $m$, it is necessary for the $s$-node to calculate $m.history[]$.  The purpose of $m.history[]$ is to ensure that \emph{amcast} guarantee G4, is maintained by all $d \in m.dst$ upon delivering $m$ \footnote{The purpose and significance of $m.history$ is discussed in our description of stage C4 of the \textsf{SCast} protocol}.  
+         Once an order has been associated with $Tx_i$ and $m$, it is necessary for the $s$-node to calculate $m.history[]$.  The purpose of $m.history[]$ is to ensure that \emph{amcast} guarantee G4, is maintained by all $d \in m.dst$ upon delivering $m$; as detailed in stage $8$ of the protocol.  
          
-         We define $m.history[]$ as an associative array that utilises the address of each $d \in m.dst$ as an index and stores the $\tilde{m}.order$ value of the $\tilde{m}$ that satisfies $\tilde{m} \llcurly_d m$.  If no $\tilde{m} \llcurly_d m$ exists, then a $null$ value is stored in its place.  This is formalised below:
+         We define $m.history[]$ as an associative array that utilises the address of each $d \in m.dst$ as an index and stores the $\tilde{m}.order$ value of $\tilde{m}$ that satisfies $\tilde{m} \llcurly_d m$.  If no $\tilde{m} \llcurly_d m$ exists, then a $null$ value is stored in its place.  This is formalised below:
          
          \begin{equation*}
              \begin{split}
@@ -224,36 +224,41 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
              \end{split}
          \end{equation*}
          
-        and Figure \ref{ps:m.history} presents the pseudocode for populating $m.history$ for an \emph{amcast} $m$.  
+        and Algorithm \ref{ps:m.history} presents the pseudocode for populating $m.history$ for an \emph{amcast} $m$.  
         
-               \begin{algorithm}
+      \begin{algorithm}
        \caption{Compute Message History}
         \label{ps:m.history}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
             \FORALL{$d \in m.dst$}
-                \IF{$\tilde{m} \prec_d m$ exists}
+                \IF{$\tilde{m} \llcurly_d m$ exists}
                     \STATE{$m.history[d] = \tilde{m}.order;$}
                 \ELSE
                     \STATE{$m.history[d] = null;$}
                 \ENDIF
             \ENDFOR
         \end{algorithmic}
-    \end{algorithm}       
+    \end{algorithm}
          
-        The $\tilde{m}$ values used to populate $m.history[]$ are retrieved from $N_s$'s local ordering history, which is an associate array that utilises the same indexing scheme as $history[]$ and also stores past $order$ values.  We refer to this array as $order\_history[]$.  
+        The $\tilde{m}$ values used to populate $m.history[]$ are retrieved from $N_s$'s local ordering history, which is an associative array that utilises the same indexing scheme as $history[]$ and also stores past $order$ values.  We refer to this array as $order\_history[]$.  The purpose of $order\_history[]$ is to maintain a history of \emph{amcast} orderings for all known $c$-nodes; where a known $c$-node is any node that has been involved in a prior transaction's destination set.  Once $N_s$ has populated $m.history[]$ for $m$, it is necessary for $m.order$ to be added to $order\_history[]$ for all $d \in m.dst$, as $m.order$ is now the latest \emph{amcast} involving each $d$.  
+		        
+        For example, consider two ordering requests that have been \emph{abcast} as $m_i$ and $m_j$, with destination sets equal to ${N_c1, N_c2}$ and ${N_c1, N_c3}$, respectively.  Assume, that $m_i$ has already been delivered by an $s$-node $N_s$, and $m_j$ is now being processed by $N_s$; hence $m_i \prec m_j$.  The calculated history for $m_j$, $m_j.history[]$, is shown below in Figure \ref{fig:message_history}.
         
-        The purpose of $order\_history[]$ is to maintain a history of \emph{amcast} orderings for all known $c$-nodes; where a known $c$-node is any node that has been involved in a prior transaction's destination set.  Once $N_s$ has populated $m.history[]$ for $m$, it is necessary for $m.order$ to be added to $order\_history[]$ for all $d \in m.dst$, as $m.order$ is now the latest \emph{amcast} involving each $d$.  
-    
-%        \begin{algorithm}
-%        \caption{Compute Message History}
-%        \label{ps:m.history}
-%        \begin{algorithmic}
-%            \FORALL{$d \in m.dst$}
-%                \STATE{$m.history[d] = order\_history[d];$}
-%            \ENDFOR
-%        \end{algorithmic}
-%    \end{algorithm}           
+    \begin{figure}[htbp!] 
+        \centering    
+         \includegraphics[width=.35\textwidth]{message_history}
+         \caption[Message History Array]{Message History Array}
+         \label{fig:message_history}
+    \end{figure}            
         
+        Once $N_s$ has calculated $m_j.history[]$, it is necessary for $m_j$ to be added to the $order\_history[]$.  The resulting $order\_history[]$ is shown below in Figure \ref{fig:ordering_history}, with the right most message associated with a $c$-node representing the currently stored value.  
+		
+        \begin{figure}[htbp!] 
+        \centering    
+         \includegraphics[width=.50\textwidth]{ordering_history}
+         \caption[Ordering Service History]{Ordering Service History}
+         \label{fig:ordering_history}
+    \end{figure}            
         
 %    \begin{algorithm}
 %        \caption{Compute Message History}
@@ -276,12 +281,40 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
         
         \leftbar
         \litem{C4 - Order Transaction}
-        Upon receiving $mcast(Tx_i)$, a client node, $c$, will check the \emph{immediate} predecessor data contained within this message.  This data dictates which $mcast$ message should be delivered in the total order before $mcast(Tx_i)$.  For example, if the predecessor data dictates $mcast(Tx_i)$ is preceded by $mcast(Tx_h)$ at destination $d$, then $d$ cannot deliver $mcast(Tx_i)$ until it has delivered $mcast(Tx_h)$.  Hence, this data specifies the order in which transactions should be executed at a given $c$-node.  
+        Upon receiving $mcast(Tx_i)$, a $c$-node destination, $d$, stores this $mcast()$ as $m$ in the \emph{amcast\_wait\_queue} (AWQ).  This priority queue stores all of the \emph{amcast}s received by this node until they are delivered to the application.  Messages are prioritised in the AWQ based upon their $m.order$, \emph{e.g.} $m_1 \llcurly_d m_2 \llcurly_d m_3$ as shown in Figure \ref{fig:awq}, and can only be delivered to the application when $\tilde{m}$, $\tilde{m} \llcurly_d m$, specified in $m.history[d]$, has been delivered.  
         
-        The predecessor data consists of a single multicast timestamp for each $d \in Tx.dst$, opposed to a list of past timestamps, in order to reduce the size of each $rsp$ message sent by the \emph{ordering service}.  The use of a single timestamp results in a cascading wait occurring if multiple message have not yet been received by $c$.  For example, if $c$ has received $mcast(Tx_j)$ but has not received its predecessors $mcast(Tx_h)$ and $mcast(Tx_i)$, $c$ will only be aware of $mcast(Tx_i)$ from $Tx_j$'s predecessor data.  However when $mcast(Tx_i)$ arrives, $c$ becomes aware that it has not yet received $mcast(Tx_h)$,  and will wait for $mcast(Tx_h)$ before delivering $mcast(Tx_i)$ and $mcast(Tx_j)$.          
-        \endleftbar
+         \begin{figure}[H] 
+        \centering    
+         \includegraphics[width=.40\textwidth]{amcast_wait_queue}
+         \caption[Amcast Wait Queue]{Amcast Wait Queue}
+         \label{fig:awq}
+    \end{figure}             
+        \vspace{-2em}
+        Messages are delivered to the higher-level application via the primitive $am\_deliver()$, which extracts the payload ($prepare(Tx_i)$) of the \emph{amcast} message and sends it up the network stack.  A $c$-node considers the \emph{amcast}ing of $Tx_i$ to be complete when it has called $am\_deliver()$ for $mcast(Tx_i)$, hence the \emph{amcast} is complete when the payload of $mcast(Tx_i)$ has been delivered up the stack.  
+        
+        Algorithm \ref{ps:awq} presents the pseudocode for processing the AWQ.  The variable $last\_amcast$ stores the $m.order$ of the last \emph{amcast} message that was dequeued from the AWQ; hence this is the last \emph{amcast} to be delivered by $d$.  
+    \endleftbar
+    
     \end{enumerate}
-
+    \begin{algorithm}[H]
+       \caption{Amcast Wait Queue}
+        \label{ps:awq}
+        \begin{algorithmic}[1]
+            \WHILE{$AWQ$ is non-empty}
+	            \STATE{$h \leftarrow peek(AWQ);$}
+	            \STATE{$h.snid \leftarrow h.order.snid;$}
+   	            \STATE{$\tilde{h}.order \leftarrow h.history[d].order;$}
+	            \STATE{$\tilde{h}.snid \leftarrow \tilde{h}.order.snid;$}
+	            %\IF{$\tilde{h}.order \preceq last\_delivered[\tilde{h}.snid] \land$}
+	            \IF{$last\_amcast \prec h.order$}
+	                \STATE{$am\_deliver(h);$}
+%	                \STATE{$last\_delivered[h.snid] \leftarrow h.order;$}
+	                \STATE{$last\_amcast \leftarrow h.order;$}
+	                \STATE{$dequeue(AWQ);$}
+	            \ENDIF
+	        \ENDWHILE
+        \end{algorithmic}
+    \end{algorithm}   
 	\subsection{Fault-Tolerance: Node Crashes}\label{ssec:scast_fault_tolerance}
 	Fault-tolerance in \textsf{SCast} must consider the consequences of both crashed $c$-nodes and $s$-nodes.  Here we explore the consequences of both $c$-node and $s$-node crashes during various stages of a \textsf{SCast} \emph{amcast}.  For the sake of simplicity, we only consider node crashes from the perspective of a single transaction, however it is worth noting that each $c$-node would typically have multiple transactions executing concurrently.  
 	
