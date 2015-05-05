@@ -664,9 +664,33 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
         When $\gamma = 1$, no $Mp$ value has been observed so far; so, $\mu = 0$ as per Equation \ref{eq:afc_mu_under_ten} and $\lambda_2 = \lambda_1$.  Thus, $m$ will be handed over to \textsf{ABcast} at the old rate of $\lambda_1$.
     
         \item[$\bm{\gamma > 1$}]\hfill \\
-        When $\gamma > 1$, $x_{mx}$ has been observed to have been violated and hence the broadcast rate must be slowed down.  Moreover $(1 - \gamma) < 0$, $e^{\left(\frac{1 - \gamma}{C}\right)}$ and $\lambda_2 < \lambda_1$.    
+        When $\gamma > 1$, $x_{mx}$ has been observed to have been violated and hence the broadcast rate must be slowed down.  Moreover $(1 - \gamma) < 0$, $e^{\left(\frac{1 - \gamma}{C}\right)}$ and $\lambda_2 < \lambda_1$.                 
                 
-        Note that $e^{\bar{z}}$ decays rapidly as $\bar{z}$, $\bar{z} < 0$, decreases even by a small amount.  To control $\lambda_2$ becoming extremely small, we choose $C$ to be a large positive constant.  
+        Note that $e^{\bar{z}}$ decays rapidly as $\bar{z}$, $\bar{z} < 0$, decreases even by a small amount (see Figure \ref{fig:afc_e_expontential}). To control $\lambda_2$ becoming extremely small, we choose $C$ to be a large positive constant.  
+        
+        \begin{figure}[H]
+        \centering
+        \begin{tikzpicture}
+		\begin{axis}[
+		    ticks=none,
+		    axis lines = center,
+		    xlabel = \Huge $\bar{z}$,
+		    ylabel = \Huge {$e^{\bar{z}}$},
+		]
+		%Here the blue parabloa is defined
+		\addplot [
+		    domain=-3:3, 
+		    samples=100, 
+		    color=blue,
+		    unbounded coords=jump,
+		    ]
+		    {0.5772156649^-x};
+		%\addlegendentry{$x^2 + 2x + 1$}
+		\end{axis}
+	\end{tikzpicture}
+	\caption{The effect of $\bar{z}$ decreasing on $e^{\bar{z}}$}
+	\label{fig:afc_e_expontential}
+	\end{figure}  
     \end{description}
     
         Honouring $\lambda_2$ for $m$, means that AFC must maintain the time at which it handed over a message to \textsf{ABcast} most recently.  Let $\tilde{m}$ be that message, and $\tilde{m}.t$ be the time $\tilde{m}$ was handed over to \textsf{ABcast}.  Note that $\tilde{m}.t$ is registered as per a node's unsynchronised clocks and bears no relevance to $\tilde{m}.ts$ that \textsf{ABcast} would timestamp $\tilde{m}$ with.  Let $m.t = \tilde{m}.t + \frac{1}{\lambda_2}$ and AFC hands over $m$ to \textsf{ABcast} when the (unsynchronised) clock reads $m.t$ and retains $m.t$ instead of $\tilde{m}.t$.  
