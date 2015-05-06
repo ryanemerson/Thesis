@@ -3,6 +3,30 @@
 % **************************** Define Graphics Path **************************
     \graphicspath{{Chapter5-PSCast/Figs/Vector/}{Chapter5-PSCast/Figs/}}
 
+This chapter explores the consequences of utilising the \textsf{ABcast} protocol for state machine replication between $s$-nodes in the \textsf{AmaaS} model.  Throughout our explanations we assume that the \textsf{SCast} protocol and its system model are utilised for all interactions between $c$-nodes and the ordering service.  We refer to this approach as Probabilistic \textsf{SCast}, or \textsf{PSCast} for short. 
+
+The remainder of this chapter is structured as follows: First we present the new \emph{amcast} guarantees provided by \textsf{PSCast}.  We then explore the ramifications of these new guarantees and discuss how they can cause \emph{amcast} messages to be delivered out of the total order at one or more destinations.  Finally, we describe the consequences of such missorderings, within the context of Infinispan, and explore potential solutions that can be employed by Infinispan to tolerate these missorderings.  
+
+\section{Probabilistic Guarantees}
+% Present the new guarantees, same as \textsf{ABcast}.  Explain why they are the same.
+
+\section{G4-P Violations}
+% Explain the conditions necessary for a violation to occur and state how unlikely it is to occur
+
+\section{Service Node - Mitigating G4-P Violations}
+% Updating history. Same as random wait.
+
+\section{Infinispan (Client Node) - Mitigating G4-P Violations}
+% Transaction manager, state all assumptions - exceptions etc.
+
+    \subsection{Repeatable Read and Read Committed}
+    
+    \subsection{Repeatable Read with WSC}
+
+\section{Summary}
+
+
+\newpage
 \section{Handling ABcast Rejections}
  Unlike traditional \emph{abcast} protocols, such as TOA, it is possible for \textsf{ABcast} to reject messages, thereby preventing them from being delivered to the application outside of the total order ($\S$ \ref{ssec:aramis}).  Performance evaluation in chapter \ref{ch:perf_eval} shows that the likelihood of rejections occurring is very small even when the number of \emph{abcast}s is large, however as such events are possible it is necessary for applications to implement additional logic to accommodate such occurrences.  
  
@@ -86,7 +110,4 @@ In the previous paragraphs we have presented the conditions required for a \emph
     \end{description}
 
     \subsection{Summary}
-        In this section we have presented several strategies that can be utilised by \textsf{SCast} nodes, both service and clients, to reduce the chances of \emph{amcast} violations occurring.  We have also presented a solution that allows Infinispan transaction managers to tolerate such violations regardless of the isolation level utilised, but at the expense of aborting transactions.  Our proposed solution for reducing \emph{amcast} violations can add an additional delay to the delivery of \textsf{SCast} \emph{amcast}s, when the \textsf{ABcast} protocol delivers messages via \textsf{Aramis}.  Therefore, such a solution should only be adopted when the potential increase in latency is more desirable then an increase in the total number of aborted transactions.  
-    
-\section{Summary}
-    
+        In this section we have presented several strategies that can be utilised by \textsf{SCast} nodes, both service and clients, to reduce the chances of \emph{amcast} violations occurring.  We have also presented a solution that allows Infinispan transaction managers to tolerate such violations regardless of the isolation level utilised, but at the expense of aborting transactions.  Our proposed solution for reducing \emph{amcast} violations can add an additional delay to the delivery of \textsf{SCast} \emph{amcast}s, when the \textsf{ABcast} protocol delivers messages via \textsf{Aramis}.  Therefore, such a solution should only be adopted when the potential increase in latency is more desirable then an increase in the total number of aborted transactions.      
