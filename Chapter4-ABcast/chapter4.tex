@@ -672,8 +672,10 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
         \centering
         \begin{tikzpicture}
 		\begin{axis}[
-		    ticks=none,
-		    axis lines = center,
+		    ytick={0,1},
+		    xtick={0},
+		    axis y line=middle,
+		    axis x line=middle,
 		    xlabel = \Huge $\bar{z}$,
 		    ylabel = \Huge {$e^{\bar{z}}$},
 		]
