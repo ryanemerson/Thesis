@@ -7,13 +7,56 @@ This chapter explores the consequences of utilising the \textsf{ABcast} protocol
 
 The remainder of this chapter is structured as follows: First we present the new \emph{amcast} guarantees provided by \textsf{PSCast}.  We then explore the ramifications of these new guarantees and discuss how they can cause \emph{amcast} messages to be delivered out of the total order at one or more destinations.  Finally, we describe the consequences of such missorderings, within the context of Infinispan, and explore potential solutions that can be employed by Infinispan to tolerate these missorderings.  
 
-\section{Probabilistic Guarantees}
-% Present the new guarantees, same as \textsf{ABcast}.  Explain why they are the same.
+\section{PSCast Guarantees}
+Below, we state the \emph{amcast} guarantees provided by \textsf{PSCast}.  
+   
+    \begin{description}
+        \item [\textbf{G1}] - \emph{Validity}: If the source of $m_i$ does not crash until it \emph{abcast}s $m_i$, then all operative destinations of $m_i$ deliver $m_i$.
+       
+        \item [\textbf{G2}] - \emph{Uniform Agreement}: If the source of $m_i$ crashes while \emph{abcast}ing $m_i$, and if any destination delivers $m_i$, then all operative
+destinations of $m_i$ must deliver $m_i$.
+        
+        \item [\textbf{G3}] - \emph{Uniform Integrity}: If $m_i$ has already been delivered by a destination $d$, then $d$ cannot deliver $m_i$ again.  
+       
+        \item [\textbf{G4-PSCast}] - \emph{Probabilistic Total Order}: If two \emph{\emph{amcast}s}, $m_i$ and $m_j$, have common destinations, then all such destinations that deliver both $m_i$ and $m_j$, will deliver them in an identical order with a probability $> R$.  Typically $R \rightarrow 1$.
+\end{description}
 
-\section{G4-P Violations}
-% Explain the conditions necessary for a violation to occur and state how unlikely it is to occur
+\textbf{Note: } The guarantees of \textsf{PSCast} are identical to those of the underlying \emph{abcast} protocol, \textsf{ABcast}.  This is because the guarantees of the \emph{abcast} protocol, and any violations of these guarantees, directly impacts how each $s$-node maintains its $order\_history[]$ and generates $m.history[]$; with $m.history[]$ dictating the order in which a $c$-node must deliver \emph{amcast}s ($\S$ \ref{sec:scast_protocol}).  
 
-\section{Service Node - Mitigating G4-P Violations}
+\section{G4-PSCast Violations}
+Recall that the \textsf{SCast} protocol utilises the final timestamp of the \emph{abcast} message that is sent between $s$-nodes for an ordering request to determine the total order of the  associated \emph{amcast}.  The \textsf{SCast} protocol, described in chapter \ref{ch:amaas}, assumes that the underlying \emph{abcast} protocol provides deterministic guarantees for all G1-G4 ($\S$ \ref{sec:atomic_guarantees}).  Hence, the \textsf{SCast} protocol assumes that all $s$-nodes will eventually deliver an \emph{abcast} and that all \emph{abcast}s are delivered in the same order at each destination.  This assumption means that the \textsf{SCast} protocol is able to guarantee that all \emph{amcast}s sent via the ordering service will respect G4 as it is guaranteed that all $s$-nodes will always maintain a consistent $order_history[]$, therefore all ordering response from the service will contain correct $m.history[]$ data.  
+
+Conversely, the \textsf{PSCast} utilises a probabilistic \emph{abcast} protocol, \textsf{ABcast}, that only guarantees G4 with probability $R$ (G4-P).  Therefore, for an \emph{abcast} $m$ sent between $s$-nodes, there is a small probability ($1-R$) that a destination, $N_s$, will not receive or \emph{know} of $m$ after $\Delta_m$ time.  In this case, it is possible for another \emph{abcast}, $m'$, $m.ts < m'.ts$, sent from a different $s$-node, $m.o \neq m'.o$, to have been delivered at $N_s$ when $\Delta_m'$ expired.  Thus resulting in a violation of G4-P, as $m'$ has preceded $m$, which causes $N_s$ to \emph{reject} $m$ from the total order and deliver it to the application (\textsf{SCast}) via an exception when it eventually arrives.  
+
+This G4-P violation, and hence the \emph{late} delivery of $m$, is equivalent to the following abstraction: For every message, $m$, that is about to be added to the $ordering\_history[]$, a random value, $RV$, is assigned, which is uniformly distributed between $0$ and $1$.  $RV$ is then compared with the probability that G4-P will hold, $R$, before $m$ is inserted into $ordering\_history[]$. Two cases are then possible:
+
+    \begin{description}
+        \item[$\bm{RV \leq R}$]\hfill \\
+        This represents that G4-P was met and therefore $m$ is processed the same as in the deterministic \textsf{SCast} protocol.  Hence, $m$ is added to a node's $order\_history[]$ instantly.  
+        
+        \item[$\bm{RV > R}$]\hfill \\
+        This represents that G4-P was not met, as G4-P is guaranteed with probability $R$.  In this case, $m$ is not inserted in $order\_history[]$ before $x$ time; with $x$ being a random time in the future, which represents the unknown time at which $m$ would be delivered at a node if G4-P was not met.  Subsequent \emph{abcast} messages, $m'$, $m'.ts > m.ts$, delivered by this node before $x$, are therefore inserted into $order\_history[]$ ahead of $m$.  
+    \end{description}
+    
+    For example, consider a scenario where an $s$-node receives four messages, $\{m_1, m_2, m_3, m_4\}$; where $m_1.dst = \{C_1, C_2, C_3\}; m_2.dst = \{C_1, C_3\}; m_3.dst = \{C_2, C_3\}; m_4 = \{C_2, C_3\}$.  If all four messages are allocated an $RV$ value, $RV \leq R$, then all messages are inserted into the $order\_history[]$ in the correct order.  Therefore, a correct $m_4.history[]$ is produced by this node; the correct $order\_history[]$ and associated $m_4.history[]$ are shown in Figure \ref{fig:correct_ohistory_pscast}.  However, now consider a scenario where $m_3$ is allocated an $RV$ values, where $RV > R$.  This causes $m_3$ to be delayed, and allows $m_4$ to take its place in the total order, which results in an incorrect $order\_history[]$ and consequently an erroneous $m_4.history[]$.  This is shown in Figure \ref{fig:incorrect_ohistory_pscast}.  
+    
+    Ultimately, Figure \ref{fig:correct_ohistory_pscast} represents an $s$-node where all delivered \emph{abcast}s meet G4-P, whilst Figure \ref{fig:incorrect_ohistory_pscast} represents an $s$-node who suffers a G4-P violation when $m_3$ is delivered before $m_4$.
+
+    \begin{figure}[!h] 
+        \centering    
+         \includegraphics[width=0.8\textwidth]{correct_ohistory}
+         \label{fig:correct_ohistory_pscast}
+    \end{figure}    
+
+    \begin{figure}[!h] 
+        \centering    
+         \includegraphics[width=0.8\textwidth]{wrong_ohistory}
+         \label{fig:incorrect_ohistory_pscast}
+    \end{figure}  
+    
+    In order for a G4-PSCast violation to occur, it is necessary for at least a single $m$ to have violated G4-P and for any subsequent messages $m'$ which are delivered before $m$ in the total order, but have $m'.ts > m$, to have at least one common $c$-node in their destination set. For example, the resulting $m_4.history[]$ shown in Figure \ref{fig:incorrect_ohistory_pscast} could cause $m_3$ to be missed at $N_c2$ as $m_3$ is missed from the history as $m_3$ violated GP-4 and was added to the $order\_history[]$ after $m_4$.  
+
+\section{Service Node - Mitigating G4-PSCast Violations}
 % Updating history. Same as random wait.
 
 \section{Infinispan (Client Node) - Mitigating G4-P Violations}
