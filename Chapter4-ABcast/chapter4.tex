@@ -335,27 +335,27 @@ In this section we detail the individual components required by the \textsf{ABca
         Let $m$ be \emph{rbcast} by $N_i$, as per its clock time $m.ts$.  Let:
         
         \begin{enumerate}[label=\roman*]
-            \item    $D_1 = \rho + \eta + x_{mx}$
+            \item    $D_1 = \rho \eta + x_{mx}$
             \item    $D = x_{mx}  + 2\eta + \omega + D_1$
             \item    $D_m  = D  + 2\epsilon$
         \end{enumerate}
         
-        Let $x$, as before, denote a delay (observed) and $x$ the (random) delay variable when $m$ is being \emph{rbcast}.  Finally, assume for now that $\epsilon = 0$.  
+        Let $x$, as before, denote a delay (observed) and $X$ the (random) delay variable when $m$ is being \emph{rbcast}.  Finally, assume for now that $\epsilon = 0$.  
         
         \subsubsection*{RB1 - RB-Validity with Probabilistic Timeliness}        
         
         Figure \ref{fig:rbcast_calc} shows two multicasts by a correct $N_i$, with $n = 3$.  
-        \begin{figure}[hb]
+        \begin{figure}[h]
                 \centering    
-                \centerline{\includegraphics[width=1.15\textwidth, trim=0.1cm .25cm .1cm .25cm, clip=true]{rbcast_calculations}}
-                \caption[Rbcast Calculations Diagram In a Crash Free Scenario]{Rbcast Calculations In a Crash Free Scenario}
+                \centerline{\includegraphics[width=1.15\textwidth, trim=0.1cm .25cm .1cm .25cm, clip=true]{rbcast_calc_norm}}
+                \caption[RB1 (RB-Validity) Calculations]{RB1 (RB-Validity) Calculations}
                 \label{fig:rbcast_calc}
         \end{figure}    
         
         \paragraph{A Single Correct Destination Receives $m$}\hfill \\   
         To start with, let us focus on $m.copy = 0$ and a given correct destination, say $N_j$.  The probability that $N_j$ receives $m.copy = 0$ by its clock time $m.ts + x_{mx}$ is $(1 - q)$ by assumption A4.  \emph{i.e.} $\mathcal{P}(N_j\text{ receives } m.copy = 0 \text{ by } m.ts + x_{mx}) = (1 - q)$.  
         
-        Assuming that $x$ is exponentially distributed with parameter $\lambda$, 
+        Assuming that $X$ is exponentially distributed with parameter $\lambda$, 
         
         \begin{equation}
             \begin{aligned}
@@ -392,17 +392,17 @@ In this section we detail the individual components required by the \textsf{ABca
         In general, with $\rho$, $\rho \geq 1$, redundant wait periods:
         \begin{equation}
             \begin{aligned}
-                \mathcal{P}(N_j\text{ receives } m.copy = 0 \text{ by } m.ts + (\rho + 1) x_{mx})  = 1 - q^{\rho+1}
+                \mathcal{P}(N_j\text{ receives } m.copy = 0 \text{ by } m.ts + (\rho + 1) x_{mx})  = 1 - q^{(\rho+1)}
             \end{aligned}
         \end{equation}
         
-        \newpage
+        %\newpage
         \paragraph{All Correct Destinations Receive $m$}\hfill \\
 %        The probability that $m.copy = 0$ is received by all $(n - 1)$ correct destinations is expressed below:
         \begin{equation}
             \begin{aligned}
-                \mathcal{P}(\text{all } (n-1) \text{ correct destinations receive } m.copy = 0 \\
-                 \text{ by } m.ts + (\rho + 1) x_{mx})  = \left[ 1 - q^{(\rho+1)} \right] ^ {n - 1} > R
+                \mathcal{P}(\text{all } (n-1) \text{ correct destinations receive } m.copy = 0 \text{ by } \\ 
+                m.ts + (\rho + 1) x_{mx})  = \left[ 1 - q^{(\rho+1)} \right] ^ {n - 1} > R
             \end{aligned}
         \end{equation}
         
@@ -423,11 +423,12 @@ In this section we detail the individual components required by the \textsf{ABca
         Moreover, $D > D_1$, so:
         \begin{equation}
         \begin{aligned}
-                \mathcal{P}(\text{all } (n-1) \text{ correct destinations receive } m.copy = 0 \\\text{ by } m.ts + D)  > \left[ 1 - q^{(\rho+1)} \right] ^ {n - 1} > R
+                \mathcal{P}(\text{all } (n-1) \text{ correct destinations receive } m.copy = 0 \text{ by } \\
+                 m.ts + D)  > \left[ 1 - q^{(\rho+1)} \right] ^ {n - 1} > R
             \end{aligned}
         \end{equation}
                 
-        Accounting for $\epsilon = 0$ and recalling $D_m = D + 2\epsilon$:
+        Accounting for $\epsilon > 0$ and recalling $D_m = D + 2\epsilon$:
         \begin{equation}
         \begin{aligned}
                 \mathcal{P}(\text{each correct destinations receives } m.copy = 0 \text{ by \underline{its} clock time } m.ts + D_m) > R
@@ -438,14 +439,40 @@ In this section we detail the individual components required by the \textsf{ABca
         
          \begin{equation}
         \begin{aligned}
-                \mathcal{P}(\text{RB-Validity is met within } D_m) > \\ \mathcal{P}(\text{Each correct } N_j \text{ receives } m.copy = 0 \\ \text{ by its clock time } m.ts+D_m) > R
+                \mathcal{P}(\text{RB-Validity is met within } D_m) > \\ \mathcal{P}(\text{Each correct } N_j \text{ receives } m.copy = 0 \text{ by its clock time } m.ts+D_m) \\ > R
             \end{aligned}
         \end{equation}
         
         
     \subsubsection*{RB2 - Agreement with Probabilistic Timeliness}
-    %First we consider the worse case scenario for $n = 3$; where the broadcasting node $N_i$ crashes after it has sent $m.copy = 0$.  
-    As before, we assume that progagation delays are exponentially distributed with parameter $\lambda$.  Also suppose, for now, that $\epsilon = 0$ and $N_j$ instantaneously transmits its $m.copy = 0$ without waiting for $(\eta + \omega)$ and a random wait \footnote{Both of these simplicity assumptions will shortly be removed.}.
+    Suppose now that $N_i$ crashes before completing the redundant transmissions of $m$ and $n>2$.  Suppose also that only one node, $N_j$, has $m$ with $m.copy=0$. This is the worst case to be considered because if $N_j$ $m.copy>0$, then $N_i$ crashed only after it completed broadcasting $m.copy \geq 0$, therefore some node other than $N_j$ also has $m$; the more destinations which receive some copy of $m$, the more likely it is that $rbcast(m)$ is completed.  On the other hand, if no destination receives any copy of $m$ from the crashed $N_i$, then the case for discussion does not exist.  
+    
+    If copy $m.copy = 0$ takes at most $x_{mx}$ to reach $N_j$ (which occurs with probability ($1-q$)), $N_j$ would start disseminating on behalf of $N_i$ at or before time:
+    
+    \begin{equation}
+             \begin{aligned}
+                m.ts+ x_{mx} + \eta + \omega +\zeta
+             \end{aligned}
+         \end{equation}    
+    
+    Recall that $\zeta$ is the random wait that all disseminating nodes must observe before disseminating $m$, with $\zeta$ uniformly distributed on ($0, \eta$).  Therefore, in our calculations we assume that the observed $\zeta$ is the largest value possible, $\eta$, hence $D = x_{mx} + 2\eta + \omega + D_1$.  Figure \ref{fig:rbcast_a_delay} shows the worst case scenario when $n=3$.  
+    
+    \begin{figure}[H]
+                \centering    
+                \centerline{\includegraphics[height=0.4\textheight, trim=0.1cm .25cm .1cm .25cm, clip=true]{rbcast_calc_agreement_delay}}
+                \caption[RB1 (RB-Validity) Calculations]{RB1 (RB-Validity) Calculations}
+                 \label{fig:rbcast_a_delay}
+        \end{figure} 
+    
+    \paragraph{Simplified Scenario} \hfill \\    
+    As before, we assume that propagation delays are exponentially distributed with parameter $\lambda$.  Also suppose, for now, that $\epsilon = 0$ and $N_j$ instantaneously transmits its $m.copy = 0$ without waiting for $(\eta + \omega)$ and a random wait \footnote{Both of these simplicity assumptions will be removed shortly.}  This scenario is shown in Figure \ref{fig:rbcast_a_no_delay}.  
+    
+        \begin{figure}[h]
+                \centering    
+                \centerline{\includegraphics[height=0.4\textheight, trim=0.1cm .25cm .1cm .25cm, clip=true]{rbcast_calc_agreement_no_delay}}
+                \caption[RB1 (RB-Validity) Calculations]{RB1 (RB-Validity) Calculations}
+                \label{fig:rbcast_a_no_delay}
+        \end{figure} 
         
     Of interest, is the probability, $P_{D2}$, that a given node, $N_k$ receives $m.copy = 0$ from $N_j$ by $m.ts + D_2$; where $D_2 = (\rho + 2) x_{mx}$.  Recall that $q  = e^{-\lambda x_{mx}}$ by the exponential assumption.  The time when $N_k$ receives $m.copy = 0$ is determined by the sum of two independent exponential delays:
     \begin{enumerate}[label=\roman*]
@@ -458,13 +485,13 @@ In this section we detail the individual components required by the \textsf{ABca
     \begin{equation}
         \label{eq:pd_2_original}
         \begin{split}
-                P_{D2} &= 1 - \sum\limits_{n=0}^{k-1}\left[ \left(\frac{1}{n-1}\right) e^{-\lambda D_2} \left( \lambda D_2 \right)^n  \right] \\
+                P_{D2} &= 1 - \sum\limits_{n=0}^{k-1}\left[ \left(\frac{1}{n!}\right) e^{-\lambda D_2} \left( \lambda D_2 \right)^n  \right] \\
                 &=    \left[ e^{-\lambda D_2} + e^{-\lambda D_2}\left( \lambda D_2 \right)     \right] \\
                 &=    \left[ e^{-\lambda D_2} \left( 1 + \lambda D_2 \right)    \right]
         \end{split}
     \end{equation}
         
-        Recall that $e^{-\lambda x_{mx}} = q$ (see equation \ref{eq:1_minus_q}). Hence:
+        Recall that $e^{-\lambda x_{mx}} = q$ (see equation \ref{eq:1_minus_q}),
         
         \begin{equation}
         \begin{split}
@@ -490,7 +517,7 @@ In this section we detail the individual components required by the \textsf{ABca
     
     \begin{equation}
         \begin{aligned}
-                q - (rho + 2) q \ln q \lesssim 1
+                q - (\rho + 2) q \ln q \lesssim 1
             \end{aligned}
         \end{equation}
     
@@ -506,19 +533,24 @@ In this section we detail the individual components required by the \textsf{ABca
         
     \begin{equation}
         \begin{aligned}
-                \left[P_{D2} \right] \gtrsim \left[ 1 - q^{(\rho+1)} \right] ^{n-2} > \left[ 1 - q ^{(\rho + 1)}\right]^{n-1} > R
+                \left[P_{D2} \right]^{n-2} \gtrsim \left[ 1 - q^{(\rho+1)} \right] ^{n-2} > \left[ 1 - q ^{(\rho + 1)}\right]^{n-1} > R
         \end{aligned}
     \end{equation}
     
-    When $\eta \greq x_{mx}$,
+    
+    \paragraph{$\bm{\eta \geq x_{mx}}$} \hfill \\
+    When $\eta \geq x_{mx}$,
     
     \begin{equation}
         \begin{aligned}
-                D - \left( 2 \eta + \omega \right) = \rho \eta + 2 x_{mx} \greq (\rho + 2) x_{mx}
+                D - \left( 2 \eta + \omega \right) = \rho \eta + 2 x_{mx} \geq (\rho + 2) x_{mx}
             \end{aligned}
         \end{equation}
         
-    Thus, the probability that every correct $N_k$ receives $m.copy = 0$ from $N_j$ by $m.ts + D - (2\eta + \omega)$ is larger than $\left[P_{D2}\right]^{(n - 2)} > R$.  Accounting for the fact that $N_j$ \emph{rbcasts} $m$ within at most $(2 \eta + \omega)$ time after receiving $m.copy = 0$ from $N_i$ and $\epsilon \neq 0$:
+    Thus, the probability that every correct $N_k$ receives $m.copy = 0$ from $N_j$, by ${m.ts + D - (2\eta + \omega)}$, is larger than ${\left[P_{D2}\right]^{(n - 2)} > R}$.  
+
+    \paragraph{Simplifications Removed} \hfill \\    
+    Accounting for the fact that $N_j$ \emph{rbcasts} $m$ within at most $(2 \eta + \omega)$ time after receiving $m.copy = 0$ from $N_i$ and $\epsilon \neq 0$:
     
     \begin{equation}
         \begin{aligned}
