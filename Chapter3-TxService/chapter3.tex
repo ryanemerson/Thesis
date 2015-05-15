@@ -231,16 +231,28 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
         \label{ps:m.history}
         \begin{algorithmic}[1]
             \FORALL{$d \in m.dst$}
-                \IF{$\tilde{m} \llcurly_d m$ exists}
-                    \STATE{$m.history[d] = \tilde{m}.order;$}
+                \IF{$\tilde{m} \llcurly_d m$}
+                    \STATE{$m.history[d] \leftarrow \tilde{m}.order;$}
                 \ELSE
-                    \STATE{$m.history[d] = null;$}
+                    \STATE{$m.history[d] \leftarrow null;$}
                 \ENDIF
             \ENDFOR
         \end{algorithmic}
     \end{algorithm}
          
-        The $\tilde{m}$ values used to populate $m.history[]$ are retrieved from $N_s$'s local ordering history, which is an associative array that utilises the same indexing scheme as $history[]$ and also stores past $order$ values.  We refer to this array as $order\_history[]$.  The purpose of $order\_history[]$ is to maintain a history of \emph{amcast} orderings for all known $c$-nodes; where a known $c$-node is any node that has been involved in a prior transaction's destination set.  Once $N_s$ has populated $m.history[]$ for $m$, it is necessary for $m.order$ to be added to $order\_history[]$ for all $d \in m.dst$, as $m.order$ is now the latest \emph{amcast} involving each $d$.  
+        The $\tilde{m}$ values used to populate $m.history[]$ are retrieved from $N_s$'s local ordering history, which is an associative array that utilises the same indexing scheme as $history[]$ and also stores past $order$ values.  We refer to this array as $order\_history[]$.  The purpose of $order\_history[]$ is to maintain a history of \emph{amcast} orderings for all known $c$-nodes; where a known $c$-node is any node that has been involved in a prior transaction's destination set.  Once $N_s$ has populated $m.history[]$ for $m$, it is necessary for $m.order$ to be added to $order\_history[]$ for all $d \in m.dst$, as $m.order$ is now the latest \emph{amcast} involving each $d$.  The Algorithm for populating $order\_history[]$ is presented in \ref{ps:order_history}.  
+		        
+    \begin{algorithm}[h]
+       \caption{Compute $order\_history[]$}
+        \label{ps:order_history}
+        \begin{algorithmic}[1]
+            \FORALL{$d \in m.dst$}
+                \IF{$order\_history[d] \prec_d m$ exists}
+                    \STATE{$order\_history[d] \leftarrow m.order$}
+                \ENDIF
+            \ENDFOR
+        \end{algorithmic}
+    \end{algorithm}           		        
 		        
         For example, consider two ordering requests that have been \emph{abcast} as $m_i$ and $m_j$, with destination sets equal to ${N_c1, N_c2}$ and ${N_c1, N_c3}$, respectively.  Assume, that $m_i$ has already been delivered by an $s$-node $N_s$, and $m_j$ is now being processed by $N_s$; hence $m_i \prec m_j$.  The calculated history for $m_j$, $m_j.history[]$, is shown below in Figure \ref{fig:message_history}.
         
