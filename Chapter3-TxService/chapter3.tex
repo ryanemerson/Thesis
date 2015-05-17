@@ -304,6 +304,8 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
         \vspace{-2em}
         Messages are delivered to the higher-level application via the primitive $am\_deliver()$, which extracts the payload ($prepare(Tx_i)$) of the \emph{amcast} message and sends it up the network stack.  A $c$-node considers the \emph{amcast}ing of $Tx_i$ to be complete when it has called $am\_deliver()$ for $mcast(Tx_i)$, hence the \emph{amcast} is complete when the payload of $mcast(Tx_i)$ has been delivered up the stack.  
         
+        \textbf{Note: } In order to preserve the total order dictated by the ordering service, a single thread must  process the AWQ and $am\_deliver()$ messages.  If multiple threads were utilised, the execution of two \emph{amcast} messages could overlap, resulting in the total order property of the messages being invalidated.  Utilising a single thread for message delivery is not unique to \textsf{SCast}, but is instead a limitation of all \emph{amcast} protocols and can be seen in the TOA protocol.    
+        
         Algorithm \ref{ps:awq} presents the pseudocode for processing the AWQ.  The variable $last\_amcast$ stores the $m.order$ of the last \emph{amcast} message that was dequeued from the AWQ; hence this is the last \emph{amcast} to be delivered by $d$.  
     \endleftbar
     
