@@ -306,25 +306,26 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
         
         \textbf{Note: } In order to preserve the total order dictated by the ordering service, a single thread must  process the AWQ and $am\_deliver()$ messages.  If multiple threads were utilised, the execution of two \emph{amcast} messages could overlap, resulting in the total order property of the messages being invalidated.  Utilising a single thread for message delivery is not unique to \textsf{SCast}, but is instead a limitation of all \emph{amcast} protocols and can be seen in the TOA protocol.    
         
-        Algorithm \ref{ps:awq} presents the pseudocode for processing the AWQ.  The variable $last\_amcast$ stores the $m.order$ of the last \emph{amcast} message that was dequeued from the AWQ; hence this is the last \emph{amcast} to be delivered by $d$.  
+        Algorithm \ref{ps:awq} presents the pseudocode for processing the AWQ.  The variable $last\_amcast$ stores the $m.order$ of the last \emph{amcast} message that was dequeued from the AWQ; hence this is the last \emph{amcast} to be delivered by $d$.  Furthermore, the array $last\_delivered[s]$ stores the $m.order$ of the last \emph{amcast} message which was processed by the $s$-node $s$.  
     \endleftbar
     
     \end{enumerate}
     \begin{algorithm}[H]
        \caption{Amcast Wait Queue}
         \label{ps:awq}
-        \begin{algorithmic}[1]
-            \WHILE{$AWQ$ is non-empty}
+        \begin{algorithmic}[1]	        
+	        \WHILE{$AWQ$ is non-empty}
 	            \STATE{$h \leftarrow peek(AWQ);$}
 	            \STATE{$h.snid \leftarrow h.order.snid;$}
    	            \STATE{$\tilde{h}.order \leftarrow h.history[d].order;$}
 	            \STATE{$\tilde{h}.snid \leftarrow \tilde{h}.order.snid;$}
-	            %\IF{$\tilde{h}.order \preceq last\_delivered[\tilde{h}.snid] \land$}
-	            \IF{$last\_amcast \prec h.order$}
+	            \IF{$\tilde{h}.order \preceq_d last\_delivered[\tilde{h}.snid]$}
+	            \IF{$last\_amcast \prec_d h.order$}
 	                \STATE{$am\_deliver(h);$}
-%	                \STATE{$last\_delivered[h.snid] \leftarrow h.order;$}
+	                \STATE{$last\_delivered[h.snid] \leftarrow h.order;$}
 	                \STATE{$last\_amcast \leftarrow h.order;$}
 	                \STATE{$dequeue(AWQ);$}
+	            \ENDIF
 	            \ENDIF
 	        \ENDWHILE
         \end{algorithmic}
