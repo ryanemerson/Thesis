@@ -132,18 +132,18 @@ The new pseudocode for processing the AWQ is presented below and is an updated v
     
     Now consider that an \emph{amcast} $prepare(Tx)$ message, $m_i$ has violated G4-PSCast and a subsequent \emph{amcast} $m_j$ has been delivered to the TM before $m_i$.  In such a scenario, the TM remains unaware of $m_i$ until $am\_deliver\_with\_exception(m_i)$ has been called by the \textsf{PSCast} layer below and $m_i$ is received via an exception.  Therefore, until TM receives such an exception, the transaction associated with $m_j$ and any other $m$ delivered ahead of $m_i$ will be processed as if no G4-PSCast violation has occurred.  
     
-    When $m_i$ is delivered to TM via an exception the only course of action is for a roll-back procedure, similar to that utilised in compensating transactions \citep{Korth:1990:FAR:645916.671971}, to be initiated, with all operations that should have occurred after $m_i$'s transaction being reversed.  Once all of the offending operations have been reversed it is possible for $m_i$'s transaction to be executed and the previously rolled back transactions reapplied in the correct total order.  Hence, the data maintained by this $c$-node eventually becomes the same as if no G4-PSCast violations had occurred.  
+    When $m_i$ is delivered to the TM (via an exception) the only course of action is for a roll-back procedure, similar to that utilised in compensating transactions \citep{Korth:1990:FAR:645916.671971}, to be initiated, with all operations that should have occurred after $m_i$'s transaction being reversed.  Once all of the offending operations have been reversed it is possible for $m_i$'s transaction to be executed and the previously rolled back transactions reapplied in the correct total order.  Hence, the data maintained by this $c$-node eventually becomes the same as if no G4-PSCast violation had occurred.  
     
     For example, if the original value of a key $k$ was $v=5$, the transaction associated with $m_i$ was $put(k, 10)$ and $m_j$'s transaction was $put(k, v+1)$.  When $m_i$ is missing, the outcome of $m_j$'s transaction would be $v = 6$, however after $m_i$ is delivered via an exception and the transactions are reapplied, the result of $m_j$'s transaction will be $v = 11$.  
     
-    A consequence of this approach is that \textquoteleft{}stale' reads can occur as it is possible for an Infinispan application, or subsequent transaction, to read $v = 6$ when requesting the value of $k$, ultimately leading to \emph{write-skew}.  We consider this an acceptable risk for two reasons: 
+    A consequence of this approach is that \textquoteleft{}stale' reads can occur as it is possible for a subsequent transaction, to read $v = 6$ when requesting the value of $k$, ultimately leading to \emph{write-skew}.  We consider this an acceptable risk for three reasons: 
     \begin{enumerate}[label=\roman*]
-        \item    The window of opportunity for such an occurrence is very small \footnote{We anticipate that the time between an \emph{amcast} violation occurring and being detected to be in the order of milliseconds.  Furthermore, \emph{amcast} violations are only possible when \textsf{ABcast} rejects a message and a client node receives the message with inconsistent predecessor data first.  Therefore, the probability of a \emph{write-skew} occurring is the product of several small probabilities.}.
+        \item    G4-PSCast violations are already the product of several small probabilities, therefore the probability of \emph{write-skew} occurring is even smaller.  
+        
+        \item    The window of opportunity for a \emph{write-skew} to occur is very small.  We anticipate that the time between a G4-PSCast violation occurring and being detected to be in the order of milliseconds.   
         
         \item    The Infinispan store is already susceptible to \emph{write-skew}s when the WSC is not utilised, therefore the business logic of the application utilising Infinispan should already be tolerant of such phenomena.  
     \end{enumerate}
-    
-     Ultimately, this solution results in the state of all $d \in Tx.dst$ eventually becoming consistent if one or more \emph{amcast} violations occur at any $d$.      
     
     \subsection{Repeatable Read with WSC}
 
