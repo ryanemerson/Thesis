@@ -104,7 +104,7 @@ The purpose of $am\_deliver\_with\_exception()$ is to enable an the application 
 
 For example, let \emph{amcast}'s $m_1 \prec_d m_2$ for a $c$-node destination $d$.  Now assume that a G4-P violation occurred at an $s$-node when processing $m_1$, which results in $m_2.history[]$ missing $m_1$ for $m_2.history[d]$.  Let $d$ receive and deliver $m_2$, before eventually receiving $m_1$; hence $last\_amcast = m_2$.  Upon receiving $m_1$, $d$ will realise that $m_1 \prec last\_amcast$ and will therefore invoke $am\_deliver\_with\_exception(m_1)$.  Assuming that the application is still executing $m_2$ using the \emph{delivery} thread, it is possible for the application to receive $m_1$ via a \emph{worker} thread, enabling it to interrupt the execution of $m_2$ and initiate a recovery mechanism to counteract $m_1$'s G4-PSCast violation.  
 
-The pseudocode for receving a message and determining whether a $mcast()$ has suffered a G4-PSCast violation at a destination $d$ is presented in Algorithm \label{ps:detect_g4pscast}, whilst the pseudocode for processing the AWQ remains the same as in Algorithm \ref{ps:awq} presented in section \ref{sec:scast_protocol}.  
+The pseudocode for receving a message and determining whether a $mcast()$ has suffered a G4-PSCast violation at a destination $d$ is presented in Algorithm \ref{ps:detect_g4pscast}, whilst the pseudocode for processing the AWQ remains the same as in Algorithm \ref{ps:awq} presented in section \ref{sec:scast_protocol}.  
 
     \begin{algorithm}[H]
        \caption{PSCast Receive Message}
@@ -128,18 +128,42 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
     In the event that one or more G4-PSCast violations occur, it is necessary for the client application to be able to recover from such events.  In this subsection, we present a recovery mechanism that can be employed by the Infinispan transaction manager at each $c$-node in the event of a violation occurring.  The exact methods of the recovery mechanism are determined by the isolation level chosen by the Infinispan clients before runtime; with one method required for \emph{Repeatable Read}, $RR$ and \emph{Read Committed}, $RC$ transactions, whilst an alternative method is required for $RR$ with WSC due to its dependence on a voting phase to commit/abort transactions.  Therefore, we first explored the method required for $RR$ and $RC$ before detailing the provisions for $RR$ with WSC.  
     
     \subsection{Transaction Manager Assumptions}
+    Our solutions for recovering from G4-PSCast violations assume that the following data structures are implemented by the Transaction Manager (TM):
     
+    \begin{description}
+        \item[$\bm{tx\_entry}$] \hfill \\
+        For a transaction, $Tx$, the following data must be stored:
+            \begin{itemize}
+                \item    The value of all $(k,v)$ pairs in this $Tx$ at the time $Tx$ starts to be processed.
+                \item    The $m.order$ value associated with the \emph{amcast} which delivered $Tx$'s $prepare(Tx)$ message.  
+                \item    The final decision, whether to \emph{abort} or \emph{commit} the transaction.
+                
+                \item    A record of all $commit()$ or $abort()$ votes received for this transaction ($RR$ with $WSC$ \emph{only}).  
+            \end{itemize}
+            
+        Henceforth, all references to a transaction, or $Tx$, assumes that a $tx\_entry$ is maintained along with all of the above values.  
+            
+        \item[$\bm{tx\_queue}$] \hfill \\
+        The transaction queue, $tx\_queue$, is a priority queue which stores the TM's currently executing transaction, $Tx$, as its head entry; a $Tx$ is dequeued when it has finished executing and pushed onto $tx\_history$.  Subsequent entries in the queue are additional transactions, $Tx'$ that proceed $Tx$ in the total order.  \textbf{Note:} When no G4-PSCast violations have occurred, the $tx\_queue$ should only contain $Tx$.  
+        
+        \item[$\bm{tx\_history}$] \hfill \\
+        The transaction history, $tx\_history$, is a stack which stores the transactions which have already been committed by the TM, with the $Tx$ stored at the top of the stack representing the last transaction to have been committed or aborted by the TM.  
+    \end{description}
     
+    \subsubsection*{Delivery Thread with TM}
+    As the \emph{delivery} thread utilised by \textsf{PSCast} is responsible for delivering all $mcast()$ messages that do not suffer a G4-PSCast violation, we assume that this thread is also responsible for processing the $tx\_queue$ upon message delivery.  Therefore, transaction processing occurs as follows: At the \textsf{PSCast} level when $am\_deliver()$ is invoked, the \emph{delivery} thread passes the $prepare(Tx)$ message upto the TM, adds the $Tx$ to $tx\_queue$ and starts processing $tx\_queue$; hence $Tx$.  Once all messages in the $tx\_queue$ have been processed, the \emph{delivery} thread returns to the \textsf{PSCast} level and starts processing the next message in \textsf{SCast}'s AWQ.
+       
     \subsection{Repeatable Read and Read Committed}
-    When $RR$ or $RC$ isolation is utilised the outcome of a transaction is determined in a single phase as each $d \in Tx.dst$ deterministically decides whether to commit or abort a transaction without requiring any additional communication between destinations.  Consequently, when a Transaction Manager (TM) receives a $prepare(Tx)$ message via \textsf{PSCast}, assuming that G4-PSCast holds, the TM is able to commit the transaction immediately.  
+    When $RR$ or $RC$ isolation is utilised the outcome of a transaction is determined in a single phase as each $d \in Tx.dst$ deterministically decides whether to commit or abort a transaction without requiring any additional communication between destinations.  Consequently, when a TM receives a $prepare(Tx)$ message via \textsf{PSCast}, assuming that G4-PSCast holds, the TM is able to commit the transaction immediately.  
     
     Now consider that an \emph{amcast} $prepare(Tx)$ message, $m_i$ has violated G4-PSCast and a subsequent \emph{amcast} $m_j$ has been delivered to the TM before $m_i$.  In such a scenario, the TM remains unaware of $m_i$ until $am\_deliver\_with\_exception(m_i)$ has been called by the \textsf{PSCast} layer below and $m_i$ is received via an exception.  Therefore, until TM receives such an exception, the transaction associated with $m_j$ and any other $m$ delivered ahead of $m_i$ will be processed as if no G4-PSCast violation has occurred.  
     
     When $m_i$ is delivered to the TM (via an exception) the only course of action is for a roll-back procedure, similar to that utilised in compensating transactions \citep{Korth:1990:FAR:645916.671971}, to be initiated, with all operations that should have occurred after $m_i$'s transaction being reversed.  Once all of the offending operations have been reversed it is possible for $m_i$'s transaction to be executed and the previously rolled back transactions reapplied in the correct total order.  Hence, the data maintained by this $c$-node eventually becomes the same as if no G4-PSCast violation had occurred.  
     
     For example, if the original value of a key $k$ was $v=5$, the transaction associated with $m_i$ was $put(k, 10)$ and $m_j$'s transaction was $put(k, v+1)$.  When $m_i$ is missing, the outcome of $m_j$'s transaction would be $v = 6$, however after $m_i$ is delivered via an exception and the transactions are reapplied, the result of $m_j$'s transaction will be $v = 11$.  
-    
-    A consequence of this approach is that \textquoteleft{}stale' reads can occur as it is possible for a subsequent transaction, to read $v = 6$ when requesting the value of $k$, ultimately leading to \emph{write-skew}.  We consider this an acceptable risk for three reasons: 
+
+    \subsubsection*{Limitations}
+    A consequence of utilising a rollback mechanism, with $RR$ or $RC$ isolation, is that \textquoteleft{}stale' reads can occur as it is possible for a subsequent transaction, to read $v = 6$ when requesting the value of $k$, ultimately leading to \emph{write-skew}.  We consider this an acceptable risk for three reasons: 
     \begin{enumerate}[label=\roman*]
         \item    G4-PSCast violations are already the product of several small probabilities, therefore the probability of \emph{write-skew} occurring is even smaller.  
         
@@ -147,6 +171,21 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
         
         \item    The Infinispan store is already susceptible to \emph{write-skew}s when the WSC is not utilised, therefore the business logic of the application utilising Infinispan should already be tolerant of such phenomena.  
     \end{enumerate}
+    
+    \subsubsection*{TM Rollback Implementation}
+    Assume the same scenario as described in the previous section, with $m_j$ being incorrectly delivered to the TM ahead of $m_i$; where $m_j$ and $m_i$ are associated with transactions $Tx_j$ and $Tx_i$ respectively.  When a destination eventually receives $m_i$, it invokes $am\_deliver\_with\_exception(m_i)$ and delivers $m_i$ to the TM using the \emph{worker} thread which delivered $m_i$ to the \textsf{PSCast} layer.  Upon receiving $m_i$, and hence $Tx_i$, the TM takes the following actions:
+    
+    \begin{enumerate}
+        \item    $Tx_i$ is stored by the TM and the \emph{worker} thread interrupts the \emph{delivery} thread to stop the TM processing its current transaction, $\tilde{Tx}$.  
+        
+        \item    The \emph{delivery} thread takes over and starts processing $Tx_i$.
+        
+         \item    $Tx_i$ is inserted into $tx\_queue$ at the appropriate index based upon its designated total order \footnote{Assuming only one G4-PSCast violation occurs, $Tx_i$ will always be inserted at the head of the queue.}.
+        
+        \item    Past transactions are \emph{popped} from the $tx\_history$ and inserted into the $tx\_queue$ (in order) until no transactions exist in $tx\_history$ which precede $Tx_i$ in the total order.
+        
+        \item    The \emph{delivery} thread processes the transactions in $tx\_queue$ until no transactions remain (or another interrupt occurs).  Once the $tx\_queue$ becomes empty, the rollback procedure is considered complete and the \emph{delivery} thread is able to return to the \textsf{PSCast} level to start processing the next message in the AWQ.  
+    \end{enumerate}        
     
     \subsection{Repeatable Read with WSC}
     
