@@ -137,7 +137,7 @@ Finally, if the Newtop protocol is utilised in a single destination environment,
 			\item[Slave] \hfill
 				\begin{enumerate}
 		  			\item Upon receiving a proposal, compare its sequence $p.s$ with the highest sequence that this node has currently agreed to, $p.s'$.  If $p.s > p.s'$ then reply with an $accept(m, p.s)$, otherwise send a $reject(m, p.s)$ message with $p.s'$ to the proposer node.  
-		  			\item When a $commit(m, p.s)$ message is received, if this node agreed to $p.s$ then $m$ has to be delivered, otherwise $m$ must be rejected as this node did not participate in the quorum.  
+		  			\item When a $commit(m, p.s)$ message is received, if this node agreed to $p.s$ then $m$ has to be delivered.  
 				\end{enumerate}		
 		\end{description}
 		
