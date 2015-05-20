@@ -134,11 +134,17 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
         \item[$\bm{tx\_entry}$] \hfill \\
         For a transaction, $Tx$, the following data must be stored:
             \begin{itemize}
-                \item    The value of all $(k,v)$ pairs in this $Tx$ at the time $Tx$ starts to be processed.
-                \item    The $m.order$ value associated with the \emph{amcast} which delivered $Tx$'s $prepare(Tx)$ message.  
-                \item    The final decision, whether to \emph{abort} or \emph{commit} the transaction.
+                \item    The duration of the transaction from its inception. $(\bm{Tx.duration})$.            
+            
+                \item    A boolean flag, which is set to true if $Tx$ was delivered to the TM via an exception.  $(\bm{Tx.exceptional})$.
+            
+                \item    The value of all $(k,v)$ pairs in this $Tx$ at the time $Tx$ starts to be processed. $(\bm{Tx.start\_pairs})$.
                 
-                \item    A record of all $commit()$ or $abort()$ votes received for this transaction ($RR$ with $WSC$ \emph{only}).  
+                \item    The $m.order$ value associated with the \emph{amcast} which delivered $Tx$'s $prepare(Tx)$ message.  $(\bm{Tx.order})$.
+                
+                \item    The final decision, whether to \emph{abort} or \emph{commit} the transaction. $(\bm{Tx.decision})$.
+                
+                \item    A an associative array of all $commit()$ or $abort()$ votes received for this transaction, with the source destination of a vote being used for indexing ($RR$ with $WSC$ \emph{only}).  $(Tx.votes[])$.
             \end{itemize}
             
         Henceforth, all references to a transaction, or $Tx$, assumes that a $tx\_entry$ is maintained along with all of the above values.  
@@ -150,17 +156,20 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
         The transaction history, $tx\_history$, is a stack which stores the transactions which have already been committed by the TM, with the $Tx$ stored at the top of the stack representing the last transaction to have been committed or aborted by the TM.  
     \end{description}
     
-    \subsubsection*{Delivery Thread with TM}
+    \subsubsection*{Delivery Thread and TM}
     As the \emph{delivery} thread utilised by \textsf{PSCast} is responsible for delivering all $mcast()$ messages that do not suffer a G4-PSCast violation, we assume that this thread is also responsible for processing the $tx\_queue$ upon message delivery.  Therefore, transaction processing occurs as follows: At the \textsf{PSCast} level when $am\_deliver()$ is invoked, the \emph{delivery} thread passes the $prepare(Tx)$ message upto the TM, adds the $Tx$ to $tx\_queue$ and starts processing $tx\_queue$; hence $Tx$.  Once all messages in the $tx\_queue$ have been processed, the \emph{delivery} thread returns to the \textsf{PSCast} level and starts processing the next message in \textsf{SCast}'s AWQ.
+    
+    \subsubsection*{Worker Threads and TM}
+    We assume that all unicast messages sent between TMs are delivered up their destination's network stack and to their local TM via a \emph{worker} thread.  This enables the TM to receive unicast messages from other TMs, \emph{e.g. votes when WSC is enabled}, whilst enabling the \emph{delivery} thread to be utilised solely for \emph{amcast}s that require processing by the TM.  
        
-    \subsection{Repeatable Read and Read Committed}
+    \subsection{Repeatable Read and Read Committed} \label{ssec:rr_rc_recovery}
     When $RR$ or $RC$ isolation is utilised the outcome of a transaction is determined in a single phase as each $d \in Tx.dst$ deterministically decides whether to commit or abort a transaction without requiring any additional communication between destinations.  Consequently, when a TM receives a $prepare(Tx)$ message via \textsf{PSCast}, assuming that G4-PSCast holds, the TM is able to commit the transaction immediately.  
     
     Now consider that an \emph{amcast} $prepare(Tx)$ message, $m_i$ has violated G4-PSCast and a subsequent \emph{amcast} $m_j$ has been delivered to the TM before $m_i$.  In such a scenario, the TM remains unaware of $m_i$ until $am\_deliver\_with\_exception(m_i)$ has been called by the \textsf{PSCast} layer below and $m_i$ is received via an exception.  Therefore, until TM receives such an exception, the transaction associated with $m_j$ and any other $m$ delivered ahead of $m_i$ will be processed as if no G4-PSCast violation has occurred.  
     
-    When $m_i$ is delivered to the TM (via an exception) the only course of action is for a roll-back procedure, similar to that utilised in compensating transactions \citep{Korth:1990:FAR:645916.671971}, to be initiated, with all operations that should have occurred after $m_i$'s transaction being reversed.  Once all of the offending operations have been reversed it is possible for $m_i$'s transaction to be executed and the previously rolled back transactions reapplied in the correct total order.  Hence, the data maintained by this $c$-node eventually becomes the same as if no G4-PSCast violation had occurred.  
+    When $m_i$ is delivered to the TM via an exception, the only course of action is for a roll-back procedure, similar to that utilised in compensating transactions \citep{Korth:1990:FAR:645916.671971}, to be initiated; with all transactions that should have been executed after $m_i$'s transaction being reversed.  Once all of the offending transactions have been reversed it is possible for $m_i$'s transaction to be executed and the previously rolled back transactions reapplied in the correct total order.  Hence, the data maintained by this $c$-node eventually becomes the same as if no G4-PSCast violation had occurred.  
     
-    For example, if the original value of a key $k$ was $v=5$, the transaction associated with $m_i$ was $put(k, 10)$ and $m_j$'s transaction was $put(k, v+1)$.  When $m_i$ is missing, the outcome of $m_j$'s transaction would be $v = 6$, however after $m_i$ is delivered via an exception and the transactions are reapplied, the result of $m_j$'s transaction will be $v = 11$.  
+    For example, if the original value of a key $k$ was $v=5$, the transaction associated with $m_i$ was $put(k, 10)$ and $m_j$'s transaction was $put(k, v+1)$.  When $m_i$ is missing, the outcome of $m_j$'s transaction would be $v = 6$, however after $m_i$ is delivered via an exception and the transactions are re-executed, the result of $m_j$'s transaction will be $v = 11$.  
 
     \subsubsection*{Limitations}
     A consequence of utilising a rollback mechanism, with $RR$ or $RC$ isolation, is that \textquoteleft{}stale' reads can occur as it is possible for a subsequent transaction, to read $v = 6$ when requesting the value of $k$, ultimately leading to \emph{write-skew}.  We consider this an acceptable risk for three reasons: 
@@ -176,32 +185,130 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
     Assume the same scenario as described in the previous section, with $m_j$ being incorrectly delivered to the TM ahead of $m_i$; where $m_j$ and $m_i$ are associated with transactions $Tx_j$ and $Tx_i$ respectively.  When a destination eventually receives $m_i$, it invokes $am\_deliver\_with\_exception(m_i)$ and delivers $m_i$ to the TM using the \emph{worker} thread which delivered $m_i$ to the \textsf{PSCast} layer.  Upon receiving $m_i$, and hence $Tx_i$, the TM takes the following actions:
     
     \begin{enumerate}
-        \item    $Tx_i$ is stored by the TM and the \emph{worker} thread interrupts the \emph{delivery} thread to stop the TM processing its current transaction, $\tilde{Tx}$.  
+        \item    $Tx_i$ is stored within the TM as a $tx\_entry$ and inserted into the $tx\_queue$.  An interrupt is sent to the \emph{delivery} thread so that it is aware that at least one $Tx$ exists in the queue.  
         
-        \item    The \emph{delivery} thread takes over and starts processing $Tx_i$.
+        \item    The \emph{delivery} thread finishes executing its current transaction before processing the next $Tx$ in the $tx\_queue$; which will most likely be $Tx_i$ \footnote{Assuming only one G4-PSCast violation occurs, $Tx_i$ will always be inserted at the head of the queue.}.
         
-         \item    $Tx_i$ is inserted into $tx\_queue$ at the appropriate index based upon its designated total order \footnote{Assuming only one G4-PSCast violation occurs, $Tx_i$ will always be inserted at the head of the queue.}.
+        \item    During the execution of $Tx_i$, past transactions stored in $tx\_history$ are \emph{popped} from $tx\_history$ and inserted into the $tx\_queue$ (in order), until no transactions exist in $tx\_history$ which precede $Tx_i$ in the total order.
         
-        \item    Past transactions are \emph{popped} from the $tx\_history$ and inserted into the $tx\_queue$ (in order) until no transactions exist in $tx\_history$ which precede $Tx_i$ in the total order.
+        \item    Once all of the required transactions have been (re-)inserted into $tx\_queue$, the TM will execute $Tx_i$ and then push $Tx_i$ onto $tx\_history$.  This process continues until the $tx\_queue$ becomes empty, at which point all transactions that are known by the TM will have been executed in the order dictated by \textsf{PSCast}.  
         
-        \item    The \emph{delivery} thread processes the transactions in $tx\_queue$ until no transactions remain (or another interrupt occurs).  Once the $tx\_queue$ becomes empty, the rollback procedure is considered complete and the \emph{delivery} thread is able to return to the \textsf{PSCast} level to start processing the next message in the AWQ.  
+        \item    Once the $tx\_queue$ becomes empty, the rollback procedure is considered complete and the \emph{delivery} thread is able to return to the \textsf{PSCast} level to start processing the next \emph{amcast} message in the AWQ.  
     \end{enumerate}        
     
-    \subsection{Repeatable Read with WSC}
+    Algorithm \ref{ps:tx_queue_rr_rc} outlines the steps required by the TM to process the $tx\_queue$ when Repeatable Read or Read Committed isolation is utilised by transactions.  In this algorithm, we assume that the transaction associated with the interrupting exception has already been added to $tx\_queue$.  
     
+    \begin{algorithm}
+        \caption{TM $tx\_queue$ Processing for RR and RC Isolation}
+        \label{ps:tx_queue_rr_rc}
+        \begin{algorithmic}[1]
+            \WHILE{$tx\_queue$ is not empty}
+                \STATE{$tx \leftarrow dequeue(tx\_queue);$}
+                \STATE{$previous\_tx \leftarrow pop(tx\_history);$}
+                
+                \WHILE{$tx \prec previous\_tx$}
+                    \STATE{$insert\_into\_tx\_queue(previous\_tx);$}
+                    \STATE{$previous\_tx \leftarrow pop(tx\_history);$}
+                    \STATE{$revert\_commit(previous\_tx);$}
+                \ENDWHILE
+                             
+                \IF{$previous\_tx \prec tx$ $\land$ $previous\_tx$ is not $null$}
+                    \STATE{$push\_to\_tx\_history(previous\_tx);$}
+                \ENDIF
+                
+                \STATE{$tx.decision \leftarrow process(tx);$}   
+                \IF{$tx.decision \neq abort(tx)$}
+                    \STATE{$push\_to\_tx\_history(tx);$}
+                \ENDIF
+                
+                \STATE{$execute(tx)$;}
+            \ENDWHILE
+        \end{algorithmic}%
+    \end{algorithm}
+    
+    \subsection{Repeatable Read with WSC}
         % Present Solution with pseudocode
         
         % Provide examples and figures of the interesting cases and discuss how are solution works
+        
+        When utilising transactions with $RR$ and WSC it is not possible to just utilise the rollback procedure outlined in section \ref{ssec:rr_rc_recovery}, as the outcome of each transaction affects the second voting phase that is required to avoid \emph{write-skews}.  However, the additional voting stage required by the WSC can be used to our advantage to prevent G4-PSCast violations from affecting the consistency of Infinispan's key/values.  
+        
+        Recall that the WSC requires that a transaction coordinator, $Tx.c$, receives at least one commit vote for each of the distinct keys involved in a $Tx$ in order for it to be able to send a $commit(Tx)$ decision to all $Tx.dst$.  Whereas, $Tx.c$ only requires a single abort vote from any of $Tx.dst$ members in order to disseminate an $abort(Tx)$ decision.  Furthermore, for every key stored in the infinispan system there exists a single \emph{primary} replica and at least one \emph{backup} replica.  The solutions presented in this section require a slight modification to this existing WSC behaviour.  Our solutions require that: 
+
+\begin{quotation}    
+    For all transactions, votes to commit or abort a transaction can only be sent by the transaction manager of the client node which contains the \emph{primary} replica of a key.  
+\end{quotation}
+
+    \begin{algorithm}
+        \caption{Transaction Manager RR with WSC $tx\_queue$ Processing}
+        \label{ps:tx_queue_rr_wsc}
+        \begin{algorithmic}[1]
+            \WHILE{$tx\_queue$ is not empty}
+                \STATE{$tx \leftarrow peek(tx\_queue);$}
+                \STATE{$tx.decision \leftarrow process(tx);$}
+                
+                \IF{$tx.decision \neq abort(tx)$}
+                    \IF{Not a primary for any $(k,v)$ in $tx$}
+                        %Rollback
+                        \STATE{$previous\_tx \leftarrow pop(tx\_history);$}
+		                 \WHILE{$tx \prec previous\_tx$}
+		                     \STATE{$insert\_into\_tx\_queue(previous\_tx);$}
+		                     \STATE{$previous\_tx \leftarrow pop(tx\_history);$}
+		                     \STATE{$revert\_commit(previous\_tx);$}
+		                 \ENDWHILE
+		                 
+		                 \IF{$previous\_tx \prec tx$ $\land$ $previous\_tx$ is not $null$}
+                            \STATE{$push\_to\_tx\_history(previous\_tx);$}
+                        \ENDIF
+                    \ENDIF
+                    \STATE{$push\_to\_tx\_history(tx);$}
+                \ENDIF
+                \STATE{$dequeue(tx\_queue);$}
+                \STATE{$execute(tx)$;}
+            \ENDWHILE
+        \end{algorithmic}%
+    \end{algorithm}
+
+    \begin{algorithm}
+        \caption{TM $process(tx)$ with WSC}
+        \label{ps:transaction_manager_process_tx}
+        \begin{algorithmic}
+            \IF{TM hosts $primary$ replica of any $(k,v)$ in $tx$}
+                \IF{$tx.exceptional$ is true}
+	                \STATE{$v \leftarrow abort(tx);$}
+                \ELSE
+	                \STATE{$v \leftarrow write\_skew\_check();$}
+	            \ENDIF
+	            \STATE{$send\_vote(v);$}
+            \ENDIF
+            \\
+            \IF{TM is $tx$ Coordinator}
+	            \STATE{$votes\_rec \leftarrow size(tx.votes[]);$}
+	            \WHILE{$votes\_rec < \#primaries$ in $tx.dst$}
+	                \IF{$tx.duration$ $>$ $timeout$}
+	                    \STATE{$decision \leftarrow abort(tx);$}
+	                    \STATE{\textbf{break};}
+	                \ELSE
+	                    \STATE{$v \leftarrow receive\_vote();$}
+		                \STATE{$tx.votes[source\_address(v)] \leftarrow v;$}
+		                \IF{$v$ = $abort(tx)$}
+		                    \STATE{$decision \leftarrow abort(tx);$}
+		                \ENDIF
+	                \ENDIF
+	            \ENDWHILE
+	            \IF{$descision$ is not set}
+	                \STATE{$decision \leftarrow commit(tx);$}
+	            \ENDIF
+	            \STATE{send $decision$ to all $d \in tx.dst;$}
+	        \ENDIF
+	        \\
+	        \STATE{$tx.decision \leftarrow receive\_final\_decision();$}
+	        \RETURN{$tx.decision$}
+        \end{algorithmic}
+    \end{algorithm}
 
 \section{Summary}
-    
-%    \subsubsection*{Repeatable Read with WSC}
-%    When utilising transactions with $RR$ and WSC it is not possible to utilise the previous solution, as the outcome of each transaction affects the second voting phase that is required to avoid \emph{write-skews}.  However, the additional voting stage required by the WSC can be used to our advantage to prevent \emph{amcast} violations from affecting the consistency of Infinispan's key/values.  Recall that the WSC requires that a transaction coordinator, $Tx.c$, receives at least one commit vote for each of the distinct keys involved in a $Tx$ in order for it to be able to send a $commit(Tx)$ decision to all $Tx.dst$.  Whereas, $Tx.c$ only requires a single abort vote from any of $Tx.dst$ members in order to disseminate an $abort(Tx)$ decision.  Furthermore, for every key stored in the infinispan system there exists a single \emph{primary} replica and at least one \emph{backup} replica.  The solutions presented in this section require a slight modification to this existing WSC behaviour.  Our solutions require that: 
-%
-%\begin{quotation}    
-%    For all transactions, votes to commit or abort a transaction can only be sent by the transaction manager of the client node which contains the \emph{primary} replica of a key.  
-%\end{quotation}
-%
+ 
 %     In the previous section, our solution was applicable to all transactions executing with $RR$ or $RC$ isolation, however the behaviour of our WSC solution is determined by the number $d \in Tx.dst$ that suffer from \emph{amcast} violations, the order in which messages are delivered to the transaction manager and the operations involved in the conflicting transactions.  Consider the following scenario: two nodes, $C_1$ and $C_2$ are participating in transactions $Tx_i$ and $Tx_j$ which are associated with \emph{amcast}s $m_i$ and $m_j$ respectively, with the destination set of both transactions being equal to $Tx.dst = \{C_1, C_2, C_3\}$ with $C_3$ being the transaction coordinator for both transactions.  Client $C_1$ hosts the \emph{primary} replica for all keys \footnote{Unless stated otherwise.} and each transaction consists of the following operations:
 %    
 %    \begin{lstlisting}
