@@ -22,7 +22,7 @@ destinations of $m_i$ must deliver $m_i$.
         \item [\textbf{G4-PSCast}] - \emph{Probabilistic Total Order}: If two \emph{\emph{amcast}s}, $m_i$ and $m_j$, have common destinations, then all such destinations that deliver both $m_i$ and $m_j$, will deliver them in an identical order with a probability $> R$.  Typically $R \rightarrow 1$.
 \end{description}
 
-\textbf{Note: } The guarantees of \textsf{PSCast} are identical to those of the underlying \emph{abcast} protocol, \textsf{ABcast}.  This is because the guarantees of the \emph{abcast} protocol, and any violations of these guarantees, directly impacts how each $s$-node maintains its $order\_history[]$ and generates $m.history[]$; with $m.history[]$ dictating the order in which a $c$-node must deliver \emph{amcast}s ($\S$ \ref{sec:scast_protocol}).  
+\textbf{Note:} The guarantees of \textsf{PSCast} are identical to those of the underlying \emph{abcast} protocol, \textsf{ABcast}.  This is because the guarantees of the \emph{abcast} protocol, and any violations of these guarantees, directly impacts how each $s$-node maintains its $order\_history[]$ and generates $m.history[]$; with $m.history[]$ dictating the order in which a $c$-node must deliver \emph{amcast}s ($\S$ \ref{sec:scast_protocol}).  
 
 \section{G4-PSCast Violations}
 Recall that the \textsf{SCast} protocol utilises the final timestamp of the \emph{abcast} message, which contains a clients ordering request, to determine the total order of \emph{amcast} associated with the request.  
@@ -88,7 +88,7 @@ Let $m$ be an \emph{abcast} sent between $s$-nodes and $m'$ be a subsequent \emp
     
     Scenario $(ii)$, is handled the same as $(i)$, except that we know that the entries for $order\_history[d]$ will be correct for all $d$ as $m$ has been delivered to $N_s$ before $m'$.  
 
-    \textbf{Note: } If none of the above actions were taken, the $order\_history[]$ would eventually correct itself, \emph{i.e.} preventing invalid $.history[]$ being generated, as eventually a new message, $\bar{m}$, would be received for each $c$-node in the network; where $\tilde{c}$ represents all $c$-nodes and $order\_history[\tilde{c}] \prec \bar{m}$; hence $order\_history[\tilde{c}]$ is set to $\bar{m}$.  The only scenario where a $c$-node, say $c$'s, entry in $order\_history[c]$ would not eventually be corrected is when no subsequent ordering requests are received which specify $c$ as a destination.  However, in such a scenario the $order\_history[c]$ entry would never be used again, hence this invalid entry cannot cause any G4-PSCast violations.  
+    \textbf{Note:} If none of the above actions were taken, the $order\_history[]$ would eventually correct itself, \emph{i.e.} preventing invalid $.history[]$ being generated, as eventually a new message, $\bar{m}$, would be received for each $c$-node in the network; where $\tilde{c}$ represents all $c$-nodes and $order\_history[\tilde{c}] \prec \bar{m}$; hence $order\_history[\tilde{c}]$ is set to $\bar{m}$.  The only scenario where a $c$-node, say $c$'s, entry in $order\_history[c]$ would not eventually be corrected is when no subsequent ordering requests are received which specify $c$ as a destination.  However, in such a scenario the $order\_history[c]$ entry would never be used again, hence this invalid entry cannot cause any G4-PSCast violations.  
     
     \paragraph{Crash-Tolerance} \hfill \\
     In scenario $(i)$ described above, it is not possible for $m$ to create a correct $m.history[]$ as $m'$ will be present in $order\_history[d] \forall d \in m.dst \cap m'.dst$.  However, an accurate $m.history[]$ needs to be generated in order to store a local copy of $m$, at $N_s$, as it may be required in the event of a crashed node ($\S$ \ref{ssec:scast_fault_tolerance} $C3$ and $S1-S4$).  A possible solution to this problem, is to utilise a partially-persistent version of $order\_history[]$, $\bar{order}\_\bar{history}[]$, that allows past values associated with a given $c$-node to be queried \footnote{This could be implemented by maintaining a partially-persistent linked list for each client, with each subsequent message associated with a client simply appended to the end of the list.}.  This would enable $N_s$ to query $\bar{order}\_\bar{history}[d] \forall d \in m.dst$ and find the message that precedes $m$ in the total order so that it can create an accurate $m.history[]$.
@@ -144,7 +144,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
                 
                 \item    The final decision, whether to \emph{abort} or \emph{commit} the transaction. $(\bm{Tx.decision})$.
                 
-                \item    A an associative array of all $commit()$ or $abort()$ votes received for this transaction, with the source destination of a vote being used for indexing ($RR$ with $WSC$ \emph{only}).  $(Tx.votes[])$.
+                \item    A an associative array of all $commit()$ or $abort()$ votes received for this transaction, with the source destination of a vote being used for indexing ($RR$ with $WSC$ \emph{only}).  $(Tx.votes[])$. \textbf{Note:} votes received for transactions that have not yet been processed by a TM are stored in a temporary buffer until the associated transaction becomes active; at which point the votes are \emph{received} and added to $Tx.votes[]$.  
             \end{itemize}
             
         Henceforth, all references to a transaction, or $Tx$, assumes that a $tx\_entry$ is maintained along with all of the above values.  
@@ -170,18 +170,8 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
     When $m_i$ is delivered to the TM via an exception, the only course of action is for a roll-back procedure, similar to that utilised in compensating transactions \citep{Korth:1990:FAR:645916.671971}, to be initiated; with all transactions that should have been executed after $m_i$'s transaction being reversed.  Once all of the offending transactions have been reversed it is possible for $m_i$'s transaction to be executed and the previously rolled back transactions reapplied in the correct total order.  Hence, the data maintained by this $c$-node eventually becomes the same as if no G4-PSCast violation had occurred.  
     
     For example, if the original value of a key $k$ was $v=5$, the transaction associated with $m_i$ was $put(k, 10)$ and $m_j$'s transaction was $put(k, v+1)$.  When $m_i$ is missing, the outcome of $m_j$'s transaction would be $v = 6$, however after $m_i$ is delivered via an exception and the transactions are re-executed, the result of $m_j$'s transaction will be $v = 11$.  
-
-    \subsubsection*{Limitations}
-    A consequence of utilising a rollback mechanism, with $RR$ or $RC$ isolation, is that \textquoteleft{}stale' reads can occur as it is possible for a subsequent transaction, to read $v = 6$ when requesting the value of $k$, ultimately leading to \emph{write-skew}.  We consider this an acceptable risk for three reasons: 
-    \begin{enumerate}[label=\roman*]
-        \item    G4-PSCast violations are already the product of several small probabilities, therefore the probability of \emph{write-skew} occurring is even smaller.  
-        
-        \item    The window of opportunity for a \emph{write-skew} to occur is very small.  We anticipate that the time between a G4-PSCast violation occurring and being detected to be in the order of milliseconds.   
-        
-        \item    The Infinispan store is already susceptible to \emph{write-skew}s when the WSC is not utilised, therefore the business logic of the application utilising Infinispan should already be tolerant of such phenomena.  
-    \end{enumerate}
     
-    \subsubsection*{TM Rollback Implementation}
+    \subsubsection*{TM roll-back Implementation}
     Assume the same scenario as described in the previous section, with $m_j$ being incorrectly delivered to the TM ahead of $m_i$; where $m_j$ and $m_i$ are associated with transactions $Tx_j$ and $Tx_i$ respectively.  When a destination eventually receives $m_i$, it invokes $am\_deliver\_with\_exception(m_i)$ and delivers $m_i$ to the TM using the \emph{worker} thread which delivered $m_i$ to the \textsf{PSCast} layer.  Upon receiving $m_i$, and hence $Tx_i$, the TM takes the following actions:
     
     \begin{enumerate}
@@ -193,12 +183,12 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
         
         \item    Once all of the required transactions have been (re-)inserted into $tx\_queue$, the TM will execute $Tx_i$ and then push $Tx_i$ onto $tx\_history$.  This process continues until the $tx\_queue$ becomes empty, at which point all transactions that are known by the TM will have been executed in the order dictated by \textsf{PSCast}.  
         
-        \item    Once the $tx\_queue$ becomes empty, the rollback procedure is considered complete and the \emph{delivery} thread is able to return to the \textsf{PSCast} level to start processing the next \emph{amcast} message in the AWQ.  
+        \item    Once the $tx\_queue$ becomes empty, the roll-back procedure is considered complete and the \emph{delivery} thread is able to return to the \textsf{PSCast} level to start processing the next \emph{amcast} message in the AWQ.  
     \end{enumerate}        
     
     Algorithm \ref{ps:tx_queue_rr_rc} outlines the steps required by the TM to process the $tx\_queue$ when Repeatable Read or Read Committed isolation is utilised by transactions.  In this algorithm, we assume that the transaction associated with the interrupting exception has already been added to $tx\_queue$.  
     
-    \begin{algorithm}
+    \begin{algorithm}[H]
         \caption{TM $tx\_queue$ Processing for RR and RC Isolation}
         \label{ps:tx_queue_rr_rc}
         \begin{algorithmic}[1]
@@ -226,19 +216,81 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
         \end{algorithmic}%
     \end{algorithm}
     
+    \subsubsection*{Limitations}
+    A consequence of utilising a roll-back mechanism, with $RR$ or $RC$ isolation, is that \textquoteleft{}stale' reads can occur as it is possible for a subsequent transaction, to read $v = 6$ when requesting the value of $k$, ultimately leading to \emph{write-skew}.  We consider this an acceptable risk for three reasons: 
+    \begin{enumerate}[label=\roman*]
+        \item    G4-PSCast violations are already the product of several small probabilities, therefore the probability of \emph{write-skew} occurring is even smaller.  
+        
+        \item    The window of opportunity for a \emph{write-skew} to occur is very small.  We anticipate that the time between a G4-PSCast violation occurring and being detected to be in the order of milliseconds.   
+        
+        \item    The Infinispan store is already susceptible to \emph{write-skew}s when the WSC is not utilised, therefore the business logic of the application utilising Infinispan should already be tolerant of such phenomena.  
+    \end{enumerate}    
+    
     \subsection{Repeatable Read with WSC}
         % Present Solution with pseudocode
-        
         % Provide examples and figures of the interesting cases and discuss how are solution works
         
-        When utilising transactions with $RR$ and WSC it is not possible to just utilise the rollback procedure outlined in section \ref{ssec:rr_rc_recovery}, as the outcome of each transaction affects the second voting phase that is required to avoid \emph{write-skews}.  However, the additional voting stage required by the WSC can be used to our advantage to prevent G4-PSCast violations from affecting the consistency of Infinispan's key/values.  
+        When utilising transactions with $RR$ and WSC it is not possible to just utilise the roll-back procedure outlined in section \ref{ssec:rr_rc_recovery}, as the outcome of each transaction affects the second voting phase that is required to avoid \emph{write-skews}.  However, the additional voting stage required by the WSC can be used to our advantage to prevent G4-PSCast violations from affecting the consistency of Infinispan's key/values.  
         
-        Recall that the WSC requires that a transaction coordinator, $Tx.c$, receives at least one commit vote for each of the distinct keys involved in a $Tx$ in order for it to be able to send a $commit(Tx)$ decision to all $Tx.dst$.  Whereas, $Tx.c$ only requires a single abort vote from any of $Tx.dst$ members in order to disseminate an $abort(Tx)$ decision.  Furthermore, for every key stored in the infinispan system there exists a single \emph{primary} replica and at least one \emph{backup} replica.  The solutions presented in this section require a slight modification to this existing WSC behaviour.  Our solutions require that: 
+        Recall that the WSC requires that a transaction coordinator, $Tx.c$, receives at least one commit vote for each of the distinct keys involved in a $Tx$ in order for it to be able to send a final $commit(Tx)$ decision to all $Tx.dst$.  Whereas, $Tx.c$ only requires a single abort vote from any of the $Tx.dst$ members in order to disseminate an $abort(Tx)$ decision.  Furthermore, for every key stored in the infinispan system there exists a single \emph{primary} replica and at least one \emph{backup} replica.  The solutions presented in this section require a slight modification to this existing WSC behaviour.  Our solutions require that: 
 
 \begin{quotation}    
     For all transactions, votes to commit or abort a transaction can only be sent by the transaction manager of the client node which contains the \emph{primary} replica of a key.  
 \end{quotation}
 
+    Again consider that an \emph{amcast} $prepare(Tx)$ message, $m_i$ has violated G4-PSCast and a subsequent \emph{amcast} $m_j$ has been delivered to the TM before $m_i$.  As is the case for RR and RC isolation, the TM only becomes aware of $m_i$ once $am\_deliver\_with\_exception(m_i)$ has been called by the \textsf{PSCast} layer.  Upon receiving $m_i$, its associated transaction, $tx_i$ is inserted into $tx\_queue$.  In the event that the \emph{delivery} thread is currently processing another $Tx$, $tx_i$ is not processed until $Tx$ has finished executing.  
+    
+    \subsubsection*{TM Classification}    
+    How each $Tx$ stored in $tx\_queue$ is processed, depends entirely on the $(k,v)$ pairs involved in an individual $Tx$ and the relationship of the TM with each of these pairs.  Below we define three classifications of TM with respect to an individual $Tx$:
+    
+    \begin{description}
+        \item[\emph{Primary} TM] \hfill \\
+            We classify a TM as being a \emph{primary} for a given $Tx$, if this node hosts a \emph{primary} replica of one or more $(k,v)$ pairs that are modified by this transaction.  Read requests do not count, as these actions have already been performed before the $prepare(Tx)$ message was \emph{amcast}.  
+            
+        \item[\emph{Backup} TM] \hfill \\
+        A TM is classified as a \emph{backup}, if it only hosts \emph{backup} replicas of the $(k, v)$ pairs involved in a $Tx$.  A TM cannot be a \emph{backup} if it hosts a \emph{primary} replica of any of the $(k,v)$ in the $Tx$.  
+        
+        \item[\emph{Coordinator} TM] \hfill \\
+        A TM is classifed as the \emph{coordinator}, if the node hosting the TM was the original node who initiated $Tx$, \emph{i.e.} $Tx.c$, or if this node is the currently active coordinator for the $Tx$, \emph{i.e.} $Tx.\tilde{c}$.  
+    \end{description}
+    
+    \textbf{Note:} It is possible for a TM to be both a \emph{coordinator} and a \emph{primary} or a \emph{coordinator} and \emph{backup}, simultaneously.  However, by definition it is not possible for a TM to be both a \emph{primary} and a \emph{backup}.
+    
+    \subsubsection*{Processing a Transaction}
+    Once a $Tx$ becomes the head of $tx\_queue$, and hence the active transaction, it is passed to the function $process(Tx)$ which determines whether $Tx$ should be committed or aborted.  The actions taken by the TM when executing $process(Tx)$ depends on its classification, therefore we present the actions of each classification below:
+    
+    \begin{description}
+        \item[\emph{Primary} TM] \hfill \\
+        A \emph{primary} TM takes the following actions for a $Tx$:
+            \begin{enumerate}
+                \item[1a.]    If $Tx$ was delivered via exception, \emph{i.e.} $tx.exceptional$ is true, then send an abort $vote(Tx)$ to $Tx.c$
+                
+                \item[1b.]    Otherwise, the outcome of the write skew check determines the vote to be sent to $Tx.c$, either $commit(tx)$ or $abort(tx)$.  
+                
+                \item[2.]    Wait to receive the final decision from the $Tx.c$.  
+            \end{enumerate}
+            
+        \item[\emph{Backup} TM] \hfill \\
+         As \emph{backup} TM does not vote towards the progress of a transaction, it simply waits to receive a final decision for $Tx$ from the $Tx.c$.  
+        
+        \item[\emph{Coordinator} TM] \hfill \\
+        If a \emph{coordinator} is also a \emph{primary} then it is necessary for the \emph{coordinator} to first cast its vote as required by a \emph{primary} before initiating the role of a \emph{coordinator}.  A \emph{coordinator} must take the following actions:
+        
+        \begin{enumerate}
+            \item[1.]    Wait to receive a vote from all \emph{primary} TMs associated with $Tx$.  
+            
+            \item[2a.]    If a single $abort(Tx)$ vote is received, then stop waiting and send an final $abort(Tx)$ decision to all $d \in Tx.dst$.  
+            
+            \item[2b.]    Otherwise, if a $commit(Tx)$ is received from all \emph{primaries}, send a final $commit(Tx)$ decision to all $d \in Tx.dst$.  
+        \end{enumerate}
+        
+        \textbf{Note:} If a single $abort(Tx)$ vote, or all $commit()$ votes, are not received after a pre-determined timeout period then the \emph{coordinator} aborts $Tx$.  This abort timeout is necessary to overcome a deadlock scenario which, although unlikely, is possible with our solution.  This deadlock scenario is explored in detail later on (UPDATE!!!!!!!!).  
+    \end{description}              
+    
+    Once a $Tx$ has been processed and a final decision established, it is necessary for it to be removed from $tx\_queue$ and the decision enacted.  If the $Tx$ is to be committed, it must also be pushed to $tx\_history$.  At this point the execution of $Tx$ at the local TM is complete, and the next $Tx'$ in $tx\_queue$ can be processed.  
+    
+    Algorithms \ref{ps:tx_queue_rr_wsc} and \ref{ps:transaction_manager_process_tx} present the pseudocode for processing $tx\_queue$ and executing $process(tx)$, respectively, when WSC is enabled.  The purpose of lines 5-15 in Algorithm \ref{ps:transaction_manager_process_tx} is described in the next section.  
+    
     \begin{algorithm}
         \caption{Transaction Manager RR with WSC $tx\_queue$ Processing}
         \label{ps:tx_queue_rr_wsc}
@@ -249,7 +301,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
                 
                 \IF{$tx.decision \neq abort(tx)$}
                     \IF{Not a primary for any $(k,v)$ in $tx$}
-                        %Rollback
+                        %roll-back
                         \STATE{$previous\_tx \leftarrow pop(tx\_history);$}
 		                 \WHILE{$tx \prec previous\_tx$}
 		                     \STATE{$insert\_into\_tx\_queue(previous\_tx);$}
@@ -272,7 +324,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
     \begin{algorithm}
         \caption{TM $process(tx)$ with WSC}
         \label{ps:transaction_manager_process_tx}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
             \IF{TM hosts $primary$ replica of any $(k,v)$ in $tx$}
                 \IF{$tx.exceptional$ is true}
 	                \STATE{$v \leftarrow abort(tx);$}
@@ -306,61 +358,38 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
 	        \RETURN{$tx.decision$}
         \end{algorithmic}
     \end{algorithm}
+    
+        \subsubsection*{\emph{Backup} TM Roll-back Required}
+        Previously we stated that it was not possible to utilise the roll-back procedure utilised by RR and RC isolation when the WSC was enabled.  This is true when a TM is classified as a \emph{primary}, however in the case of a \emph{backup} TM it is possible, and sometimes required, for a roll-back mechanism to be utilised.  The roll-back mechanism detailed on lines 5-15 of Algorithm \ref{ps:tx_queue_rr_wsc} functions in much the same way as when RR or RC isolation is utilised and is required in the following scenario:
+        
+        Let $m_i$ and $m_j$, contain the transactions $tx_i$ and $tx_j$ respectively, where $m_i \prec m_j$.  Assume that both $tx_i$ and $tx_j$ consist of a single write operation, $put(k1,x)$ \footnote{We assume that the value of $x$ is different for each $Tx$}, where nodes $N_c1$ and $N_c2$ host the \emph{primary} and \emph{backup} replica of $k1$.  Finally, assume that node $N_c3$ is the $Tx.c$ for $tx_i$ and $N_c4$ is the $Tx.c$ for $tx_j$. 
+        
+        Let $m_i$ and $m_j$ be successfully delivered at $N_c1$, resulting in the \emph{primary} TM ($N_c1$) processing $Tx_i$ and $Tx_j$ in the correct order.  Let, $N_c3$ and $N_c4$ receive $m_i$ and $m_j$ respectively, without any G4-PSCast violations. Now consider that $m_i$ suffers a G4-PSCast violation at its backup node, $N_c2$, and $m_j$ is delivered ahead of it in the total order.  This results in $N_c2$'s active transaction being $tx_j$.  
+        
+        Consequently, $tx_i$ is the active transaction for its coordinator and all of its \emph{primary} TMs, therefore it is guaranteed that a final decision for $tx_i$ will be reached and eventually sent to $N_c2$'s TM.  As $N_c2$'s active $Tx$ is $tx_j$, $N_c2$ will not process $tx_i$'s final decision until $tx_j$ has finished executing.  Therefore, $N_c2$'s TM will executed $tx_j$ before $tx_i$, whereas $k$'s \emph{primary} TM $N_c1$ will have executed $tx_i$ before $tx_j$.  Thus, the \emph{backup} replica of $k$ has become inconsistent from the \emph{primary} replica.  \textbf{Note:} An inconsistency only occurs at the \emph{backup} TM if the final decision for both $tx_i$ and $tx_j$ is commit.  
+        
+        Figure (INSERT REF) shows the message flow required by all parties in order for the above scenario to occur.  
+        
+        When an inconsistency occurs between a \emph{backup} and \emph{primary} replica as described above, it is possible to perform a roll-back operation at the \emph{backup} node as the \emph{backup} node does not influence the coordinator's decision to commit/abort a transaction.  Hence, performing a roll-back operation on a \emph{backup} node is the same as when RR or RC isolation is utilised.  
+        
+        
+        \subsubsection*{Deadlock Scenario}
+    Let $N_c1$ and $N_c2$ be the \emph{primary} replica for $k1$ and $k2$, respectively.  Assume that \emph{amcast}s $m_i$ and $m_j$ correspond to transactions $tx_i$ and $tx_j$, with both transactions having $N_c3$ as their coordinator and the following operations included in their payload: 
+    
+    \begin{lstlisting}
+	    Tx.begin();
+		    put(k1, x);
+		    put(k2, y);
+		Tx.commit();
+    \end{lstlisting}
+    
+    Assume that $m_i$ and $m_j$ are both successfully delivered at $N_c1$ and $N_c3$, resulting in both of their TM's setting $tx_i$ as their active transaction.  Now assume that $m_j$ is delivered ahead of $m_i$ at $N_c2$ due to a G4-PSCast violation;  resulting in $N_c2$'s TM having $tx_j$ as its active transaction.  
+    
+    Such a scenario results in a deadlock occurring between the two transactions, as the \emph{coordinator}, who is executing $tx_i$ will be waiting indefinitely for a vote from $N_c2$.  This vote will never arrive from $N_c2$ as its current transaction is $tx_j$, hence only a vote for $tx_j$ will be sent to $tx_j.c$.  Figure (INSERT REF) shows the message flow required for deadlock to occur.  
+    
+    To prevent such a deadlock from halting progress indefinitely we introduce an abort timeout as per the Two-phase commit protocol ($\S$ \ref{ssec:2PC}).  Therefore, in the case described above, $tx_i$ will eventually abort as no progress can be made until $tx_i$ timesout at $N_c3$.
+    
+    \textbf{Note:} Although we have reintroduced deadlock into the total order commit protocol, such occurrences are very rare.  The probability of a transaction being aborted is equal to the probability of a G4-PSCast violation occurring at a \emph{primary} TM when a $Tx$ involves multiple keys whose \emph{primary} replicas exists across several nodes.  
 
 \section{Summary}
- 
-%     In the previous section, our solution was applicable to all transactions executing with $RR$ or $RC$ isolation, however the behaviour of our WSC solution is determined by the number $d \in Tx.dst$ that suffer from \emph{amcast} violations, the order in which messages are delivered to the transaction manager and the operations involved in the conflicting transactions.  Consider the following scenario: two nodes, $C_1$ and $C_2$ are participating in transactions $Tx_i$ and $Tx_j$ which are associated with \emph{amcast}s $m_i$ and $m_j$ respectively, with the destination set of both transactions being equal to $Tx.dst = \{C_1, C_2, C_3\}$ with $C_3$ being the transaction coordinator for both transactions.  Client $C_1$ hosts the \emph{primary} replica for all keys \footnote{Unless stated otherwise.} and each transaction consists of the following operations:
-%    
-%    \begin{lstlisting}
-%		    	Tx.begin();
-%		    	    put(k1, x);
-%		    	    put(k2, y);
-%		    	Tx.commit();
-%    \end{lstlisting}
-%    
-%     In the above scenario \emph{amcast} violations can occur in three different ways:
-%    
-%    \begin{enumerate}
-%        \item All nodes involved in a transaction suffer an \emph{amcast} violation, with $m_j$ being delivered before $m_i$ at all nodes.      
-%        
-%        \item At least one node storing a backup replica of a key suffers an \emph{amcast} violation, but the \emph{primary} replica does not.  
-%        
-%        \item The node containing the \emph{primary} replica for a key suffers an \emph{amcast} violation.  
-%        
-%        \item A node containing a \emph{primary} replica of a key, suffers an \emph{amcast} violation, however another \emph{primary} replica involved in a transaction does not.
-%    \end{enumerate}
-%    
-%    The recovery mechanism for all three of these scenarios are detailed below.
-%    
-%    \begin{description}
-%         \item[Scenario 1 - $m_i$ is missed by all nodes] \hfill \\
-%         For example when both $C_1$ and $C_2$'s deliver $m_j$ ahead of $m_i$.  In this case the active transaction in both nodes' transaction manager is $Tx_j$.  The workflow for such a scenario is as follows: The \emph{primary} replica of $k1$ and $k2$, unicasts a $vote(Tx_j)$ to the transaction coordinator, $Tx_j.c$, for both keys.  Upon receiving a $vote(Tx_j)$ from $C_1$, $Tx_j.c$ deduces that it has received a $vote(Tx_j)$ from the \emph{primary} replica of each key in the transaction and sends a $commit(Tx_j)$ or $abort(Tx_j)$ decision to all $Tx_j.dst$.   When a transaction manager receives a decision from $Tx_j.c$, the decision is executed locally on $Tx_j$ and a subsequent transaction is processed.  
-%         
-%         During, or after, the processing of $Tx_j$, $m_i$ will be received by the lower level \textsf{SCast} protocol and an exception thrown upto the transaction manager.  In which case, the processing of the current transaction will be suspended and the exception will be handled by the transaction manager.  When an exception is caught, the transaction manager determines whether this node hosts a \emph{primary} replica of any of the keys contained within the transaction.  If a node does not host a \emph{primary} replica, then it must wait to receive an $abort(Tx_i)$ from $Tx_i.c$ before aborting $Tx_i$ and resuming the current transaction.  However if a node contains a \emph{primary} replica, then it sends an $abort(Tx_i)$ vote to $Tx_i.c$ and aborts the transaction locally, before resuming the current transaction $Tx_j$.  A final decision will be sent by $Tx_i.c$ to all $Tx_i.dst$, however this node can ignore this message as $Tx_i$ has already been aborted locally. 
-%         
-%
-%         \item[Scenario 2 - $m_i$ is missed by a backup replica $C_2$] \hfill \\
-%         For example when $C_1$ delivers $m_i$ in the correct total order, but $C_2$ delivers $m_j$, resulting in the currently active transactions for $C_1$ and $C_2$ being $Tx_i$ and $Tx_j$ respectively.  The workflow for such a scenario is as follows: $C_1$ is the \emph{primary} replica for all keys in $Tx_i$, therefore it will send a $vote(Tx_i)$ to the transaction coordinator.  $Tx_i.c$ receives this vote, realises that a vote has been received from all primaries and issues a $commit(Tx_i)$ or $abort(Tx_j)$ message to all $Tx_i.dst$.  Upon executing the local commit or abort of $Tx_i$, $C_1$ starts processing $Tx_j$.  
-%         
-%         As $C_2$'s active transaction is $Tx_j$, $C_2$ only becomes aware of the missed transaction $Tx_i$ when it receives a decision from $Tx_i.c$ or when it catches the exception thrown by \textsf{SCast} for $m_i$ \footnote{It is guaranteed that a node participating in $Tx.dst$ will eventually receive an exception from \textsf{SCast} and a final decision from $Tx_i.c$ for $Tx_i$, if $Tx_i.c$ does not crash. In the event that $Tx_i.c$ does crash, $Tx_i$ will eventually abort due to the use of transaction timeouts detailed in scenario 4}.  In the event that the \textsf{SCast} exception is caught first, the active transaction $Tx_j$ is suspended and $Tx_i$ becomes the active transaction until a decision for $Tx_i$ is received from $Tx_i.c$.  Upon receiving a decision from $Tx_i.c$, $C_2$'s transaction manager commits or aborts $Tx_i$ depending on $Tx_i.c$'s instructions.  
-%         
-%         Conversely, if the decision for $Tx_i$ is received before the \emph{SCast} exception, then one of two outcomes are possible.  If the decision is to abort $Tx_i$, then $C_2$ aborts $Tx_i$ locally and continues to execute $Tx_j$; ignoring $Tx_i$'s exception when it is caught as $Tx_i$ has already been aborted.  However, if the decision is to commit $Tx_i$, it is necessary to temporarily suspend $Tx_j$ and set $Tx_i$ as the active transaction.  The transaction manager then waits until the \textsf{SCast} exception is caught, before committing $Tx_i$.  This wait is necessary, as $C_2$'s transaction manager does not receive the actual transaction $Tx_i$ until this exception is caught, as the decision sent by $Tx_i.c$ only contains the $id$ of a transaction and the decision to commit or abort.  
-%         
-%        Finally, it is possible for $Tx_i$'s decision or exception to be received after $Tx_j$ has already been delivered if $Tx_i$ and $Tx_j$ have distinct transaction coordinators.  In the event of such an occurrence, it is necessary for $C_2$ to execute the rollback mechanism \footnote{As detailed in our $RR$ and $RC$ solutions.} in order to restore the state of the backup replicas $k_1$ and $k_2$.  For example, if $Tx_j$ has already been committed when $C_2$ receives $Tx_i$'s exception, then it is possible for $Tx_j$ to be rolled back so that the values of $k_1$ and $k_2$ are returned to their pre $Tx_j$ values, at which point $Tx_i$ and $Tx_j$ are executed sequentially so that the state of both keys is the same as at the \emph{primary} replica.  Note, utilising such a mechanism on a node hosting backup replicas does not change the outcome of the WSC on any transaction, as all decisions to commit or abort a transaction are made by the \emph{primary} replica.  
-%        
-%        
-%		\item[Scenario 3 - $m_i$ is missed by the \emph{primary} replica $C_1$] \hfill \\
-%        For example when $C_1$ suffers and \emph{amcast} violation and delivers $m_j$ before $m_i$, but $C_2$ delivers $m_i$ in the correct total order, resulting in $C_1$ and $C_2$'s active transactions being $Tx_j$ and $Tx_i$ respectively.  The workflow for such a scenario is as follows: $C_1$ is the primary for all keys in both $Tx_i$ and $Tx_j$, therefore when $Tx_j$ is $C_1$'s active transaction, $C_1$ sends a $vote(Tx_j)$ to $Tx_j.c$.  $Tx_j.c$ receives $C_1$'s vote, realises that it has received a vote from all \emph{primary} replicas and sends a decision to all $Tx_j.dst$.  Upon receiving the decision for $Tx_j$, $C_1$ starts executing subsequent transactions.  
-%        
-%        As $C_2$'s active transaction is $Tx_i$ and $C_2$ is a backup replica, $C_2$ will wait to receive a decision from $Tx_i.c$ before processing subsequent transactions.  No progress can be made by $C_2$'s transaction manager until $C_1$ discovers that it has missed $Tx_i$ in the total order.  When $C_1$ catches an exception from \textsf{SCast} containing $Tx_i$, it realises that it has missed $Tx_i$ in the total order because $Tx_i$'s timestamp is less than the previously processed transaction $Tx_j$.  Therefore, $C_1$ aborts $Tx_i$ locally and sends an abort vote to $Tx_i.c$.  Upon receiving this abort vote, $Tx_i.c$ sends an abort decision to all $Tx_i.dst$.  At which point $C_2$ will abort $Tx_i$ and start executing $Tx_j$.  
-%         
-%		\item[Scenario 4 - Deadlock between two \emph{primary} replicas when $m_i$ is missed by $C_2$] \hfill \\
-%		Unlike in the previous scenarios, this scenario requires that the two keys, $k_1$ and $k_2$ involved in our transactions $Tx_i$ and $Tx_j$ have distinct \emph{primary} replicas; with $C_1$ and $C_2$ being the \emph{primary} for $k_1$ and $k_2$ respectively.  Now consider that $C_1$ and $C_3$'s active transaction is $Tx_i$ as no \emph{amcast} violations have occurred at these nodes, whereas $C_2$'s is $Tx_j$ as $m_i$ was missed by the \textsf{SCast} protocol at this node.  The workflow for such a scenario is as follows: $C_1$ is the primary for $k_1$, therefore it sends a $vote(Tx_i)$ to $Tx_i.c$.  Likewise, $C_2$ is the primary for $k_2$, therefore it sends a $vote(Tx_j)$ to $Tx_j.c$.  Recall that the transaction coordinator for both $Tx_i$ and $Tx_j$ is $C_3$, hence the votes sent by both transactions are sent to $C_3$.  As $C_3$'s active transaction is $Tx_i$, $C_3$ will receive $vote(Tx_i)$ from $C_1$, however it will then wait indefinitely for a $vote(Tx_i)$ from $C_2$, as $C_2$'s active transaction is $Tx_j$.  Hence, a deadlock has occurred between the two \emph{primary} replicas of $k_1$ and $k_2$.  
-%		
-%		In order to resolve such a deadlock, we propose that all transactions should utilise an abort timeout as per the Two-phase commit protocol ($\S$ \ref{ssec:2PC}).  Therefore, in the case described above, $Tx_i$ will eventually abort as no progress can be made until $Tx_i$ times out at $C_3$.  Furthermore, it is also probable that $Tx_j$ will be aborted as the duration of both transactions will be similar due to both transactions being ordered via \textsf{SCast}'s service.  
-%		
-%		It is worth noting that, although we have reintroduced deadlock into the total order commit protocol, such occurrences are very rare.  The probability of a transaction being aborted is equal to the product of several small probabilities, with deadlock only occurring if the \textsf{ABcast} protocol rejects a message and an \emph{amcast} violation occurs which happens to result in scenario 4.  
-%    \end{description}
-%
-%    \subsection{Summary}
-%        In this section we have presented several strategies that can be utilised by \textsf{SCast} nodes, both service and clients, to reduce the chances of \emph{amcast} violations occurring.  We have also presented a solution that allows Infinispan transaction managers to tolerate such violations regardless of the isolation level utilised, but at the expense of aborting transactions.  Our proposed solution for reducing \emph{amcast} violations can add an additional delay to the delivery of \textsf{SCast} \emph{amcast}s, when the \textsf{ABcast} protocol delivers messages via \textsf{Aramis}.  Therefore, such a solution should only be adopted when the potential increase in latency is more desirable then an increase in the total number of aborted transactions.      
+In this chapter we have explored the consequences of utilising the \textsf{ABcast} protocol for state machine replication between $s$-nodes in the \textsf{AmaaS} model; which we refer to as \textsf{PSCast}.  We explore the consequences of \textsf{ABcast}'s probabilistic guarantees not being met between $s$-nodes, specifically G4-PSCast violations at client nodes, and potential strategies for overcoming such violations.  More specifically, we have provided an in-depth exploration of potential strategies that could be adopted by Infinispan's transaction manager's to ensure that the consistency of its key/value pairs is maintained.  
