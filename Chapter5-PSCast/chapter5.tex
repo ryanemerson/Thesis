@@ -368,7 +368,15 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
         
         Consequently, $tx_i$ is the active transaction for its coordinator and all of its \emph{primary} TMs, therefore it is guaranteed that a final decision for $tx_i$ will be reached and eventually sent to $N_c2$'s TM.  As $N_c2$'s active $Tx$ is $tx_j$, $N_c2$ will not process $tx_i$'s final decision until $tx_j$ has finished executing.  Therefore, $N_c2$'s TM will executed $tx_j$ before $tx_i$, whereas $k$'s \emph{primary} TM $N_c1$ will have executed $tx_i$ before $tx_j$.  Thus, the \emph{backup} replica of $k$ has become inconsistent from the \emph{primary} replica.  \textbf{Note:} An inconsistency only occurs at the \emph{backup} TM if the final decision for both $tx_i$ and $tx_j$ is commit.  
         
-        Figure (INSERT REF) shows the message flow required by all parties in order for the above scenario to occur.  
+        Figure \ref{fig:wsc_backup_rollback} shows the message flow required by all parties in order for the above scenario to occur.  
+        
+    \begin{figure}[h] 
+        \centering
+         \makebox[\textwidth][c]{\includegraphics[width=1.25\textwidth]{backup_rollback}}
+         \caption[\textsf{PSCast}: Roll-back Scenario with WSC]{\textsf{PSCast}: Roll-back Scenario with WSC}
+         \label{fig:wsc_backup_rollback}
+    \end{figure}    
+        
         
         When an inconsistency occurs between a \emph{backup} and \emph{primary} replica as described above, it is possible to perform a roll-back operation at the \emph{backup} node as the \emph{backup} node does not influence the coordinator's decision to commit/abort a transaction.  Hence, performing a roll-back operation on a \emph{backup} node is the same as when RR or RC isolation is utilised.  
         
@@ -385,7 +393,14 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
     
     Assume that $m_i$ and $m_j$ are both successfully delivered at $N_c1$ and $N_c3$, resulting in both of their TM's setting $tx_i$ as their active transaction.  Now assume that $m_j$ is delivered ahead of $m_i$ at $N_c2$ due to a G4-PSCast violation;  resulting in $N_c2$'s TM having $tx_j$ as its active transaction.  
     
-    Such a scenario results in a deadlock occurring between the two transactions, as the \emph{coordinator}, who is executing $tx_i$ will be waiting indefinitely for a vote from $N_c2$.  This vote will never arrive from $N_c2$ as its current transaction is $tx_j$, hence only a vote for $tx_j$ will be sent to $tx_j.c$.  Figure (INSERT REF) shows the message flow required for deadlock to occur.  
+    Such a scenario results in a deadlock occurring between the two transactions, as the \emph{coordinator}, who is executing $tx_i$ will be waiting indefinitely for a vote from $N_c2$.  This vote will never arrive from $N_c2$ as its current transaction is $tx_j$, hence only a vote for $tx_j$ will be sent to $tx_j.c$.  Figure \ref{fig:wsc_deadlock} shows the message flow required for deadlock to occur.  
+    
+    \begin{figure}[h] 
+        \centering
+         \makebox[\textwidth][c]{\includegraphics[width=\textwidth]{deadlock_wsc}}
+         \caption[\textsf{PSCast}: Deadlock Scenario with WSC]{\textsf{PSCast}: Deadlock Scenario with WSC}
+         \label{fig:wsc_deadlock}
+    \end{figure}       
     
     To prevent such a deadlock from halting progress indefinitely we introduce an abort timeout as per the Two-phase commit protocol ($\S$ \ref{ssec:2PC}).  Therefore, in the case described above, $tx_i$ will eventually abort as no progress can be made until $tx_i$ timesout at $N_c3$.
     
