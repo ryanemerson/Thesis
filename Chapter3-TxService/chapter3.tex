@@ -128,7 +128,7 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
     \begin{enumerate}
         \leftbar
         \litem{C1 - Delegate Backup Coordinator} 
-        For the purpose of fault-tolerance, the first stage of the protocol is for $Tx_i.c$ to create a backup coordinator; where $Tx_i.c$ denotes the original coordinator for transaction $Tx_i$.  $Tx_i.c$ selects any destination, $d$, $d \in Tx_i.dst$, and sends it the payload of the message that is to be multicast to $Tx_i.dst$ ($prepare(Tx_i)$).  $Tx_i.c$ then waits for an acknowledgement of receipt from $d$ before proceeding to stage 2 of the protocol.  If an acknowledgement is not received within a configurable amount of time, then $Tx_i.c$ simply selects another destination $d'$ from $Tx_i.dst$ and restarts the process.  
+        For the purpose of crash-tolerance, the first stage of the protocol is for $Tx_i.c$ to create a backup coordinator; where $Tx_i.c$ denotes the original coordinator for transaction $Tx_i$.  $Tx_i.c$ selects any destination, $d$, $d \in Tx_i.dst$, and sends it the payload of the message that is to be multicast to $Tx_i.dst$ ($prepare(Tx_i)$).  $Tx_i.c$ then waits for an acknowledgement of receipt from $d$ before proceeding to stage 2 of the protocol.  If an acknowledgement is not received within a configurable amount of time, then $Tx_i.c$ simply selects another destination $d'$ from $Tx_i.dst$ and restarts the process.  
         
         The purpose of creating a backup transaction coordinator is to allow for the possibility that $Tx_i.c$ may crash during the multicast process.  In the event of $Tx_i.c$ crashing, the group membership service for $c$-nodes detects the crash and the backup coordinator assumes responsibility for multicasting $prepare(Tx_i)$ to all $d \in Tx_i.dst - \{Tx_i.c\}$.  In order to accommodate such occurrences, we denote the currently active transaction coordinator as $Tx_i.\tilde{c}$ and the original coordinator as $Tx_i.c$; $Tx_i.\tilde{c} = Tx_i.c$ if $Tx_i.c$ does not crash.  
         
@@ -284,11 +284,15 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
 %    \end{algorithm}
 		
         \litemSn{S4 - Return Ordering}
-        At this stage the local $s$-node, $N_s$, has completed the ordering process for $m$, therefore it is necessary for $m$ to be sent to $Tx_i.\tilde{c}$ as a $rsp(Tx_i)$ message in order for the \emph{amcast} process to continue.  To ensure that only one $s$-node responds to $Tx_i.\tilde{c}$, the $rsp(Tx_i)$ message is only sent by the $s$-node whose $snid = m.snid$.  However, for fault-tolerance, each $s$-node maintains a short history of $rsp()$ messages as past message orderings may be requested by $c$-nodes in certain circumstances \footnote{As described in section \ref{ssec:scast_fault_tolerance}.}.          
+        At this stage the local $s$-node, $N_s$, has completed the ordering process for $m$, therefore it is necessary for $m$ to be sent to $Tx_i.\tilde{c}$ as a $rsp(Tx_i)$ message in order for the \emph{amcast} process to continue.  To ensure that only one $s$-node responds to $Tx_i.\tilde{c}$, the $rsp(Tx_i)$ message is only sent by the $s$-node whose $snid = m.snid$.  
+        
+        \textbf{Crash-Tolerance:} Each $s$-node maintains a short history of $rsp()$ messages as past message orderings may be requested by $c$-nodes in certain circumstances \footnote{As described in section \ref{ssec:scast_fault_tolerance}.}.          
         
         \leftbar
         \litem{C3 - Receive Ordering and Multicast Transaction}
-        When $Tx_i.\tilde{c}$ receives $rsp(Tx_i)$ from $N_s$, it appends the ordering information to the original $prepare(Tx_i)$ message and multicasts $prepare(Tx_i)$ as $mcast(Tx_i)$ to all $Tx_i.dst$ including itself. 
+        When $Tx_i.\tilde{c}$ receives $rsp(Tx_i)$ from $N_s$, it appends the ordering information to the original $prepare(Tx_i)$ message and multicasts $prepare(Tx_i)$ as $mcast(Tx_i)$ to all $Tx_i.dst$ including itself; where a multicast consists of $mcast(Tx_i)$ being unicast to all $d \in Tx_i.dst$. 
+        
+        \textbf{Crash-Tolerance:} For the purposes of crash-tolerance, $mcast(Tx_i)$ must be unicast last to $Tx_i$'s backup coordinator when multicasting $mcast(Tx_i)$ to all $d \in Tx_i.dst$.  This ensures that if the backup coordinator receives $mcast(Tx_i)$, then at least one copy of $mcast(Tx_i)$ will have been sent to all $d \in Tx_i.dst$.  
         \endleftbar
         
         \leftbar
@@ -304,10 +308,12 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
         \vspace{-2em}
         Messages are delivered to the higher-level application via the primitive $am\_deliver()$, which extracts the payload ($prepare(Tx_i)$) of the \emph{amcast} message and sends it up the network stack.  A $c$-node considers the \emph{amcast}ing of $Tx_i$ to be complete when it has called $am\_deliver()$ for $mcast(Tx_i)$, hence the \emph{amcast} is complete when the payload of $mcast(Tx_i)$ has been delivered up the stack.  
         
-        \textbf{Note: } In order to preserve the total order dictated by the ordering service, a single thread must $am\_deliver()$ messages to the application; we refer to this thread as the \emph{delivery} thread.  If multiple threads were utilised, the execution of two \emph{amcast} messages could overlap, resulting in the total order property of the messages being invalidated.  Utilising a single thread for message delivery is not unique to \textsf{SCast}, but is instead a limitation of all \emph{amcast} protocols and can be seen in the TOA protocol.    
+        \textbf{Note:} In order to preserve the total order dictated by the ordering service, a single thread must $am\_deliver()$ messages to the application; we refer to this thread as the \emph{delivery} thread.  If multiple threads were utilised, the execution of two \emph{amcast} messages could overlap, resulting in the total order property of the messages being invalidated.  Utilising a single thread for message delivery is not unique to \textsf{SCast}, but is instead a limitation of all \emph{amcast} protocols and can be seen in the TOA protocol.    
         
+        \textbf{Crash-Tolerance:} All $c$-nodes must store a copy of a delivered $mcast(Tx)$ message, if they were the designated backup coordinator for that $Tx$.  With each $c$-node maintaining a finite list of such $mcast(Tx)$ messages; we refer to this list as $backup\_history$.  
+        \endleftbar
+
         Algorithm \ref{ps:awq} presents the pseudocode for processing the AWQ.  The variable $last\_amcast$ stores the $m.order$ of the last \emph{amcast} message that was dequeued from the AWQ; hence this is the last \emph{amcast} to be delivered by $d$.  Furthermore, the array $last\_delivered[s]$ stores the $m.order$ of the last \emph{amcast} message which was processed by the $s$-node $s$.  
-    \endleftbar
     
     \end{enumerate}
     \begin{algorithm}[H]
@@ -325,6 +331,10 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
 	                \STATE{$last\_delivered[h.snid] \leftarrow h.order;$}
 	                \STATE{$last\_amcast \leftarrow h.order;$}
 	                \STATE{$dequeue(AWQ);$}
+	                
+	                \IF{$d$ is Backup  Coordinator for $h$}
+	                    \STATE{$backup\_history.add(h);$}
+	                \ENDIF
 	            \ENDIF
 	            \ENDIF
 	        \ENDWHILE
@@ -340,32 +350,46 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
 		
 		\item[\emph{During C1}]  \hfill \\
 		If $Tx_i.c$ crashes during the creation of a backup coordinator node, $Tx_i.bc$, then two scenarios are possible:
-		    \begin{itemize}
+		    \begin{enumerate}[label=\roman*]
 			    \item    $Tx_i.bc$ never receives the $prepare(Tx_i)$ message, in which case the transaction  can only be aborted as its contents have been lost.  
 			    \item    $Tx_i.bc$ successfully receives the $prepare(Tx_i)$ message and attempts to acknowledge $Tx_i.c$; who will never receive $Tx_i.bc$'s acknowledgment as it has crashed.  In which case, the GM service will detect that $Tx_i.c$ has crashed and issue a new view to the network.  Upon receiving this view, $Tx_i.bc$ deduces that $Tx_i.c$ has crashed and becomes the new active coordinator, $Tx_i.\tilde{c}$, for $Tx_i$ and restarts the multicast process at stage C1.  
-		    \end{itemize}     
+		    \end{enumerate}     
 		    
 		\item[\emph{During C2}]  \hfill \\
         If $Tx_i.c$ crashes before or during the sending of a request $r$ to the ordering service, then $Tx_i.bc$ simply restarts the multicast process at stage C1 when the GM service recognises that $Tx_i.c$ has crashed.  
         
-        It is possible that the $s$-node that $r$ was sent to, $N_s$, will still receive $r$, in which case $r$ will be processed as normal by the $s$-node.  When $bc$ sends a new ordering request to the service for $Tx_i$, $r'$, this request is also processed.  The ordering service accepts the request which is delivered first by the \emph{abcast} protocol and sends a response to the $Tx_i.\tilde{c}$ specified in the accepted request.  Assuming that both coordinators send $r$ and $r'$ to $N_s$: If the $s$-nodes deliver $r$ first in the total order, so that $r \prec r'$, then a response is sent to $Tx_i.c$ as $N_s$ is unaware that this $c$-node has crashed.  However, when $N_s$ delivers $r'$ it deduces that both $r$ and $r'$ concern $Tx_i$ and that $r'$ will only have been issued if $Tx_i.c$ had crashed.  Therefore $N_s$ resends the original $rsp(Tx_i)$ message associated with $r$ to the $Tx_i.\tilde{c}$ specified in $r'$ and the \emph{abcast} message of $r'$ is discarded without updating the $order\_history$.  
+        It is possible that the $s$-node that $r$ was sent to, $N_s$, will still receive $r$, in which case $r$ will be processed as normal by the $s$-node.  When $bc$ sends a new ordering request to the service for $Tx_i$, $r'$, this request is also processed.  The ordering service accepts the request which is delivered first by the \emph{abcast} protocol and sends a response to the $Tx_i.\tilde{c}$ specified in the accepted request.  Assuming that both coordinators send $r$ and $r'$ to $N_s$: If the $s$-nodes deliver $r$ first in the total order, so that $r \prec r'$, then a response is sent to $Tx_i.c$ as $N_s$ is unaware that this $c$-node has crashed.  However, when $N_s$ delivers $r'$ it deduces that both $r$ and $r'$ concern $Tx_i$, and that $r'$ has only been issued because $Tx_i.c$ has crashed.  Therefore $N_s$ resends the original $rsp(Tx_i)$ message associated with $r$ to the $Tx_i.\tilde{c}$ specified in $r'$ and the \emph{abcast} message of $r'$ is discarded without updating $order\_history$.  
         
         Similarly, it is possible that $r'$ is sent to a different $s$-node than $r$, $N_s'$, in which case $N_s'$ will also resend the original $rsp(Tx_i)$ message, as $N_s'$ must have received both $r$ and $r'$ as per the guarantees of \emph{abcast}.  
         
         In addition to the various scenarios described above, it is also possible that $r$ was never received, in which case the $s$-node that received $r'$ will send a response message to the coordinator of $r'$ as if it were a normal request.  
         
         \item[\emph{During C3}]  \hfill \\
-        If $Tx_i.c$ crashes before receiving a response from the ordering service, then $Tx_i.bc$ takes over and restarts the multicast process.  When $Tx_i.bc$'s request is received by an $s$-node, the $s$-node checks its recent history of processed requests and returns the ordering response message associated with $Tx_i$.  The size of the recent history stored by the service should be configurable to allow for varying levels of resilience.   This is because as the size of the past history increases, the chances of a prior response message being discarded decreases.  Thus a larger record provides a greater level of fault-tolerance, but at the expense of utilising more system resources.  
+        If $Tx_i.c$ crashes before receiving a response from the ordering service, then $Tx_i.bc$ takes over and restarts the multicast process.  When $Tx_i.bc$'s request is received by an $s$-node, the $s$-node checks its recent history of processed requests and returns the ordering response message associated with $Tx_i$.  
+        
+        The size of the recent history stored by $s$-nodes should be configurable to allow for varying levels of resilience.   This is because as the size of the past history increases, the chances of a prior response message being discarded decreases.  Thus a larger record provides a greater level of crash-tolerance, but at the expense of utilising more system resources.  
         
         \item[\emph{During C4}]  \hfill \\
-                TODO
-        % Mention solution, but also talk about TOA's inability to handle such a scenario.                 
+                Assuming that $Tx_i.c$ crashes at this stage, there are three distinct scenarios that can occur:
                 
-%        If $Tx_i.c$ crashes before the multicasting of $mcast(Tx_i)$ to all $d \in Tx_i.dst$ has finished, then two scenarios are possible:
-%           \begin{itemize}
-%			    \item    The backup coordinator has received $mcast(Tx_i)$ from $Tx_i.c$, in which case the backup coordinator can simply restart the multicasting process (Stage 4).
-%			    \item    The backup coordinator has not received $mcast(Tx_i)$ from $Tx_i.c$, in which case the protocol must be restarted.  
-%		    \end{itemize}  
+                \begin{enumerate}[label=\roman*]
+                    \item    $Tx_i.bc$ has not received $mcast(Tx_i)$.                  
+                
+                    \item    $Tx_i.bc$ has received but not yet delivered $mcast(Tx_i)$.
+                    
+                    \item    $Tx_i.bc$ has delivered $mcast(Tx_i)$.  
+                \end{enumerate}
+                
+                For all of the above scenarios it is not possible for $Tx_i.bc$ to determine whether any $d \in Tx_i.dst$ has received $mcast(Tx_i)$ without additional communication between nodes.  Therefore, in all three scenarios $Tx_i.bc$ pessimistically assumes that at least one $d$ has not received $mcast(Tx_i)$.  Hence, $Tx_i.bc$ must send its own multicast of $mcast(Tx_i)$ to all $d$.  
+
+                The corresponding recover mechanism for each of the above scenarios is presented below; here we assume that $Tx_i.bc$ has discovered, via the GM service, that $Tx_i.c$ has crashed and we refer to this crashed $c$-node as $c$.  
+                \begin{enumerate}[label=\roman*]
+                    \item    $Tx_i.bc$ has not received $mcast(Tx_i)$, therefore it is necessary for the protocol to be restarted.  
+                    
+                    \item    $Tx_i.bc$ has already received $mcast(Tx_i)$, therefore it must designate a new $Tx_i.bc$ before multicasting $mcast(Tx_i)$ to all $d \in Tx_i.dst$.  
+                    
+                    \item    $Tx_i.bc$ has already delivered $mcast(Tx_i)$, therefore it must check its entries in $backup\_history$ and multicast all stored $mcast()$ messages whose active coordinator was $c$.    
+                \end{enumerate} 
     \end{description}
     
 	\subsubsection*{Service Node Crash}
@@ -393,7 +417,7 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
 \section{A New Atomic Broadcast Solution is Required}
 Existing \emph{abcast} and \emph{amcast} solutions are of two types ($\S$ \ref{sec:atomic_guarantees}); quorum based and GM based.  GM based protocols provide the lowest latency message delivery in the absence of node crashes, but at the expense of blocking when node crashes do occur.  This blocking behaviour is acceptable when such protocols are utilised in traditional P2P environments like Infinispan, as it is presumed that the blocking will only occur at a small subset of nodes in the cluster.  In which case system \emph{liveness} is maintained by the majority of nodes in the cluster.  However in the \textsf{AmaaS} model, if a $s$-node utilises a GM protocol for \emph{abcast}ing requests amongst all $s$-nodes and a single $s$-node crashes, all $s$-nodes will block, resulting in no client requests being satisfied. This means that, not only are the $s$-nodes participating in the \emph{abcast} blocked, but as a consequence of this blocking, so to are all of the $c$-nodes utilising the service.  Therefore the entire system's \emph{liveness} is lost until the GM protocol is able to detect the $s$-node crash and unblock the ordering service; hence requirement SR2 is undermined.  
 
-Alternatively, a quorum based protocol, such as those detailed in \ref{sec:coordination}, can be utilised between $s$-nodes.  Such protocols perform worse than GM protocols in the absence of node failures ($\S$ \ref{sec:limitations_existing_coordination}), however they only block mildly when a leader node crashes or is falsely suspected of crashing.  Both Zookeeper and Chubby coordination services utilise a quorum based \emph{abcast} protocol for state machine replication; with each service utilising a single \emph{master} node to coordinate all \emph{abcast}s.  Consequently, the write throughput of each of these services is limited by the maximum throughput capabilities of the designated \emph{master} node.  This is significant for \textsf{AmaaS}, as each ordering request sent to the ordering service requires a single \emph{abcast}.  Therefore, as the number of concurrently executing transactions increases, the throughput of an ordering service utilising a quorum based protocol does not scale with demand.    
+Alternatively, a quorum based protocol, such as those detailed in \ref{sec:coordination}, can be utilised between $s$-nodes.  Such protocols perform worse than GM protocols in the absence of node failures, however they only block mildly when a leader node crashes or is falsely suspected of crashing.  Both Zookeeper and Chubby coordination services utilise a quorum based \emph{abcast} protocol for state machine replication; with each service utilising a single \emph{master} node to coordinate all \emph{abcast}s.  Consequently, the write throughput of each of these services is limited by the maximum throughput capabilities of the designated \emph{master} node.  This is significant for \textsf{AmaaS}, as each ordering request sent to the ordering service requires a single \emph{abcast}.  Therefore, as the number of concurrently executing transactions increases, the throughput of an ordering service utilising a quorum based protocol does not scale with demand.    
 
 In order to maximise the effectiveness of the \textsf{AmaaS} system model, a new \emph{abcast} protocol is required.  This protocol must provide non-blocking message delivery in the presence of node failures, whilst allowing for low-latency, high-throughput \emph{abcast}s in their absence.  
 
