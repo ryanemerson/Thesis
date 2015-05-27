@@ -58,10 +58,10 @@
              Introduces a new system model for coordinating partially replicated transactions, that we call Atomic Multicast as a Service - \textsf{AmaaS}.  This new model is inherently different from the P2P approach previously utilised by the Infinispan database, therefore we formalise a new fault-tolerant atomic multicast protocol, \textsf{SCast}, for coordinating transactions that utilises \textsf{AmaaS}.  
              
              \item[Chapter 4 - ABcast] \hfill \\
-              Presents the rationale, design assumptions and important implementation details for the hybrid atomic broadcast protocol \textsf{ABcast}. Followed by an in-depth analysis of the additional application logic required in the \textsf{AmaaS} model when utilising an atomic broadcast protocol that only provides probabilistic guarantees on a message's atomicity.  
+              Presents the rationale, design assumptions and important implementation details for the hybrid atomic broadcast protocol \textsf{ABcast}.  As well as detailing \textsf{AFC}, a bespoke flow-control protocol designed for \textsf{ABcast}.  
              
-             \item[Chapter 5 - ABcast Flow Control] \hfill \\
-             Details \textsf{AFC}, a bespoke flow-control protocol designed for \textsf{ABcast}.  \textsf{AFC} utilises a rate based approach, coupled with configurable user parameters, to prevent participating nodes from becoming overwhelmed by atomic broadcasts.  
+             \item[Chapter 5 - Probabilistic SCast] \hfill \\
+             Explores the consequences of utilising the ABcast protocol for state machine replication between service nodes in the AmaaS model.  More specifically, it focuses on the potential repercussions of message miss-orderings at the service level and how they can impact client nodes that depend on the ordering service.  
              
              \item[Chapter 6 - Performance Evaluation] \hfill \\
              Provides a thorough performance evaluation of the \textsf{AmaaS} model compared to the existing P2P approach, as well as investigating the effect of utilising different atomic broadcast protocols within the \textsf{AmaaS} service.  Furthermore, we evaluate the performance of the \textsf{ABcast} protocol when node failures occur, in order to ascertain the effectiveness of the protocols non-blocking message delivery.  
