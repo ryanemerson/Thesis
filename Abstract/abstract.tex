@@ -1,5 +1,23 @@
 % ************************** Thesis Abstract *****************************
 % Use `abstract' as an option in the document class to print only the titlepage and the abstract.
 \begin{abstract}
-This is where you write your abstract ...
+%    The emergence of cloud computing has enabled system designers to create increasingly scalable solutions which utilise the on-demand nature of cloud resources to allocate system resources as required by demand.  Consequently, the research and development of database solutions that are able to elastically scale, or descale, with demand has received increasing amounts of attention in recent times and has resulted in the proliferation of NoSQL database solutions.  
+    
+        A common technique utilised by NoSQL database solutions to improve scalability, is to distribute the stored data across a cluster of nodes.  This enables fault-tolerance through redundant data replicas as well as increased levels of throughput as multiple nodes can  service client requests simultaneously.  To further aid scalability, NoSQL solutions often allow data to be \emph{partially-replicated} amongst a subset of nodes in the cluster; opposed to all nodes in the cluster hosting all data replicas.  The benefits of partial replication are twofold: $(i)$ The maximum capacity of a database is not constrained by the limitations of the weakest node hosting the database; $(ii)$ Additional nodes can be added to the database cluster with ease as the new node does not need to host all data partitions before it can be utilised.  
+        
+        A consequence of utilising partial replication is that a consensus must be reached amongst all replicas of a given partition, when the data stored at that partition is updated, in order to ensure that all replicas remain consistent.  A common technique for obtaining consensus in \emph{partially-replicated} environments, is to utilise Atomic Multicast messages to ensure that all replicas of a partition execute client requests in the same order; hence the resulting data will be consistent across all replicas.  
+        
+        This thesis investigates alternative atomic multicast protocols, that aim to provide increased levels of throughput, as well as reduced latency, when compared to existing solutions.  More specifically, we explore how such solutions can improve the performance of distributed transactions within the context of the \emph{partially-replicated} NoSQL database Infinispan.  
+        
+        We propose a new system model for executing atomic multicasts, \textsf{AmaaS}, that advocates utilising a dedicated service to dictate multicast orderings to database peers, instead of relying on a purely \emph{peer-to-peer} approach like many existing solutions.  There are two key benefits of this approach: 
+        \begin{enumerate}[label=\roman*]
+            \item    It restricts the number of nodes required to obtain a consensus to those providing the ordering service, regardless of the number of destinations involved in a multicast
+            
+            \item    As the nodes providing the service are constant, it is possible to utilise atomic broadcasts, opposed to atomic multicasts, in order to reach a consensus between the service nodes.  
+        \end{enumerate}
+        
+        In order to maximise the effectiveness of \textsf{AmaaS}, we have also developed a hybrid atomic broadcast protocol that is designed specifically for use within the context of an ordering service.  This protocol utilises a deterministic and probabilistic atomic broadcast protocols in parallel to provide low-latency message delivery in the absence of node failures, whilst providing non-blocking message delivery in their presence; opposed to existing solutions that exclusively provide non-blocking or low-latency message delivery.  
+        
+%        Our results show that utilising the \textsf{AmaaS} model can reduce transaction latency and increase throughput, compared to the existing \emph{peer-to-peer} atomic multicast solution that is utilised by Infinispan.  
+    
 \end{abstract}
