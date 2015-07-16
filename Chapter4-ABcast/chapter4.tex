@@ -8,20 +8,20 @@ In this chapter we  introduce a hybrid \emph{abcast} protocol, called \textsf{AB
 The remainder of this chapter is structured as follows:  First we introduce the rationale behind utilising a Hybrid protocol and our design approach for \textsf{ABcast}, before detailing the protocol's requirements and assumptions.  This is followed by an in-depth look at the components required by \textsf{ABcast}, and how they have been implemented.  We then explore the two protocols used to create the hybrid solution in detail, outlining each protocol's delivery and rejection criteria for \emph{abcast} messages. Finally we describe a new flow-control protocol, AFC, which has been designed specifically for use with \textsf{ABcast}.  
 
 \section{Rationale}
-    In the previous chapter we introduce \textsf{AmaaS}, a new system model that aims to increase the transactional throughput of distributed in-memory transactional systems.  This model depends on an \emph{abcast} protocol to maintain the replicated state between the service nodes which provide multicast ordering to client nodes; with each multicast request requiring a state change between service nodes.  For an \textsf{AmaaS} service to be viable it is vital that it provides low-latency responses to the requesting client nodes, as well as being able to handle an increasing number of client requests as the transactional system scales.  Furthermore, it is essential that such a service maintains high-availability, even in the presence of node failures, as an entire cluster of client nodes are dependent on the service.  Thus, it is essential that the underlying \emph{abcast} protocol utilised by the service can provide both non-blocking and low-latency message delivery in order to satisfy the clients requirements of highly-available and low-latency requests respectively.  
+    In the previous chapter we introduce \textsf{AmaaS}, a model that aims to increase the transactional throughput of distributed in-memory transactional systems.  This model depends on an \emph{abcast} protocol to maintain the replicated state between the service nodes which provide multicast ordering to client nodes; with each multicast request requiring a state change between service nodes.  For an \textsf{AmaaS} service to be viable it is vital that it provides low-latency responses to the requesting client nodes, as well as being able to handle an increasing number of client requests as the transactional system scales.  Furthermore, it is essential that such a service maintains high-availability, even in the presence of node failures, as an entire cluster of client nodes are dependent on the service.  Thus, it is essential that the underlying \emph{abcast} protocol utilised by the service can provide both non-blocking and low-latency message delivery in order to satisfy the clients requirements of highly-available and low-latency requests respectively.  
     
     \subsection{Existing Atomic Broadcast Solutions}
-    The FLP impossibility \citep{Fischer:1985:IDC:3149.214121} dictates that in an asynchronous environment \emph{abcast} protocols must either admit blocking to meet its atomic guarantees or permit a likelihood of its guarantees not being met.  As  previously stated, known blocking protocols are of two types: GM dependent and Quorum based, both of which admit blocking in order to remain atomic.  The quorum based protocols block mildly due to false/valid suspicions of the leader node and GM protocols block severely but only in the presence of node failures.  
+    The FLP impossibility \citep{Fischer:1985:IDC:3149.214121} dictates that in an asynchronous environment \emph{abcast} protocols must either admit blocking to meet its atomic guarantees or permit a likelihood of its termination guarantees not being met.  As  previously stated, known blocking protocols are of two types: GM dependent and Quorum based, both of which admit blocking in order to remain atomic.  The quorum based protocols block mildly due to false/valid suspicions of the leader node and GM protocols block severely but only in the presence of node failures.  
     
     Quorum based protocols provide non-blocking message delivery, however they only provide low levels of throughput as they are typically leader based, which ultimately limits the scalability of the transactional system.  Furthermore, there is also a non-zero probability that such protocols get stuck indefinitely in a cycle of leader elections after the previous leader node is falsely suspected of crashing\footnote{This is unlikely to occur in practice with adaptive or sufficiently long timeouts used for crash-suspicion.}.  
     
-    On the contrary, GM based protocols provide very low latency \emph{abcast}'s that can handle high levels of throughput, however the severe blocking inherent in GM protocols would critically undermine an \textsf{AmaaS} service's availability in the event of a service node crash.  
+    On the contrary, GM based protocols provide very low latency \emph{abcast}'s that can handle high levels of throughput, however the blocking inherent in GM protocols would critically undermine an \textsf{AmaaS} service's availability in the event of a service node crash.  
     
     From the disadvantages stated above, it is clear that protocols belonging to the blocking category of protocols are not ideal when utilised within \textsf{AmaaS}.  Therefore it is necessary for a non-blocking approach to be utilised, that allows for the possibility that guarantees G1-G4 ($\S$ \ref{ssec:atomic_broadcast}) will not always be met in order to overcome the limitations of the FLP impossibility.  Utilising probabilistic guarantees on message delivery is an established technique for increasing the scalability of network multicasting systems\citep{Kermarrec:2003:PRD:766617.766623}, which has also been applied to \emph{abcast} protocols.  
     
-    Felber \emph{et al.} \citep{Felber01probabilisticatomic} propose an \emph{abcast} protocol, \textsf{PABCast}, that provides probabilistic guarantees on both message \emph{safety} and \emph{liveness}.  If these probabilistic guarantees are not met, then it is possible for only a subset of the destination set to receive a broadcast, or for all destinations to deliver the broadcast but in an inconsistent ordering.  The aim of the  \textsf{PABCast} protocol is to provide increased scalability for atomic broadcasts across large numbers of destinations, not a small subset of nodes as required by the \textsf{AmaaS}.  As such the protocol does not consider throughput a primary concern.  The protocol uses \emph{rounds} to regulate when a node can initiate a broadcast.  A node cannot initiate a new broadcast until all broadcasts of the current round have been delivered locally.  Ultimately this protocol structure limits a sending node to a single broadcast, which clearly limits the protocol's throughput capabilities.  
+    Felber \emph{et al.} \citep{Felber01probabilisticatomic} propose an \emph{abcast} protocol, \textsf{PABCast}, that provides probabilistic guarantees on both message \emph{safety} and \emph{liveness}.  With some non-zero probability, it is possible for only a subset of the destination set to receive a broadcast, or for all destinations to deliver the broadcast but in an inconsistent ordering.  The aim of the  \textsf{PABCast} protocol is to provide increased scalability for atomic broadcasts across large numbers of destinations, not a small subset of nodes as required by the \textsf{AmaaS}.  As such the protocol does not consider throughput a primary concern.  The protocol uses \emph{rounds} to regulate when a node can initiate a broadcast.  A node cannot initiate a new broadcast until all broadcasts of the current round have been delivered locally.  Ultimately this protocol structure limits a sending node to a single broadcast, which clearly limits the protocol's throughput capabilities.  
     
-    In the literature, the performance of \textsf{PABCast} is evaluated using a simulation that focuses on the scalability of the system in terms of message cost as well as the likelihood of a broadcast's \emph{safety} and \emph{liveness} being violated due to the probabilistic guarantees not being met. The performance evaluation presented in the paper does not consider the throughput or latency of the \textsf{PABCast} protocol, and the protocol is only evaluated using a simulation so it is not possible to ascertain how such a protocol will function in a live asynchronous system.  In conclusion, \textsf{PABCast} is not suitable for use in the \emph{AmaaS} system model.  
+    In the literature, the performance of \textsf{PABCast} is evaluated using a simulation that focuses on the scalability of the system in terms of message cost as well as the likelihood of a broadcast's \emph{safety} and \emph{liveness} being violated due to the probabilistic guarantees not being met. The performance evaluation presented in the paper does not consider the throughput or latency of the \textsf{PABCast} protocol, and the protocol is only evaluated using a simulation so it is not possible to ascertain how such a protocol will function in a live asynchronous system.  It is our view that \textsf{PABCast} is not suitable for use in the \emph{AmaaS} system model.  
     
     
     \subsection{Existing Hybrid Solution}
@@ -59,23 +59,23 @@ The remainder of this chapter is structured as follows:  First we introduce the 
     At the application layer, a key disadvantage of Optimistic Atomic Multicast, is that two independent delivery channels must be processed by the application at anyone time ($con\_del(m)$ and $opt\_del(m)$), with the application being responsible for both detecting and recovering from G4 violations by contrasting the output of both channels.  Hence the application has to allocate additional resources for processing messages.  
     
     \subsection{Our Approach}
-    Our approach is to create a hybrid protocol that combines the leaderless GM-based protocol described in section \ref{ssec:newtop}, with a custom designed probabilistic \emph{abcast} protocol that is also leaderless.  As discussed earlier, the GM-based protocol provides the best possible performance in normal conditions, but blocks when nodes crash.  In these circumstances, probabilistic \emph{abcast} will be used to deliver \emph{abcast}s. We refer to the probabilistic protocol as \textsf{Aramis}, and the deterministic protocol as \textsf{Base}, which when combined creates the hybrid Atomic Broadcast protocol - \textsf{ABcast}.  
+    Our approach is to create a hybrid protocol that combines the leaderless GM-based protocol described in section \ref{ssec:newtop}, with a custom designed probabilistic \emph{abcast} protocol that is also leaderless.  As discussed earlier, the GM-based protocol provides the best possible performance in normal conditions, but blocks when nodes crash.  In these circumstances, probabilistic \emph{abcast} will be effective in delivering \emph{abcast}s. We refer to the probabilistic protocol as \textsf{Aramis}, and the deterministic protocol as \textsf{Base}, which when combined creates the hybrid Atomic Broadcast protocol - \textsf{ABcast}.  
     
-    It should be noted that both \textsf{Aramis} and \textsf{Base} work in parallel and additional overhead is minimal as both protocols are leaderless in nature.  Consequently, there is no protocol switch over in response to actual crashes; rather, both protocols attempt to deliver each \emph{abcast} in parallel; \textsf{Base} succeeds when there are no crashes and \textsf{Aramis} succeeds when \textsf{Base} is blocked.  
+    It should be noted that both \textsf{Aramis} and \textsf{Base} work in parallel and additional overhead is minimal as both protocols are leaderless in nature.  That is, both protocols attempt to deliver each \emph{abcast} in parallel; when the faster one succeeds in delivering a given \emph{abcast}, the slower one's attempt on that \emph{abcast} terminates.  Consequently, a given \emph{abcast} is never delivered more than once.  Typically, \textsf{Base} succeeds when there are no crashes and \textsf{Aramis} succeeds when \textsf{Base} is blocked.  
     
-    \textsf{Aramis} is a non-blocking \emph{abcast} protocol that guarantees G1 and G2 with a probability close to 1.  \textsf{Aramis} utilises the probabilistic synchronous model ($\S$ \ref{ssec:probabilistically_synchronous}), in conjunction with closely synchronised clocks, to calculate a probabilistic upper bound on \emph{abcast} delivery times; we refer to this upper bound as a message's delivery delay, $\Delta_m$.  
+    \textsf{Aramis} is a non-blocking \emph{abcast} protocol that guarantees G4 ($\S$ \ref{sec:atomic_guarantees}) with a probability close to 1.  \textsf{Aramis} utilises the probabilistic synchronous model ($\S$ \ref{ssec:probabilistically_synchronous}), in conjunction with closely synchronised clocks, to calculate a probabilistic upper bound on \emph{abcast} delivery times; we refer to this upper bound as a message's delivery delay, $\Delta_m$.  
     
     \subsubsection*{\textsf{Aramis: } An Informal Description}
     Upon receiving an \emph{abcast} message, a destination node waits for the calculated delivery delay to expire before delivering the message to the application.  If a message $m$ does not reach one of its destination, say $N_si$, before $\Delta_m$, then it is possible for $N_si$ to deliver a subsequent message $m'$ if $\Delta_{m'}$ expires before $m$ is received by $N_si$.  When such a scenario occurs the \emph{abcast} guarantees G1 will not be met and therefore the broadcast cannot be considered to be atomic.  Furthermore, $N_si$ will reject $m$ when $m$ arrives after $m'$ has been delivered so that G4 is met.  
     
     A key advantage of the \textsf{Aramis} approach is that no message acknowledgements are required for a message to be delivered, instead it depends entirely on the calculated delivery delay $\Delta_m$.  Relying solely on $\Delta_m$ ensures that faulty nodes have no effect on the delivery of a message at correct nodes and it is therefore impossible for a message's delivery to become blocked.  Furthermore, as no quorums or acknowledgements are required, it is possible for  \textsf{Aramis} to tolerate at most $(n - 1)$ destination crashes when $n$ nodes are involved in an \emph{abcast}.  
     
-    The \textsf{Aramis} protocol was developed to be risk adverse, with all probabilistic calculations carried out pessimistically in order to ensure that $\Delta_m$ is rarely exceeded.  Furthermore, $\Delta_m$ always assumes the worst case scenario will happen when the protocol is executing (e.g. the originator node crashing during broadcast) to ensure that such situations are catered for.  A consequence of this pessimism, is that the latency of a \emph{abcast} message can be very large, typically 100-1000ms.  Note that these potentially large latencies, though not desirable, do not undermine \textsf{Aramis} from offering high throughput.  
+    The \textsf{Aramis} protocol was developed to be risk adverse, with all probabilistic calculations carried out pessimistically in order to ensure that $\Delta_m$ is rarely exceeded.  Furthermore, $\Delta_m$ always assumes the worst case scenario will happen when the protocol is executing (e.g. the originator node crashes during every broadcast) to ensure that such situations are catered for.  A consequence of this pessimism, is that the latency of a \emph{abcast} message can be very large, typically 100-1000ms.  Note that these potentially large latencies, though not desirable, do not undermine \textsf{Aramis} from offering high throughput.  
     
     \subsubsection*{\textsf{Aramis} and \textsf{Base}: An Informal Description}    
     To counteract the large delivery latencies of \textsf{Aramis} it is necessary to operate a low-latency \emph{abcast} protocol, \textsf{Base}, alongside \textsf{Aramis}.  The \textsf{Base} protocol is a GM based deterministic protocol, similar to NewTop\citep{Ezhilchelvan:1995:NFG:876885.880005}, that provides low-latency high throughput \emph{abcast}s at the expense of blocking when node failures occur.  In the context of an \textsf{AmaaS} ordering service, \textsf{Base} works as follows: A message's orginator, say $m.o = N_si$, broadcasts $m$ to every $N_sj$, which in turn broadcasts an $ack_j(m)$ to every node in the service.  Once a $s$-node has received $ack_j(m)$ from all $N_sj$, $N_sj \neq m.o$, $m$ becomes deliverable.  Note that if one $N_sj$ crashes during the \emph{abcast}ing of $m$, the delivery of $m$ will be blocked if the crashed node had not sent $ack_j(m)$ before crashing and the protocol must wait for the GM service to detect the crash so that it can unblock $m$.   
     
-    In order to hone the advantages of both protocols it was necessary to create the hybrid protocol \textsf{ABcast}, where an \textsf{abcast} $m$ becomes deliverable either when $\Delta_m$ has elapsed (\textsf{Aramis}) or when $ack_j(m)$ is received from every $N_sj$ (\textsf{Base}).  This approach provides the application with the low-latency of \textsf{Base} for the majority of message deliveries, whilst ensuring that a missing acknowledgement is not waited upon for more than $\Delta_m$ time.  In the event of a node failure the \textsf{Base} protocol does not have to wait for the GM service to detect a crash before message delivery becomes unblocked.  Instead, messages will be delivered by \textsf{Aramis} after $\Delta_m$ expires.  Therefore, when node failures are present the \textsf{ABcast} protocol will always allow for a greater throughput of delivered messages than a traditional GM based protocol, assuming that $\Delta_m$ remains smaller than the time it takes the GM to detect a node failure.  In the worse case, if the GM delay is smaller than $\Delta_m$, then the \textsf{Base} protocol can simply unblock its message buffer and continue to deliver messages without the use of \textsf{Aramis}.  Finally, in normal working conditions, the \textsf{ABcast} protocol should have similar performance to a traditional GM based protocol as, in the majority of cases, \textsf{Aramis} is not used for message delivery.  
+    In order to hone the advantages of both protocols it was necessary to create the hybrid protocol \textsf{ABcast}, where an \textsf{abcast} $m$ becomes deliverable either when $\Delta_m$ has elapsed (\textsf{Aramis}) or when $ack_j(m)$ is received from every $N_sj$ (\textsf{Base}).  This approach provides the application with the low-latency of \textsf{Base} for the majority of message deliveries, whilst ensuring that a missing acknowledgement is not waited upon for more than $\Delta_m$ time.  In the event of a node failure the \textsf{Base} protocol has to wait for the GM service to detect a crash before message delivery becomes unblocked.  Instead, messages will be delivered by \textsf{Aramis} after $\Delta_m$ expires.  Therefore, when node failures are present the \textsf{ABcast} protocol will always allow for a greater throughput of delivered messages than a traditional GM based protocol, assuming that $\Delta_m$ remains smaller than the time it takes for GM to detect a node failure and construct a new service.  In the worse case, if the GM delay is smaller than $\Delta_m$, then the \textsf{Base} protocol can simply unblock its message buffer and continue to deliver messages without the use of \textsf{Aramis}.  Finally, in normal working conditions, the \textsf{ABcast} protocol should have similar performance to a traditional GM based protocol as, in the majority of cases, \textsf{Aramis} is not used for message delivery.  
 
 As the \textsf{ABcast} protocol utilises the probabilistic protocol \textsf{Aramis}, it is possible for a node not to have received an \emph{abcast} $m$ at all when that node uses \textsf{Aramis} for delivery.  However, as previously stated, \textsf{Aramis} is carefully designed to keep the probability of meeting G1 and G2 close to 1.  Furthermore, as \textsf{Aramis} is only used when \textsf{Base} is slow or a node failures occurs, the probability of an \emph{abcast} message $m$ being missed in the total order is the product of two very small probabilities; \textsf{Base} not being able to deliver $m$ and \textsf{Aramis} failing $m$.  Therefore, in reality the occurrence of a node not delivering an \emph{abcast} $m$ is rare.   
 
@@ -84,8 +84,14 @@ As the \textsf{ABcast} protocol utilises the probabilistic protocol \textsf{Aram
     Below, we state the guarantees provided by the \textsf{ABcast} protocol.  
    
     \begin{description}
-    \item [\textbf{G1-G3}] - \emph{Validity, Uniform Agreement, Uniform Integrity}: As defined in section \ref{sec:atomic_guarantees}.
-    \item [\textbf{G4-P}] - \emph{Probabilistic Total Order}: If two \emph{\emph{abcast}s}, $m_i$ and $m_j$, have common destinations, then all such destinations that deliver both $m_i$ and $m_j$, will deliver them in an identical order with a probability $> R$.  Typically $R$ is close to $1$ ($R \rightarrow 1$).
+    \item [\textbf{G1}] - \emph{Validity}: If the source of $m_i$ does not crash until it \emph{abcast}s $m_i$, then all operative destinations of $m_i$ deliver $m_i$.
+    
+    \item [\textbf{G2}] - \emph{Uniform Agreement}: If the source of $m_i$ crashes while \emph{abcast}ing $m_i$, and if any destination delivers $m_i$, then all operative
+destinations of $m_i$ must deliver $m_i$.
+
+    \item [\textbf{G3}] - \emph{Uniform Integrity}: If $m_i$ has already been delivered by a destination $d$, then $d$ cannot deliver $m_i$ again. 
+    
+    \item [\textbf{G4-P}] - \emph{Probabilistic Total Order}: For any two \emph{\emph{abcast}s}, $m_i$ and $m_j$, destinations that deliver both $m_i$ and $m_j$, will deliver them in an identical order with a probability $> R$.  Typically $R$ is close to $1$ ($R \rightarrow 1$).
 \end{description}
 
 \section{Assumptions}
@@ -171,7 +177,7 @@ In this section we detail the individual components required by the \textsf{ABca
         
         \item[$\bm{\eta}$ - ]    The delay observed between redundant broadcasts of $m$, to ensure successive broadcasts are independent.  
 
-        \item[$\bm{\rho}$ - ]    The number of redundant wait periods to be included into $D$ for a given $m$.        
+        \item[$\bm{\rho}$ - ]    The number of redundant wait periods to be included into $D$ for a given $m$; the larger the value of $\rho$, the closer $R$ is to $1$.  
         
         \item[$\bm{\omega}$ - ]    A node's estimate of the networks Packet Delay Variation (PDV).  
         \end{description}
@@ -182,16 +188,18 @@ In this section we detail the individual components required by the \textsf{ABca
     \begin{enumerate}[label=\roman*]
         \item    The message to be broadcast, $m$, is created with the parameters defined above added as fields \emph{e.g.} $m.\rho, m.\eta, \ldots$ 
         
-        \item    The $m$ to be $rbcast(m)$ is then broadcast two times by the originator, with each successive transmission occurring $\eta$ time after the previous one.  
+        \item    The $m$ to be $rbcast(m)$ is then broadcast two times by the originator, with the second transmission occurring $\eta$ time after the first one.  
         
-        \item    Each successive transmission of $m$ is identified by the field $m.copy$, where $m.copy = 0 \lor 1$.  
+        \begin{itemize}
+            \item    Redundant transmissions of $m$ are distinguished by the field $m.copy$, where $m.copy = 0 \lor 1$.  
+        \end{itemize}
     \end{enumerate}
         \end{quotation}
 
     
      \subsubsection*{$\bm{rb.deliver(m)}$}
 	     \begin{quotation}
-	     As soon as a copy of $m$ is received by a node, it is delivered up the stack to the higher level protocol (\textsf{ABcast}); subsequent copies of $m$ received by a node are processed as per the \emph{rbcast} protocol, but are not delivered up the network stack.  
+	     As soon as a copy of $m$ is received by a node, it is delivered up the stack to the higher level protocol (\textsf{ABcast}); the later copy of $m$ is not delivered up the network stack, but is used as per the \emph{rbcast} protocol.  
 	     \end{quotation}
 	         
      A $rbcast(m)$ is considered a success if every operative $d \in m.dst$ performs $rb.deliver(m)$.  Figure \ref{fig:rbcast} shows the \emph{rbcast} primitives and their relationship with the DMC and the underlying reliable UDP layer.  
@@ -203,7 +211,7 @@ In this section we detail the individual components required by the \textsf{ABca
          \label{fig:rbcast}
     \end{figure}
     
-    After $rb.deliver(m)$ has been executed, any destination $N_j$ that receives $m.copy = k \leq 1$ cooperates to ensure this success.  Upon receiving $k = 0$, a destination waits to receive $m.copy = 1$ for ${t_1 = \eta + \omega}$ time after receiving $m.copy = 0$; where $\eta= m.\eta$ and $\omega=m.\omega$.  If $t_1$ expires, $N_j$ assumes that $N_i$ has crashed while broadcasting $m.copy = k$ and starts broadcasting $m.copy = k, \ldots, 1$ on behalf of $N_i$. Note, $N_j$ rebroadcasts the same copy of $m$ that it received, $m.copy = k$, as it does not know if all other $d \in m.dst$ have also received $m.copy = k$.  To reduce the possibility that no one else is acting on behalf of $N_i$, $N_j$ adds a further random wait, $\zeta$, which is uniformly distributed on ($0,\eta$), before broadcasting $m.copy = k$.  This process continues until all $d \in m.dst$ have received or broadcast $m$ with $m.copy = \rho$.  
+    After $rb.deliver(m)$ has been executed, any destination $N_j$ that receives $m.copy = k \leq 1$ cooperates to ensure this success.  Upon receiving $k = 0$, a destination waits to receive $m.copy = 1$ for ${t_1 = \eta + \omega}$ time after receiving $m.copy = 0$; where $\eta= m.\eta$ and $\omega=m.\omega$.  If $t_1$ expires, $N_j$ assumes that $N_i$ has crashed while broadcasting $m.copy = k$ and starts broadcasting $m.copy = k, \ldots, 1$ on behalf of $N_i$. Note, $N_j$ rebroadcasts the same copy of $m$ that it received, $m.copy = k$, as it does not know if all other $d \in m.dst$ have also received $m.copy = k$.  To reduce the possibility that no one else is acting on behalf of $N_i$, $N_j$ adds a further random wait, $\zeta$, which is uniformly distributed on ($0,\eta$), before broadcasting $m.copy = k$.  This process continues until all $d \in m.dst$ have received or broadcast $m$ with $m.copy = 1$.  
     
     Note that if $N_i$ does not crash, or if it crashes and an operative node receives $m$, then $m$ is broadcast \emph{at least} twice.  Conversely, if $N_i$ crashes during the initial broadcast of $m$, and no members of $m.dst - \{m.o\}$ receive a copy of $m$, then the broadcast has failed and $m$ is lost.  This is acceptable for \textsf{ABcast}, because if no $d \in m.dst - \{m.o\}$ receive $m$, then its not possible for any node to $rb.deliver(m)$, therefore it is not possible for \emph{abcast} guarantees G1 or G2 to be violated.  
     
@@ -213,7 +221,7 @@ In this section we detail the individual components required by the \textsf{ABca
     
     The calculations used to produce $x_{mx}, \eta, \rho$ and $\omega$ are discussed in detail in $\S$ \ref{ssec:dmc}.  
     
-    \subsection{Delay Measurement Component}\label{ssec:dmc}
+    \subsection{Delay Measurement Component (DMC)}\label{ssec:dmc}
         For the sake of clarity, assumption A4 is repeated below:   
         
         \begin{quotation}
@@ -239,7 +247,7 @@ In this section we detail the individual components required by the \textsf{ABca
         $x_{mx}$ is simply the largest latency out of the $NT_P$ latencies observed in the recent past.  
 
         \item[\Huge$\boldsymbol{q}$] \hfill \\
-                The parameter $q$ is the estimated probability that a transmission delay observed in the near future will exceed $x_{mx}$.  We estimate $q$ by assuming that each $x$ in $NT_p$ increases by $5\%$ in the near future.  So, the estimated set of transmission delays (with regards to $x_{mx}$) in the near future is:
+                The parameter $q$ is the estimated probability that a transmission delay observed in the near future will exceed $x_{mx}$.  We estimate $q$ by assuming that each $x$ in $NT_p$ increases by $5\%$ in the near future.  So, the estimated set of transmission delays that exceed $x_{mx}$ in the near future is:
                 
         \begin{equation}
             \begin{aligned}
@@ -261,11 +269,11 @@ In this section we detail the individual components required by the \textsf{ABca
             \end{aligned}
         \end{equation}
         
-                It is possible that $q$ is calculated close to $1$ if many latencies in the recent past are within $95\%$ of $x_{mx}$.  As $q \rightarrow 1, \rho \rightarrow \infty$ from equation \ref{eq:rho_ie}.  To deal with such extreme cases, we fix an upper bound $\rho_{mx}$, $\rho_{mx} > \rho_{mn}$.  We use $\rho_{mx}$ in equation \ref{eq:q_mx} and find $q$ to be the largest value that satisfies:
+                It is possible that $q$ is calculated close to $1$ if many latencies in the recent past are within $95\%$ of $x_{mx}$.  As $q \rightarrow 1, \rho \rightarrow \infty$ so that $R$ is close to $1$.  To deal with such extreme cases, we fix an upper bound $\rho_{mx}$, $\rho_{mx} > \rho_{mn}$.  Therefore we find $q$ to be the largest value that satisfies:
                 
        \begin{equation}
             \begin{aligned}
-                q \quad < \quad \left(1 - \tilde{R}\right)^{\left(\frac{1}{\rho_{mx} + 1} \right)}
+                q \quad < \quad \left(1 - \tilde{R}\right)^{\left(\frac{1}{\rho_{mx} + 1} \right)} \text{, where } \tilde{R} = R^{\frac{1}{n-1}}
             \end{aligned}
         \end{equation}
 
@@ -290,7 +298,7 @@ In this section we detail the individual components required by the \textsf{ABca
             \end{aligned}
         \end{equation}
         
-        Equation \ref{eq:eta_no_xmax} leads to $\eta$ being immune to large outliers in $NT_p$ which exceed $\bar{x} \times \ln(1 - \tilde{R})$ and thus inflate $x_{mx}$.  It may be unnecessary to delay the second, redundant transmission so excessively, solely in response to such large outliers.  
+        Equation \ref{eq:eta_no_xmax} leads to $\eta$ being immune to large outliers in $NT_p$ which exceed $-\bar{x} \times \ln(1 - \tilde{R})$ and thus inflate $x_{mx}$.  It may be unnecessary to delay the second, redundant transmission so excessively, solely in response to such large outliers.  
 
         \item[\Huge$\boldsymbol{\rho}$] \hfill \\
         $\rho$ is a parameter that defines the number of redundant wait periods incorporated into the calculation of $D$ so that RB1 and RB2 are met with a probability $> R$; where $R$ is a configuration parameter specified before runtime.  
@@ -316,7 +324,7 @@ In this section we detail the individual components required by the \textsf{ABca
          \begin{equation}
             \begin{split}
                 \left[1 - q^{\left(\rho + 1 \right)}\right]^{n - 1} \quad > \quad R \\
-                1 - q^{\left(\rho + 1\right)} \quad > \quad \quad \tilde{R}
+                1 - q^{\left(\rho + 1\right)} \quad > \quad R^{\frac{1}{n-1}} = \tilde{R}
             \end{split}
         \end{equation}   
         
@@ -494,12 +502,13 @@ In this section we detail the individual components required by the \textsf{ABca
     If copy $m.copy = 0$ takes at most $x_{mx}$ to reach $N_j$ (which occurs with probability ($1-q$)), $N_j$ would start disseminating on behalf of $N_i$ at or before time:
     
     \begin{equation}
+    \label{eq:replace_zeta}
              \begin{aligned}
                 m.ts+ x_{mx} + \eta + \omega +\zeta
              \end{aligned}
          \end{equation}    
     
-    Recall that $\zeta$ is the random wait that all disseminating nodes must observe before disseminating $m$, with $\zeta$ uniformly distributed on ($0, \eta$).  Therefore, in our calculations we assume that the observed $\zeta$ is the largest value possible, $\eta$, hence $D = x_{mx} + 2\eta + \omega + D_1$.  Figure \ref{fig:rbcast_a_delay} shows the worst case scenario when $n=3$.  
+    Recall that $\zeta$ is the random wait that all disseminating nodes must observe before disseminating $m$, with $\zeta$ uniformly distributed on ($0, \eta$).  Therefore, in our calculations we assume that the observed $\zeta$ is the largest value possible, $\eta$ and $\zeta$ in equation \ref{eq:replace_zeta} is replaced by $\eta$ in the discussions below.  Figure \ref{fig:rbcast_a_delay} shows the worst case scenario when $n=3$.  
     
     \begin{figure}[H]
                 \centering    
@@ -509,7 +518,7 @@ In this section we detail the individual components required by the \textsf{ABca
         \end{figure} 
     
     \paragraph{Simplified Scenario} \hfill \\    
-    As before, we assume that propagation delays are exponentially distributed with parameter $\lambda$.  Also suppose, for now, that $\epsilon = 0$ and $N_j$ instantaneously transmits its $m.copy = 0$ without waiting for $(\eta + \omega)$ and a random wait \footnote{Both of these simplicity assumptions will be removed shortly.}  This scenario is shown in Figure \ref{fig:rbcast_a_no_delay}.  
+    As before, we assume that propagation delays are exponentially distributed with parameter $\lambda$.  Also suppose, for now, that $\epsilon = 0$ and $N_j$ instantaneously transmits its $m.copy = 0$ without waiting for $(\eta + \omega)$ and a random wait \footnote{Both of these simplicity assumptions will be removed shortly.}.  
     
         \begin{figure}[h]
                 \centering    
@@ -518,7 +527,7 @@ In this section we detail the individual components required by the \textsf{ABca
                 \label{fig:rbcast_a_no_delay}
         \end{figure} 
         
-    Of interest, is the probability, $P_{D2}$, that a given node, $N_k$ receives $m.copy = 0$ from $N_j$ by $m.ts + D_2$; where $D_2 = (\rho + 2) x_{mx}$.  Recall that $q  = e^{-\lambda x_{mx}}$ by the exponential assumption.  The time when $N_k$ receives $m.copy = 0$ is determined by the sum of two independent exponential delays:
+    Of interest, is the probability, $P_{D2}$, that a given node, $N_k$ receives $m.copy = 0$ from $N_j$ by $m.ts + D_2$; where $D_2 = (\rho + 2) x_{mx}$.  Recall that $q  = e^{-\lambda x_{mx}}$ by the exponential assumption.  The time when $N_k$ receives $m.copy = 0$ is determined by the sum of two independent exponential delays (see Figure \ref{fig:rbcast_a_no_delay}):
     \begin{enumerate}[label=\roman*]
         \item    $N_i$ to $N_j$
         \item    $N_j$ to $N_k$
@@ -582,7 +591,6 @@ In this section we detail the individual components required by the \textsf{ABca
     \end{equation}
     
     
-    \paragraph{$\bm{\eta \geq x_{mx}}$} \hfill \\
     When $\eta \geq x_{mx}$,
     
     \begin{equation}
@@ -767,7 +775,7 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
     
     A node is sending and receiving broadcast messages between a fixed destination set of nodes and the latencies encountered by each broadcast is recorded by all recipient nodes\footnote{As required by the \textsf{ABcast} protocol.}.  In the event that one or more of these latencies exceed the current $x_{mx}$ value, it is the responsibility of AFC to ensure that the local node adopts a lower broadcasting rate until a new $x_{mx}$ value is calculated.  At which time, the newly calculated $x_{mx}$ takes into account the large latencies observed in the recent past, reducing the probability of assumption \textbf{A4} being compromised by the latencies encountered in the near future.  If latencies continue to exceed $x_{mx}$ then the node's broadcast rate will become increasingly restricted, whereas if no violations of $x_{mx}$ occur, then no restrictions are placed on the node's broadcast rate. Thus a node's broadcast rate is restricted only when actual delays violate A4.  
 
-    Unlike \textsf{UFC}, our approach restricts the sending rate of a node, $N_i$, based upon the messages it receives, not the rate at which $N_i$'s messages are received at other nodes in the network.  This may seem counterintuitive, but it is appropriate because the \textsf{ABcast} protocol is based upon the assumption that the latencies observed by a given node, $N_i$, are representative of the latencies which $N_i$'s broadcasts experience at destinations, therefore the AFC protocol simply utilises this assumption and applies it to flow control.  The AFC protocol is designed upon the assumption that if $N_i$'s observed latencies repeatedly exceed $N_i.x_{mx}$, then it is highly probable that $N_i$'s message buffer or the underlying network is approaching saturation.  In which case, it is very likely that another node, $N_j$, will also be observing increased-latencies due to similar circumstances, therefore it is necessary for $N_i$'s broadcast rate to be lowered in order to reduce the load on $N_j$.  This assumption is especially apt in the \emph{AmaaS} model when the \textsf{SCast} protocol is used, as each $c$-node randomly selects an $s$-node when sending a multicast request, resulting in client requests being evenly distributed between $s$-nodes.  Therefore each $s$-node is likely to issue approximately the same number of \emph{abcast}s, and thus, each node receives approximately the same number of messages.          
+    Unlike \textsf{UFC}, our approach restricts the sending rate of a node, $N_i$, based upon the messages it receives, not the rate at which $N_i$'s messages are received at other nodes in the network.  This may seem counterintuitive, but it is appropriate because the \textsf{ABcast} protocol is based upon the assumption that the latencies observed by a given node, $N_i$, are representative of the latencies which $N_i$'s broadcasts experience at destinations, therefore the AFC protocol simply utilises this assumption and applies it to flow control.  The AFC protocol is designed upon the assumption that if $N_i$'s observed latencies repeatedly exceed $x_{mx}$, then it is highly probable that $N_i$'s message buffer or the underlying network is approaching saturation.  In which case, it is very likely that another node, $N_j$, will also be observing increased-latencies due to similar circumstances, therefore it is necessary for $N_i$'s broadcast rate to be lowered in order to reduce the load on $N_j$.  This assumption is especially apt in the \emph{AmaaS} model when the \textsf{SCast} protocol is used, as each $c$-node randomly selects an $s$-node when sending a multicast request, resulting in client requests being evenly distributed between $s$-nodes.  Therefore each $s$-node is likely to issue approximately the same number of \emph{abcast}s, and thus, each node receives approximately the same number of messages.          
     
     Figure \ref{fig:abcast_components_afc} shows the new \textsf{ABcast} components diagram with the AFC protocol included.  Note that the AFC protocol is the highest in the stack, i.e. closest to the application, as all \emph{abcast} messages must be sent via the AFC protocol.  
         
@@ -783,7 +791,7 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
     \subsection{AFC Protocol}     
      This section introduces the variables utilised by AFC, explaining their significance and why they are required, before detailing the calculations that utilise these variables to alter a node's broadcast rate.  The calculations presented in this section assume that a single message $m$ is being broadcast.  
          
-     The steps required by AFC to initiate a broadcast of $m$ are as follows: An application thread sends $m$ down the protocol stack, and upon receipt of $m$, the AFC protocol performs all of the calculations presented in this section in order to calculate a flow control delay.  This delay must be observed between the time of a node's previous broadcast and the broadcasting of $m$, with neither this thread or another application thread able to broadcast a subsequent message until $m$ has observed its delay.  Upon expiration of this delay, $m$ can be sent to \textsf{ABcast} for broadcasting.  Once $m$ has been broadcast, the applications request has been completed and its possible for the previously engaged thread to initiate a new broadcast.  Note, it is possible for other application threads to submit messages to the AFC protocol whilst $m$ is being handled, or waiting for its delay to expire; these messages cannot be processed until $m$ has spent its required delay. 
+     The steps required by AFC to initiate a broadcast of $m$ are as follows: An application thread sends $m$ down the protocol stack, and upon receipt of $m$, the AFC protocol performs all of the calculations presented in this section in order to calculate a flow control delay.  This delay must be observed between the time of a node's previous broadcast and the broadcasting of $m$, with neither this thread or another application thread able to broadcast a subsequent message until $m$ has observed its delay.  Upon expiration of this delay, $m$ can be sent to \textsf{ABcast} for broadcasting.  Once $m$ has been broadcast, the applications request has been completed and it is possible for the previously engaged thread to initiate a new broadcast.  Note, it is possible for other application threads to submit messages to the AFC protocol whilst $m$ is being handled, or waiting for its delay to expire; these messages cannot be processed until $m$ has spent its required delay. 
         
     A common technique for implementing rate-based flow control, is the use of the \emph{leaky bucket scheme} \citep{Jain:1996:CCT:244118.244120, bertsekas1992DataNetworksFC} to regulate the sending of many messages.  In this scheme, messages are placed into a \textquoteleft{}bucket' until they are assigned a permit allowing them to be transmitted.  The rate at which permits are dispensed to messages, determines the broadcast rate of the node and is equivalent to the estimated flow-control delay.  It is common for  leaky bucket implementations to utilise buckets that consists of several messages, with the transmission of the bucket being delayed until all of its messages have acquired a permit; hence a flow-control delay has been observed by all nodes in the bucket.  This leads to messages being sent in batches from each node, with a large delay observed between subsequent buckets, opposed to individual messages being sent at a consistent rate.  
     
@@ -818,7 +826,7 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
     
     \begin{equation}\label{eq:afc_gamma}
 		     \begin{aligned}
-		         \gamma \quad = \quad \frac{x_{mx} + \mu}{x_{mx}} \quad = \quad 1 + \frac{\mu}{x_{mx}} \geq 1 \quad as \quad \gamma \geq 0
+		         \gamma \quad = \quad \frac{x_{mx} + \mu}{x_{mx}} \quad = \quad 1 + \frac{\mu}{x_{mx}} \geq 1 \quad as \quad \mu \geq 0
 		     \end{aligned}
     \end{equation} 
     
@@ -840,9 +848,9 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
         When $\gamma = 1$, no $Mp$ value has been observed so far; so, $\mu = 0$ as per Equation \ref{eq:afc_mu_under_ten} and $\lambda_2 = \lambda_1$.  Thus, $m$ will be handed over to \textsf{ABcast} at the old rate of $\lambda_1$.
     
         \item[$\bm{\gamma > 1$}]\hfill \\
-        When $\gamma > 1$, $x_{mx}$ has been observed to have been violated and hence the broadcast rate must be slowed down.  Moreover $(1 - \gamma) < 0$, $e^{\left(\frac{1 - \gamma}{C}\right)}$ and $\lambda_2 < \lambda_1$.                 
+        When $\gamma > 1$, $x_{mx}$ has been observed to have been violated and hence the broadcast rate must be slowed down.  Moreover $(1 - \gamma) \geq 0$, $e^{\left(\frac{1 - \gamma}{C}\right)}$ and $\lambda_2 < \lambda_1$.                 
                 
-        Note that $e^{\bar{z}}$ decays rapidly as $\bar{z}$, $\bar{z} < 0$, decreases even by a small amount (see Figure \ref{fig:afc_e_expontential}). To control $\lambda_2$ becoming extremely small, we choose $C$ to be a large positive constant.  
+        Note that $e^{\bar{z}}$ decays rapidly as $\bar{z}$, $\bar{z} > 0$, decreases even by a small amount (see Figure \ref{fig:afc_e_expontential}). To control $\lambda_2$ becoming extremely small, we choose $C$ to be a large positive constant.  
         
         \begin{figure}[H]
         \centering
@@ -851,9 +859,15 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
 		    ytick={0,1},
 		    xtick={0},
 		    axis y line=middle,
-		    axis x line=middle,
+		    axis x line=bottom,
+		    every axis x label/.style={
+                at={(ticklabel* cs:1.05)},
+                anchor=west,
+            },
 		    xlabel = \Huge $\bar{z}$,
 		    ylabel = \Huge {$e^{\bar{z}}$},
+		    legend pos = outer north east,
+		    legend style = {draw = none, empty legend}
 		]
 		%Here the blue parabloa is defined
 		\addplot [
@@ -863,7 +877,7 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
 		    unbounded coords=jump,
 		    ]
 		    {0.5772156649^-x};
-		%\addlegendentry{$x^2 + 2x + 1$}
+		\addlegendentry{$e^{\bar{z}} = 1 \text{, when } \bar{z} = 0$}
 		\end{axis}
 	\end{tikzpicture}
 	\caption[AFC: The effect of $\bar{z}$ decreasing on $e^{\bar{z}}$]{The effect of $\bar{z}$ decreasing on $e^{\bar{z}}$}
@@ -881,6 +895,7 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
         
         \textbf{Note: } $\delta = 0$ if $\lambda_1 = \lambda_2$.  
         
+        \subsubsection*{A Practical Observation and Remedy}
     AFC presented above is very dynamic and can result in a node's $\delta$ value fluctuating dramatically over a period of time.  Although a dynamic flow-control solution that reacts to the changing conditions of the network is desirable, early experiments showed that calculating $\delta$ as above resulted in very small delays being calculated for the majority of broadcasts.  This resulted in the broadcast rate of sending nodes not being restricted sufficiently over an extended period of time, causing larger numbers of $Mp$ values to suddenly appear. This sudden emergence of $Mp$ values results in the calculated $\delta$ value being extraordinarily high and the system's throughput becoming excessively restricted.  Over time, as new $x_{mx}$ values were calculated and $Mp$ values stopped appearing, the flow-control began to increase the node's broadcast rate, however we found that $\delta$ eventually become too small again, causing a cycle to occur that consistently repeated itself.  Ultimately, solely utilising $\delta$ caused AFC to retrospectively react to a congested network, when the purpose of AFC is to be proactive and stop congestion from occurring.  
     
     Our solution, was to propose two new constants $\delta_{min}$ and $\delta_{max}$, which set a lower and upper bound on $\delta$.  The new calculations for $\lambda_2$ are presented below:
