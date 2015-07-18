@@ -695,10 +695,10 @@ Hitherto this chapter has focused on the underlying assumptions made when design
          \begin{itemize}
             \item    Discard $m$ when it becomes known to $d$; resulting in a violation of G1 and G2.  
             
-            \item    Deliver $m$ to the application via an exception; resulting in a violation of G4-P.  
+            \item    Deliver $m$ to the application via an exception; resulting in a violation of G4.  
         \end{itemize}                       
         
-        \textsf{Aramis} takes the second option and throws an exception when a $rb.delivered$ message is not $ab.delivered$; we refer to this process as a message being \emph{rejected}.  Explicitly \emph{rejecting} a message from the $ab.delivery$ allows for higher levels in the network stack (e.g. \textsf{SCast}) to initiate an appropriate recovery mechanism to mitigate the effects of G4-P violations on the system's state.  Furthermore, as the \emph{rejected} message is still being delivered to the application, albeit via an exception, it is possible for the payload of the \emph{rejected} message to be utilised by the application as part of its recovery mechanism for G4-P violations.    
+        \textsf{Aramis} takes the second option and throws an exception when a $rb.delivered$ message is not $ab.delivered$; we refer to this process as a message being \emph{rejected}.  Explicitly \emph{rejecting} a message from the $ab.delivery$ allows for higher levels in the network stack (e.g. \textsf{SCast}) to initiate an appropriate recovery mechanism to mitigate the effects of G4 ordering violations on the system's state.  Furthermore, as the \emph{rejected} message is still being delivered to the application, albeit via an exception, it is possible for the payload of the \emph{rejected} message to be utilised by the application as part of its recovery mechanism for ordering violations.    
         
         \subsubsection*{Message Rejections}
         A message, $m$, sent by node $N_i$, can only be \emph{rejected} by another recipient, $N_j$, when a message $m'$ from $N_j$ has been incorrectly delivered before $m$ in the total order; where $m.ts < m'.ts$ but $m'$ is incorrectly $ab.delivered$ first.  In order for $m'$ to be $ab.delivered$ ahead of $m$, resulting in $m$ being \emph{rejected} by $N_j$, it is necessary for both of the statements below to be true:
