@@ -1,7 +1,19 @@
 \chapter{Performance Evaluation}\label{ch:perf_eval}
     \graphicspath{{Chapter6-PerformanceEvaluation/Figs/Vector/}{Chapter6-PerformanceEvaluation/Figs/}}
     
-    This chapter provides a comprehensive performance evaluation of the key concepts introduced in this thesis.  Evaluation focusses on five issues: (i) the scalability of the \textsf{AmaaS} model over P2P; (ii) performance comparison between \textsf{ABcast} and TOA when utilised in the context of \textsf{AmaaS}; (iii) performance of \textsf{ABcast} when requests are frequent over a large number period of time; (iv) the ability of \textsf{ABcast}, more specifically \textsf{Aramis}, to maintain  guarantee G4-P; (v)  the effectiveness of \textsf{ABcast}'s non-blocking message delivery in the interim period between a node crashing and the GM protocol detecting it.  
+    This chapter provides a comprehensive performance evaluation of the key concepts introduced in this thesis.  Evaluation focusses on five issues: 
+    \begin{enumerate}[label=\roman*]
+    \item    The scalability of the \textsf{AmaaS} model over P2P.  
+    
+    \item    A performance comparison between \textsf{ABcast} and TOA when utilised in the context of \textsf{AmaaS}.
+    
+    \item    The performance of \textsf{ABcast} when requests are frequent over a large number period of time.  
+    
+    \item    The probability $R$ of ordering correctness by \textsf{ABcast}, more specifically \textsf{Aramis}.
+    
+    \item    The effectiveness of \textsf{ABcast}'s non-blocking message delivery in the interim period between a node crashing and the GM protocol publishing a new view.  
+    \end{enumerate}    
+
    
     The remainder of this chapter is structured as follows: First we detail an experiment that emulates Infinispan's distributed transactions, and is used to evaluate (i) and (ii) ($\S$ \ref{sec:emulated_transactions}).  This is followed by an experiment that replicates the inner workings of the \textsf{SCast} protocol, in order to simulate an \textsf{AmaaS} service operating at maximum capacity, which is used to evaluate (iii) and (iv) ($\S$ \ref{sec:infinite_clients_eval}).  Finally, we introduce an experiment that evaluates (iv) and (v) by crashing a node while \emph{abcast}s are sent between nodes ($\S$ \ref{sec:infini_crashed_node}).  
 
@@ -60,7 +72,7 @@
 	\subsection{Results}\label{sec:AmaaS_results}
 	Our performance evaluation focuses on the comparison of the TOA protocol, being utilised in a traditional P2P scenario (\emph{TOA-P2P}), with two different \textsf{AmaaS} services that utilise the \textsf{SCast} protocol.  The \textsf{SCast} service utilises the deterministic protocol TOA for state machine replication, whilst the \emph{PSCast} service utilises the probabilistic protocol \textsf{ABcast}, hence we refer to these two services as the \emph{TOA-Service} and \emph{ABService}.  
     
-    The performance of all three approaches is measured based upon the average transaction latency and throughput rate. In both the \emph{TOA-Service} and \emph{ABcast-Service}, latency is measured as the time elapsed between a $c$-node's initial transmission of $req(Tx)$ to some $s$-node, and all members of $Tx.dst$ delivering $mcast(Tx)$ to the experiment application. In TOA-P2P, latency is measured as the time taken for all $Tx.dst$ to deliver $Tx$ to the experiment application. For both approaches, throughput is measured as the average number of \emph{abcast}s delivered by the experiment application per second at each $c$-node.
+    The performance of all three approaches is measured based upon the average transaction latency and throughput rate. In both the \emph{TOA-Service} and \emph{ABcast-Service}, latency is measured as the time elapsed between a $c$-node's initial transmission of $req(Tx)$ to some $s$-node, and \textbf{all} members of $Tx.dst$ delivering $mcast(Tx)$ to the experiment application. In TOA-P2P, latency is measured as the time taken for all $Tx.dst$ to deliver $Tx$ to the experiment application. For both approaches, throughput is measured as the average number of \emph{abcast}s delivered by the experiment application per second at each $c$-node.
 	
 	\textbf{Note:} All of our experiments were conducted in isolation in order to prevent any side effects caused by simultaneously executing multiple experiments on the same cluster, however we conducted all experiments over approximately the same time period to ensure that the network was under similar loads for all of our experiments. 
 	
@@ -72,7 +84,7 @@
   \begin{center}
     \begin{tabular}{|l|c|c|c|}
     \hline
-    Experiment & $\#$ Client Requests  & $\#$ \emph{abcast}s & Bundle Rate \\ \hline \hline
+    Experiment & $\#$ Client Requests  & $\#$ \emph{abcast}s & Bundle Size \\ \hline \hline
     ABService-2N     & 50000    &    12763.4    &    4 \\ \hline
     TOA-Service-2N  & 50000    &   16632    &   3 \\ \hline
     ABService-3N     & 33333.3 &    13416.4  &   2.5 \\ \hline
@@ -84,6 +96,8 @@
 \end{table}	
 	
     Table \ref{table:emulated_transcation_aramis_deliveries} shows the performance of the \textsf{ABcast} protocol in both the ABService-2N and 3N experiments.  It shows the average number of \emph{abcast}s sent per node and the average number of these messages that were delivered by the Aramis protocol, as well as providing the total percentage of \emph{abcast}s that were delivered via Aramis.  Furthermore, this table details the ratio of $s$-nodes that delivered an \emph{abcast} via Aramis compared to the total number of $s$-nodes utilised.  For example, in the case of ABService-2N we performed $24$ experiments, therefore we have statistics for $48$ $s$-nodes and our records show that only $3$ of these nodes utilised Aramis to deliver one or more \emph{abcast} messages.  
+    
+    The very small number of \textsf{Aramis} deliveries is understandable as $\Delta_m$ of \textsf{Aramis} is estimated pessimistically and no crashes occur.  In fact, it is surprising that some \emph{abcast}s were indeed delivered by \textsf{Aramis} faster than \textsf{Base} and more discussions on this aspect are presented in subsection \ref{ssec:emulated_eval}.  
 	
 	\begin{table}[h]
 	  \begin{center}
@@ -113,8 +127,8 @@
 	\end{figure}	
 	
 	\clearpage
-    \subsection{Evaluation}
-    This section is split into three distinct subsections.  First we directly compare the performance of the \textsf{AmaaS} service and the P2P approach with both experiments utilising the same TOA protocol.  We then evaluate the performance of the ABService in contrast with the previous two approaches, focusing on the differences between the performance of the ABcast and TOA based service.  Finally, we evaluate the performance of \textsf{ABcast}, focusing on how often the \textsf{Aramis} protocol was utilised to deliver messages and its ability to maintain G4-P.  
+    \subsection{Evaluation}\label{ssec:emulated_eval}
+    This section is split into three distinct subsections.  First we directly compare the performance of the \textsf{AmaaS} service and the P2P approach with both experiments utilising the same TOA protocol.  We then evaluate the performance of the ABService in contrast with the previous two approaches, focusing on the differences between the performance of the ABcast and TOA based service.  Finally, we evaluate the performance of \textsf{ABcast}, focusing on how often the \textsf{Aramis} protocol was utilised to deliver messages and its ability to maintain ordering correctness.  
     
     \subsubsection*{AmaaS vs P2P}
 	In Figure \ref{fig:LatencyGraph} we can see that when $|Tx.dst| \geq 4$, TOA-P2P's \emph{abcast} latencies increase considerably when compared to the two TOA-Service experiments.  With TOA-P2P experiencing approximately a $25\%$ and $50\%$ increase in average latency when compared to TOA-Service-3N and TOA-Service-2N respectively.  Thus, indicating that \emph{amcast}ing is best provided as a service as the number of clients involved in a transaction increases. Comparing throughput in Figure \ref{fig:ThroughputGraph} leads to similar conclusions, with the steady throughput observed as $|Tx.dst| \rightarrow 10$ also suggesting an absence of node saturation.  
@@ -134,7 +148,7 @@
 	
     Interestingly, in Table \ref{table:emulated_transaction_averages} we can see that the average bundle rate of ABService-3N and TOA-Service-3N are almost the same, yet the difference between the observed latencies in the two approaches has increased.  This suggests that in these experiments the average bundle rate has no significant impact on the performance of the two approaches.  
     
-    The large difference between the average bundle rate observed in ABService-2N and 3N, is a direct consequence of the DMC's calculations and how AFC ($\S$ \ref{sec:afc_protocol}) manages broadcast rates.  Recall that the delay imposed by AFC, for an \emph{abcast} message, increases when latencies start to exceed the previously calculated $x_{mx}$ value, and decreases to $\delta_{min}$ when no such latencies are observed.  When $2 s$-nodes are utilised, the observed $x_{mx}$ is typically lower than 3 $s$-nodes, as the number of unicasts sent between $s$-nodes is less; hence the probability of large delays being observed is reduced.  The smaller the average $x_{mx}$ value, the more susceptible the system is to delays periodically exceeding $x_{mx}$.  Therefore, when 2 $s$-nodes are utilised the probability of the calculated AFC delay regularly exceeding $\delta_{min}$ increases, which in turn reduces the node's broadcast rate.  Consequently, the number of requests which can accumulate between \emph{abcast}s will increase, and hence the average bundle rate also increases.  When $3 s$-nodes are utilised, the DMC's observations are typically more stable, resulting in less \emph{outlier} latencies being recorded and the broadcast rate being more stable; hence an average bundle rate that is approximately the same as the TOA-Service-3N.  
+    The large difference between the average bundle rate observed in ABService-2N and 3N, is a direct consequence of the DMC's calculations and how AFC ($\S$ \ref{sec:afc_protocol}) manages broadcast rates.  Recall that the delay imposed by AFC, for an \emph{abcast} message, increases when latencies start to exceed the previously calculated $x_{mx}$ value, and decreases to $\delta_{min}$ when no such latencies are observed.  When $2$ $s$-nodes are utilised, the observed $x_{mx}$ is typically lower than 3 $s$-nodes, as the number of unicasts sent between $s$-nodes is less; hence the probability of large delays being observed is reduced.  The smaller the average $x_{mx}$ value, the more susceptible the system is to delays periodically exceeding $x_{mx}$.  Therefore, when $2$ $s$-nodes are utilised the probability of the calculated AFC delay regularly exceeding $\delta_{min}$ increases, which in turn reduces the node's broadcast rate.  Consequently, the number of requests which can accumulate between \emph{abcast}s will increase, and hence the average bundle rate also increases.  When $3$ $s$-nodes are utilised, the DMC's observations are typically more stable, resulting in less \emph{outlier} latencies being recorded and the broadcast rate being more stable; hence an average bundle rate that is approximately the same as the TOA-Service-3N.  
 	
 	The throughput of the ABService and TOA-Service for both $2N$ and $3N$ follows a very similar pattern to that observed when analysing their latencies.  This is not surprising as the average transaction latency has a direct impact on the average rate of throughput.  Combining the results shown in Figures \ref{fig:LatencyGraph} and \ref{fig:ThroughputGraph}, it is clear to see that the ABService provides comparable performance to that of the TOA-Service and that both of these \textsf{AmaaS} solutions consistently outperform TOA-P2P when $Tx.dst > 3$.  
 	
@@ -143,19 +157,19 @@
 	
 	The increase in \textsf{Aramis} deliveries as the number of $s$-nodes increase can be attributed to the DMC recording each latency anomalously (without regard for source of the message) and calculating $\Delta_m$ based upon these latencies.  In the experiments where $n=2$, we know that all of the latencies recorded by node $Ns_1$ will be from messages originating at $Ns_2$.  Therefore, when node $Ns_1$ broadcasts message $m$, it is guaranteed that the calculated $\Delta_m$ has been calculated utilising latencies representative of $Ns_2$'s past performance.  Whereas, when $n=3$, $Ns_1$ will have calculated $\Delta_m$ based upon latencies recorded from both $Ns_2$ and $Ns_3$, therefore it is possible that if $Ns_3$ is slower than $Ns_2$, the latencies calculated from $Ns_2$ will dilute the larger latencies recorded from messages originating at $Ns_3$.  Thus, the calculated $\Delta_m$ could be smaller than the value required by the slower node $Ns_3$.  
 	
-	\textbf{Note:} None of the experiments that delivered a message via \textsf{Aramis} suffered a G4-P violation and hence no G4-PSCast volations occurred at any client nodes.  Furthermore, we repeated our experiments with delivery condition $D1_B$ of the \textsf{Base} protocol disabled, which causes all \emph{abcast}s to be delivered via \textsf{Aramis}, in order to evaluate the accuracy of $\Delta_m$.  We found that, for both $n=2$ and $n=3$, the calculated $\Delta_m$ was sufficient for all $s$-nodes to deliver messages without a single G4-P violation occurring.  As expected, latencies were large, and they were so large that a single experiment (emulating $10^5$ transactions) took several minutes to complete.  Obviously such large latencies are not practical, however these experiments provide evidence of $\Delta_m$'s ability to preserve guarantee G4-P.  
+	\textbf{Note:} None of the experiments that delivered a message via \textsf{Aramis} suffered an \textsf{ABcast} ordering violation and hence no SCast ordering violations occurred at any client nodes.  Furthermore, we repeated our experiments with delivery condition $D1_B$ of the \textsf{Base} protocol disabled, which causes all \emph{abcast}s to be delivered via \textsf{Aramis}, in order to evaluate the accuracy of $\Delta_m$.  We found that, for both $n=2$ and $n=3$, the calculated $\Delta_m$ was sufficient for all $s$-nodes to deliver messages without a single ordering violation occurring.  As expected, latencies were large, and they were so large that a single experiment (emulating $10^5$ transactions) took several minutes to complete.  Obviously such large latencies are not practical, however these experiments provide evidence of $\Delta_m$'s ability to prevent ordering violations.  
 		
 	\subsection{Summary}
 	When deploying a large-scale distributed transaction system that executes transactions which span several nodes ($|Tx.dst| > 3$), higher throughout and lower-latency can be achieved by utilising the \textsf{AmaaS} model for \emph{amcast} messages.  Furthermore, such a service can provide non-blocking \emph{amcast}s when the \textsf{ABcast} protocol is utilised for state machine replication, whilst maintaining similar levels of performance to when a GM based protocol is utilised.  
 
-\section{ABcast - Infinite Clients}\label{sec:infinite_clients_eval}
+\section{ABcast - Infinite Clients for Extreme Load Conditions}\label{sec:infinite_clients_eval}
     In the previous section, we tested the performance of the \textsf{AmaaS} approach whilst utilising the \textsf{ABcast} protocol.  Our results showed, that the \textsf{Aramis} protocol was rarely required to deliver messages, accounting for only $0.015\%$ and $0.114\%$ of messages, when the number of $s$-nodes was two and three respectively.  However, in these experiments the total number of \emph{abcast} messages was, on average, relatively low for each node; typically less than $2 \times 10^4$.  Furthermore, each $s$-node's rate of \emph{abcast}s would vary depending on the restrictions of the AFC protocol and the rate at which requests were being received by $c$-nodes.  
     
-    Due to the number of client nodes being relatively small, it is probable that at times an $s$-node's ARP could have been empty.  Therefore, in order to test the performance of \textsf{ABcast} under heavy loads, it was necessary for a new experiment to be developed.  The purpose of these experiments are two fold.  First, they allow us to measure how often \textsf{Aramis} is required to deliver messages and the frequency of G4-P violations.  Secondly, they allow us to monitor the values calculated by the DMC during high levels of network load and determine their effect on the resulting $\Delta_m$.  
+    Due to the number of client nodes being relatively small, it is probable that at times an $s$-node's ARP could have been empty.  Therefore, in order to test the performance of \textsf{ABcast} under extremely heavy loads, it was necessary for a new experiment to be developed.  The purpose of these experiments are two fold.  First, they allow us to measure how often \textsf{Aramis} is required to deliver messages and the frequency of order violations.  Secondly, they allow us to monitor the values calculated by the DMC during high levels of network load and determine their effect on the resulting $\Delta_m$.  
     
     In order to test the performance of \textsf{ABcast} under heavy loads, we could simply increase the number of client nodes that were used in our previous experiment, however this would require a large amount of resources and would be cumbersome to orchestrate.  Furthermore, such an approach does not guarantee that the ARP of a given $s$-node will always have a request to process.  
     
-    We propose a new experiment, which we refer to  as an \emph{infinite client system} as it represents the performance of \textsf{AmaaS} ordering service if each $s$-node always has a full ARP.  This experiment does not utilise client nodes at all, instead, it simply consists of $n$ nodes executing $x$ \emph{abcast}s between themselves as fast as possible.  This is the same as the steps required by \textsf{SCast} for state machine replication, however we do not have the overhead of maintaining ordering data at each node.  Therefore the delay between subsequent \emph{abcast}s will be less in this experiment, hence the \textsf{ABcast} protocol will be under a heavier load in these experiments then is possible in a real system that utilises \textsf{SCast}. 
+    We propose a new experiment, which we refer to  as an \emph{infinite client system} as it represents the performance of \textsf{AmaaS} ordering service if each $s$-node always has a full ARP.  This experiment does not utilise client nodes at all, instead, it simply consists of $n$ nodes initiating \emph{abcast}s \emph{as fast as} \textsf{AFC} permits.  This is the same as the steps required by \textsf{SCast} for state machine replication, however we do not have the overhead of maintaining the data structures required by \textsf{SCast} at each node; \emph{i.e.} $order\_history[]$.  Therefore the delay between subsequent \emph{abcast}s will be less in this experiment, hence the \textsf{ABcast} protocol will be under a heavier load in these experiments then is possible in a \emph{complete} \textsf{SCast} implementation. 
     
     \subsection{Experimentation}\label{ssec: infinite_experimentation}
     The infinite client experiment was implemented using the JGroups framework and the same \textsf{ABcast} implementations as the experiments detailed in $\S$ \ref{ssec:emulated_transaction_experiments}.  Furthermore, our experiments utilised the same computer cluster and specification of machine as our previous experiments.  
@@ -167,13 +181,13 @@
         
         \item    As soon as a message has been sent, another \textsf{ABcast} is initiated; where the sending of a message $m$ consists of $m$ being sent down the JGroups stack, processed and delayed by AFC, before being unicast to all $n$ nodes.  
         
-        \item    An experiment is considered complete when each node has delivered $10^6$ messages, or if one or more G4-P violations ($\#violations$) has occurred, then ($10^6 - \#violations$) \footnote{As none of our experiments maintain a state at the application level, \emph{abcast}s that suffer G4-P violations are not \emph{delivered} to the application, instead their occurrence is simply recorded.}.  
+        \item    An experiment is considered complete when each node has delivered $10^6$ messages, or if one or more order violations ($\#violations$) has occurred, then ($10^6 - \#violations$) \footnote{As none of our experiments maintain a state at the application level, \emph{abcast}s that cause order violations are not \emph{delivered} to the application, instead their occurrence is simply recorded.}.  
     \end{enumerate}
     
     For all of our experiments the \textsf{ABcast} protocol used the following constant values: $R = 0.9999$, $\delta_{min} = 1ms$ and $\delta_{max} = 10ms$.  Furthermore, we utilise the same initialisation period from the \textsf{AmaaS} experiments.  
     
     \subsection{Results}
-The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was executed a total of ten times, utilising the same machines for each experiment.  Table \ref{table:infinite_clients_rejections} presents the results of each of these experiments based upon each node's individual performance as well as the performance of the cluster as a whole; where $Ns_1, Ns_2, Ns_3$ correspond to the values recorded by an individual node and we define the cluster as being the combined performance of $\{Ns_1,Ns_2,Ns_3\}$.  For each node in an experiment, we show the total number of \emph{abcast}s that were delivered by \textsf{Aramis} and in brackets the number of G4-P violations.  We also show the total number of \emph{abcast}s delivered by \textsf{Aramis} across the cluster, and the percentage of all \emph{abcast}s that are delivered by \textsf{Aramis}.  
+The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was executed a total of ten times, utilising the same machines for each experiment.  Table \ref{table:infinite_clients_rejections} presents the results of each of these experiments based upon each node's individual performance as well as the performance of the cluster as a whole; where $Ns_1, Ns_2, Ns_3$ correspond to the values recorded by an individual node and we define the cluster as being the combined performance of $\{Ns_1,Ns_2,Ns_3\}$.  For each node in an experiment, we show the total number of \emph{abcast}s that were delivered by \textsf{Aramis} and in brackets the number of order violations.  We also show the total number of \emph{abcast}s delivered by \textsf{Aramis} across the cluster, and the percentage of all \emph{abcast}s that are delivered by \textsf{Aramis}.  
     
 \begin{table}[p]
   \begin{center}
@@ -193,7 +207,7 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
     10        & 2953, (0)  & 5014, (0)  & 3192 , (0) & 11159 & 1.12 \\ \hline \hline
     Total    &46902, (0) &46225, (0) &42557, (0) &135684 & 1.36\\ \hline
     \end{tabular}
-    \caption[Aramis deliveries for Infinite Clients - $\rho_{min}$ = 1]{Aramis deliveries (G4-P Violations) for infinite clients - $\rho_{min}$ = 1}
+    \caption[Aramis deliveries for Infinite Clients - $\rho_{min}$ = 1]{Aramis deliveries (Order Violations) for infinite clients - $\rho_{min}$ = 1}
     \label{table:infinite_clients_rejections}
   \end{center}
 \end{table}
@@ -217,21 +231,21 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
 \end{table}       
 
     \subsection{Evaluation}
-    In Table \ref{table:infinite_clients_rejections} we can see that out of all $10^7$ messages, only $1.36\%$ of \emph{abcast}s were delivered by \textsf{Aramis}.  Furthermore, out of these $135684$ \textsf{Aramis} deliveries there was not a single G4-P violation, therefore \emph{ABcast}'s guarantees were maintained even when the rate of requests was very high.  This lack of G4-P violations implies that the calculated $\Delta_m$ is sufficiently large to prevent messages being missed, whilst still being small enough for some \emph{abcast}s ($1.36\%$) to be delivered via \textsf{Aramis} before the \textsf{Base} protocol could complete.  Thus, for $1.36\%$ of \emph{abcast}s the \textsf{ABcast} protocol reduces latency and prevents message blocking even in the absence of node failures, when compared to traditional GM based protocols.  Finally, the lack of G4-P violations indicates that the protocol is able to handle a large number of \emph{abcast} requests without compromising on message ordering.  
+    In Table \ref{table:infinite_clients_rejections} we can see that out of all $10^7$ messages, only $1.36\%$ of \emph{abcast}s were delivered by \textsf{Aramis}.  Furthermore, out of these $135684$ \textsf{Aramis} deliveries there was not a single order violation, therefore \emph{ABcast}'s guarantees were maintained even when the rate of requests was very high.  This lack of order violations implies that the calculated $\Delta_m$ is sufficiently large to prevent messages being missed, whilst still being small enough for some \emph{abcast}s ($1.36\%$) to be delivered via \textsf{Aramis} before the \textsf{Base} protocol could complete.  Thus, for $1.36\%$ of \emph{abcast}s the \textsf{ABcast} protocol reduces latency and prevents message blocking even in the absence of node failures, when compared to traditional GM based protocols.  Finally, the lack of order violations indicates that the protocol is able to handle a large number of \emph{abcast} requests without compromising on message ordering.  
        
     Correspondingly, Table \ref{table:infinite_clients_aramis_latencies} shows that the average delivery latency encountered by \emph{abcast} messages remains low even when the network is heavily loaded.  Furthermore, it shows that the average $\Delta_m$ value remains below $800ms$ for each node.  
     
-    \textsf{ABcast}s ability to provide to low-latency message delivery in such conditions is crucial, as the speed of the \emph{abcast} protocol utilised in an \textsf{AmaaS} service ultimately determines the response time for each client request.  More significantly, the low average $\Delta_m$ value shows that, even under the heaviest of loads, the DMC is able to calculate an average $\Delta_m$ that is sub $1$ second and still deliver all messages without a single G4-P violation.  This is a vital result, because if the $\Delta_m$ value became increasingly large as the load increased, $\Delta_m$ would start to exceed the typical delay required by the GM service to detect a node crash, therefore rendering our hybrid approach redundant.  
+    \textsf{ABcast}s ability to provide to low-latency message delivery in such conditions is crucial, as the speed of the \emph{abcast} protocol utilised in an \textsf{AmaaS} service ultimately determines the response time for each client request.  More significantly, the low average $\Delta_m$ value shows that, even under the heaviest of loads, the DMC is able to calculate an average $\Delta_m$ that is sub $1$ second and still deliver all messages without a single order violation.  This is a \textbf{\emph{vital}} result, because if the $\Delta_m$ value became increasingly large as the load increased, $\Delta_m$ would start to exceed the typical delay required by the GM service to publish a new view after a node crash, therefore rendering our hybrid approach redundant.  
     
     \subsection{Summary}
     The \textsf{ABcast} protocol is capable of providing low-latency \emph{abcast}s over a sustained period of time in conditions representative of those found in an \textsf{AmaaS} service.  In such conditions, the DMC consistently calculates a $\Delta_m$ value that is small enough to outperform GM services, whilst being sufficiently large to ensure that no violations of \emph{abcast} guarantees occur when messages are delivered by \textsf{Aramis}.  
     
 \section{ABcast - Fault Tolerance}\label{sec:infini_crashed_node}
-    In our previous experiments with \textsf{ABcast} we have evaluated the performance of the protocol in the context of an \textsf{AmaaS} service where no node failures occur.  However, as \textsf{ABcast} has been designed to provide the low-latency performance of GM protocols, whilst allowing for non-blocking message delivery when node crashes occur, it is necessary to ensure that $\Delta_m$ is sufficiently small for message delivery to continue before the GM service detects the crash.  
+    In our previous experiments with \textsf{ABcast} we have evaluated the performance of the protocol in the context of an \textsf{AmaaS} service where no node failures occur.  However, as \textsf{ABcast} has been designed to compliment the low-latency performance of GM protocols, by allowing for non-blocking message delivery when node crashes occur, it is necessary to ensure that $\Delta_m$ is sufficiently small for messages to be delivered in the interim period between a node crash and the GM service publishing a new view. 
     
-    Ultimately, if the GM service is able to detect a node crash before any messages are delivered via the \textsf{Aramis} protocol, then the increased complexity of a hybrid approach is unnecessary.  In such a case, a traditional GM based protocol would be more suitable as G4-P violations would not exist.  Therefore in order to determine the effectiveness of \textsf{ABcast}'s hybrid approach, it was necessary to create an experiment that monitors the number of messages, if any, that are delivered by \textsf{ABcast} in the interim period between a node crashing and the GM service detecting it.  
+    Ultimately, if the GM service is able to publish a new view before any messages are delivered via the \textsf{Aramis} protocol, then the hybrid approach we have taken is unnecessary.  In such a case, a traditional GM based protocol would be more suitable as order violations are not possible.  Therefore in order to determine the effectiveness of \textsf{ABcast}'s hybrid approach, it was necessary to create an experiment that monitors the number of messages, if any, that are delivered by \textsf{ABcast} in the interim period between a node crashing and the GM service publishing a new view.
     
-    Such an experiment also enable us to explore the impact of utilising different values for \textsf{ABcast}'s configuration parameters, such as $\rho_{min}$ and $R$, on the number of messages delivered in this interim period.  More specifically, these experiments allow us to explore the impact of these configurations parameters on the average $\Delta_m$ value calculated by a node and how these variations impact the observed number of G4-P violations.  
+    Such an experiment also enable us to explore the impact of utilising different values for \textsf{ABcast}'s configuration parameters, such as $\rho_{min}$ and $R$, on the number of messages delivered in this interim period.  More specifically, these experiments allow us to explore the impact of these configurations parameters on the average $\Delta_m$ value calculated by a node and how these variations impact the observed number of order violations.  
     
     \subsection{Experimentation}\label{ssec:crash_experiment}
     In order to test the performance of \textsf{ABcast} when a node crashes, we reuse the experiments detailed in $\S$ \ref{ssec: infinite_experimentation}.  However, in these experiments, instead of all $3$ nodes sending a total of $10^6$ \emph{abcast}s, only $2$ of the nodes complete their broadcasts.  The third node, $Ns_3$, is crashed after sending $50000$ \emph{abcast}s.  
@@ -240,22 +254,25 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
     
     In order to understand this experiment and why crashing the underlying JVM is necessary, it is important to recall the design of JGroup's GMS and associated \emph{failure detection} protocols presented in section \ref{ssec:jgroups_gms}.  Recall that the \emph{failure detection} protocol \texttt{FD\_SOCK} is particularly effective at detecting node crashes; with crashes typically detected within seconds.  Therefore, in order for \textsf{ABcast} to deliver messages before the GMS protocol becomes aware of a node crash, the calculated $\Delta_m$ would need to remain relatively small ($\lesssim 2$ $seconds$) throughout our experiments.  
     
-    Due to \texttt{FD\_SOCK}'s use of Java shutdown hooks, it was not possible for the crashed node in our experiments to be exited as a normal Java application; as this would result in the terminating node sending a leaving message to all members in the view and alerting GMS almost instantly that the node was leaving the current view.  Clearly such a leaving message cannot be sent when a node is crashed unintentionally.  Therefore, it was necessary for us to terminate the JVM in the most disruptive manner possible, in order to replicate the unexpected nature of a real node crash.  We achieved this by using reflection to access the \emph{sun.misc.Unsafe} api and crash the JVM.  The code used to crash the JVM is shown below:
+    Due to \texttt{FD\_SOCK}'s use of Java shutdown hooks, it was not possible for the crashed node in our experiments to be exited as a normal Java application; as this would result in the terminating node sending a leaving message to all members in the view and alerting GMS almost instantly that the node was leaving the current view.  Clearly such a leaving message cannot be sent when a node is crashed unintentionally.  Therefore, it was necessary for us to terminate the JVM in the most disruptive manner possible, in order to replicate the untimely occurrence of a real node crash.  We achieved this by using reflection to access the \emph{sun.misc.Unsafe} api and crash the JVM.  The code used to crash the JVM is shown below:
     
+    \noindent
     \begin{minipage}{\linewidth}
+        \hfill
 	    \begin{lstlisting}
 	            Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
 	            theUnsafe.setAccessible(true);
 	            ((Unsafe) theUnsafe.get(null)).getByte(0);
 	    \end{lstlisting}
+	    \hfill
 	\end{minipage}
 
-    As previously stated, we crash the node $Ns_3$ after it has initiated $50000$ \emph{abcast} requests.  Therefore, we consider each experiment to be complete when both $Ns_1$ and $Ns_2$ have delivered $(666666 + 50000 - \#violations)$ \emph{abcast}s.  For all of our experiments, we utilise the following AFC values $\delta_{min} = 1ms$ and $\delta_{max} = 10ms$.  We execute our experiments utilising $\rho_{min} = 1,2,3$ and $R=0.9999$ in order to determine the effect of increasing $\Delta_m$ on the number of messages delivered before the GM service detects a crash and the number of G4-P violations.  Similarly, we also execute our experiments utilising $\rho_{min} = 1$ and $R=0.99999$, to see the effect of increasing $R$ on $\Delta_m$ and G4-P violations.  
+    As previously stated, we crash the node $Ns_3$ after it has initiated $50000$ \emph{abcast} requests.  Therefore, we consider each experiment to be complete when both $Ns_1$ and $Ns_2$ have delivered $(666666 + 50000 - \#violations)$ \emph{abcast}s.  For all of our experiments, we utilise the following AFC values $\delta_{min} = 1ms$ and $\delta_{max} = 10ms$.  We execute our experiments utilising $\rho_{min} = 1,2,3$ and $R=0.9999$ in order to determine the effect of increasing $\Delta_m$ on the number of messages delivered before the GM service publishes a new view and the number of order violations.  Similarly, we also execute our experiments utilising $\rho_{min} = 1$ and $R=0.99999$, to see the effect of increasing $R$ on $\Delta_m$ and the number of ordering violations.  
     
     Once again, we utilise the same initialisation period for \textsf{ABcast} as in our previous experiments.  
     
     \subsection{Results}
-    Tables \ref{table:crashed_node_rho1}, \ref{table:crashed_node_rho2} and \ref{table:crashed_node_rho3} show the performance of the \textsf{ABcast} protocol in the experiments described in \ref{ssec:crash_experiment}, when $\rho_{min}$ is equal to $1, 2$ and $3$, respectively.  With each table showing the results of ten experiments that were executed with the specified $\rho_{min}$ value.  Each of these tables, show the average $\Delta_m$ value calculated for messages originating at both $Ns_1$ and $Ns_2$, as well as the total number of \emph{abcast}s, $\#abcast$, delivered by \textsf{Aramis} in the interim period between node $Ns_3$ crashing and GMS detecting the crash \footnote{If a column contains $-$ it indicates that no \textsf{Aramis} deliveries occurred before GMS detected $Ns_3$'s crash.}.  Furthermore, the value in brackets next to this total represents the number of G4-P violations that occurred in the interim period.  Finally, $\#abcast$ shows the throughput gain provided by utilising the probabilistic \textsf{Aramis} protocol, as these \emph{abcast}s would not have been delivered until GMS detected $Ns_3$'s crash if a GM based protocol had been used for \emph{abcast}ing.   
+    Tables \ref{table:crashed_node_rho1}, \ref{table:crashed_node_rho2} and \ref{table:crashed_node_rho3} show the performance of the \textsf{ABcast} protocol in the experiments described in \ref{ssec:crash_experiment}, when $\rho_{min}$ is equal to $1, 2$ and $3$, respectively.  With each table showing the results of ten experiments that were executed with the specified $\rho_{min}$ value.  Each of these tables, show the average $\Delta_m$ value calculated for messages originating at both $Ns_1$ and $Ns_2$, as well as the total number of \emph{abcast}s, $\#abcast$, delivered by \textsf{Aramis} in the interim period between node $Ns_3$ crashing and the GM publishing a new view \footnote{If a column contains $-$ it indicates that no \textsf{Aramis} deliveries occurred before GMS detected $Ns_3$'s crash.}.  Furthermore, the value in brackets next to this total represents the number of order violations that occurred in the interim period.  Finally, $\#abcast$ shows the throughput gain provided by utilising the probabilistic \textsf{Aramis} protocol, as these \emph{abcast}s would not have been delivered until GMS detected $Ns_3$'s crash if a GM based protocol had been used for \emph{abcast}ing.   
 
     Table \ref{table:crashed_node_R.99999} shows the performance of \textsf{ABcast} in the same experiments, but with $\rho_{min} = 1$ and the constant $R = 0.99999$.  The fields and columns presented in this table are equivalent to those describe above.  
     
@@ -264,7 +281,7 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
   \renewcommand{\arraystretch}{1.5}
     \begin{tabular}{|c|c|c|c|c|}
     \hline
-    \multirow{2}{*}{$\rho_{min}$} & \multirow{2}{*}{$R$}    & \multirow{2}{1.75cm}{$\#$ of Fail Free Runs} & \multicolumn{2}{|c|}{Failure / Delivery} \\ \cline{4-5}
+    \multirow{2}{*}{$\rho_{min}$} & \multirow{2}{*}{$R$}    & \multirow{2}{2cm}{$\#$ Violation Free Runs} & \multicolumn{2}{|c|}{$\#$ Violations} \\ \cline{4-5}
                                  &              &                   & $Ns_1$   & $Ns_2$             \\ \hline \hline
     3                           & 0.9999  & $10/10$    & $-$        & $-$                 \\ \hline
     2                           & 0.9999  & $9/10$      & $-$        & $\frac{1}{19485}$ \\ \hline
@@ -277,7 +294,7 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
   \end{center}
 \end{table}    
     
-    Table \ref{table:crashed_node_summary} provides a summary of all of these previous tables, with each set of experiments represented as a single row and being uniquely identified by the combination of $R$ and $\rho_{min}$ values used in the experiments.  For each experiment, we show the number of experiments that encountered no G4-P violations as a ratio of all experiments, and in experiments where violations did occur we present the number of violations over the number of successful \textsf{Aramis} deliveries that occurred before GMS detected $Ns_3$'s crash\footnote{In Table \ref{table:crashed_node_summary}, $-$ indicates that not \textsf{Aramis} failures occurred}.  
+    Table \ref{table:crashed_node_summary} provides a summary of all of these previous tables, with each set of experiments represented as a single row and being uniquely identified by the combination of $R$ and $\rho_{min}$ values used in the experiments.  For each experiment, we show the number of experiments that encountered no order violations over the total number of experiments, and in experiments where violations did occur we present the number of order violations over the number of successful \textsf{Aramis} deliveries that occurred before GMS detected $Ns_3$'s crash\footnote{In Table \ref{table:crashed_node_summary}, $-$ indicates that no \textsf{Aramis} order violations occurred}.  
      
 \begin{table}[p]
     \begin{center}
@@ -297,7 +314,7 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
             9 & 478 & 3798, (0) & 931 & 3798, (0) \\ \hline
             10 & 234 & 17341, (0) & 290 & 17805, (0) \\  \hline
         \end{tabular}
-        \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.9999$, $\rho_{min}=1$)]{\textsf{Aramis} deliveries (G4-P Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.9999$, $\rho_{min}=1$}
+        \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.9999$, $\rho_{min}=1$)]{\textsf{Aramis} deliveries (Order Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.9999$, $\rho_{min}=1$}
         \label{table:crashed_node_rho1}
     \end{center}
 \end{table}
@@ -320,7 +337,7 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
             9 & 498 & 5440, (0) & 362 & 5449, (0) \\ \hline
             10 & 716 & 3611, (0) & 376 & 3611, (0) \\ \hline
         \end{tabular}
-        \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.9999$, $\rho_{min}=2$)]{\textsf{Aramis} deliveries (G4-P Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.9999$, $\rho_{min}=2$}
+        \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.9999$, $\rho_{min}=2$)]{\textsf{Aramis} deliveries (Order Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.9999$, $\rho_{min}=2$}
         \label{table:crashed_node_rho2}
     \end{center}
 \end{table}
@@ -343,7 +360,7 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
             9 & 356 & 18030, (0) & 569 & 18034, (0)  \\ \hline
             10 & 695 & 13907, (0) & 511 & 13907, (0)  \\ \hline
         \end{tabular}
-        \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.9999$, $\rho_{min}=3$)]{\textsf{Aramis} deliveries (G4-P Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.9999$, $\rho_{min}=3$}
+        \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.9999$, $\rho_{min}=3$)]{\textsf{Aramis} deliveries (Order Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.9999$, $\rho_{min}=3$}
         \label{table:crashed_node_rho3}
     \end{center}
 \end{table}
@@ -366,7 +383,7 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
             9 & 334 & 19058, (0) & 278 & 19060, (0)  \\ \hline
             10 & 233 & 17588, (0) & 421 & 17586, (0)  \\ \hline
         \end{tabular}
-        \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.99999$, $\rho_{min}=1$)]{\textsf{Aramis} deliveries (G4-P Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.99999$, $\rho_{min}=1$}
+        \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.99999$, $\rho_{min}=1$)]{\textsf{Aramis} deliveries (Order Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.99999$, $\rho_{min}=1$}
         \label{table:crashed_node_R.99999}
     \end{center}
 \end{table}
