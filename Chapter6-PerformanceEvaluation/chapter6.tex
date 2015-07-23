@@ -312,7 +312,8 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
             7 & 491 & 8936, (0) & 816 & 8936, (0) \\ \hline
             8 & 510 & 393, (0) & 475 & 392, (0) \\ \hline
             9 & 478 & 3798, (0) & 931 & 3798, (0) \\ \hline
-            10 & 234 & 17341, (0) & 290 & 17805, (0) \\  \hline
+            10 & 234 & 17341, (0) & 290 & 17805, (0) \\  \hline \hline
+            $R_{ex}$ & \multicolumn{2}{|c|}{1} & \multicolumn{2}{|c|}{0.9999803} \\ \hline
         \end{tabular}
         \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.9999$, $\rho_{min}=1$)]{\textsf{Aramis} deliveries (Order Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.9999$, $\rho_{min}=1$}
         \label{table:crashed_node_rho1}
@@ -335,7 +336,8 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
             7 & 432 & 10823, (0) & 939 & 10823, (0) \\ \hline
             8 & 271 & 18412, (0) & 272 & 18414, (0) \\ \hline
             9 & 498 & 5440, (0) & 362 & 5449, (0) \\ \hline
-            10 & 716 & 3611, (0) & 376 & 3611, (0) \\ \hline
+            10 & 716 & 3611, (0) & 376 & 3611, (0) \\ \hline \hline
+            $R_{ex}$ & \multicolumn{2}{|c|}{1} & \multicolumn{2}{|c|}{0.9999901} \\ \hline
         \end{tabular}
         \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.9999$, $\rho_{min}=2$)]{\textsf{Aramis} deliveries (Order Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.9999$, $\rho_{min}=2$}
         \label{table:crashed_node_rho2}
@@ -358,7 +360,9 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
             7 & 453 & 7311, (0) & 345 & 7311, (0)  \\ \hline
             8 & 632 & 12613, (0) & 546 & 12613, (0)  \\ \hline
             9 & 356 & 18030, (0) & 569 & 18034, (0)  \\ \hline
-            10 & 695 & 13907, (0) & 511 & 13907, (0)  \\ \hline
+            10 & 695 & 13907, (0) & 511 & 13907, (0)  \\ \hline \hline
+            $R_{ex}$ & \multicolumn{2}{|c|}{1} & \multicolumn{2}{|c|}{1} \\ \hline
+
         \end{tabular}
         \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.9999$, $\rho_{min}=3$)]{\textsf{Aramis} deliveries (Order Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.9999$, $\rho_{min}=3$}
         \label{table:crashed_node_rho3}
@@ -381,7 +385,9 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
             7 & 244 & 18224, (0) & 301 & 18222, (0)  \\ \hline
             8 & 1160 & 2207, (0) & 830 & 2207, (0)  \\ \hline
             9 & 334 & 19058, (0) & 278 & 19060, (0)  \\ \hline
-            10 & 233 & 17588, (0) & 421 & 17586, (0)  \\ \hline
+            10 & 233 & 17588, (0) & 421 & 17586, (0)  \\ \hline \hline
+            $R_{ex}$ & \multicolumn{2}{|c|}{1} & \multicolumn{2}{|c|}{0.9999903} \\ \hline
+
         \end{tabular}
         \caption[\textsf{Aramis} deliveries before GMS detects node crash ($R=0.99999$, $\rho_{min}=1$)]{\textsf{Aramis} deliveries (Order Violations) before GMS detects $Ns_3$ has crashed \\ $R=0.99999$, $\rho_{min}=1$}
         \label{table:crashed_node_R.99999}
@@ -391,18 +397,26 @@ The experiment detailed in $\S$ \ref{ssec: infinite_experimentation} was execute
     \subsection{Evaluation}
     From Tables \ref{table:crashed_node_rho1}, \ref{table:crashed_node_rho2},  \ref{table:crashed_node_rho3} and \ref{table:crashed_node_R.99999} we can clearly see that the \textsf{ABcast} protocol allows for a large number of \emph{abcast}s to be delivered in the interim period between a node crashing and the GMS protocol detecting it.  With an individual node delivering, on average, greater than $10^4$ \emph{abcast}s and in one case more than double that amount.  Furthermore, out of $40$ experiments there was only two instances when there was no benefit to using the \textsf{ABcast} protocol, and this was when the protocol utilised more conservative values of $R=0.9999$ or $\rho_{min}=3$.  
     
-    In \ref{table:crashed_node_summary}, we can clearly see that increasing the size of $\rho_{min}$ has a direct impact on the reliability of \textsf{Aramis} as the number of G4-P violations reaches zero when $\rho_{min}$ is at its largest.  This can be explained by a larger $\rho_{min}$ increasing the calculated $\Delta_m$ value for each \emph{abcast} (as seen in Tables \ref{table:crashed_node_rho1}, \ref{table:crashed_node_rho2},  \ref{table:crashed_node_rho3}) \footnote{The difference in calculated $\Delta_m$ values is not significant between $\rho_{min}=1,2,3$ in our results, however this can be attributed to the varying state of the underlying network.  Our experiments were conducted in sets based upon their constant values, e.g. all ten experiments that utilised $\rho_{min}=1$ and $R=0.9999$ were performed one after the other.  Therefore, as these experiments take several minutes each, the time required to conduct all of the experiments was significant, and as a consequence these experiments were conducted over several days.  Consequently, the load on the underlying network will have varied for each set of experiments.  However, we can still attribute the reduced number of G4-P violations to an increase in $\Delta_m$, as this variable is calculated based upon latencies that represent the networks current state.  Therefore, if a smaller $\rho_{min}$ value was utilised under the exact same network conditions as the $\rho_{min}=3$ experiments, we know that the calculated $\Delta_m$ value would have been significantly smaller.}.  
+    In \ref{table:crashed_node_summary}, we can clearly see that increasing the size of $\rho_{min}$ has a direct impact on the reliability of \textsf{Aramis}, as the number of order violations reaches zero when $\rho_{min}$ is at its largest.  This can be explained by a larger $\rho_{min}$ increasing the calculated $\Delta_m$ value for each \emph{abcast} (as seen in Tables \ref{table:crashed_node_rho1}, \ref{table:crashed_node_rho2},  \ref{table:crashed_node_rho3}) \footnote{The difference in calculated $\Delta_m$ values is not significant between $\rho_{min}=1,2,3$ in our results, however this can be attributed to the varying state of the underlying network.  Our experiments were conducted in sets based upon their constant values, e.g. all ten experiments that utilised $\rho_{min}=1$ and $R=0.9999$ were performed one after the other.  Therefore, as these experiments take several minutes each, the time required to conduct all of the experiments was significant, and as a consequence these experiments were conducted over several days.  Consequently, the load on the underlying network will have varied for each set of experiments.  However, we can still attribute the reduced number of order violations to an increase in $\Delta_m$, as this variable is calculated based upon latencies that represent the networks current state.  Therefore, if a smaller $\rho_{min}$ value was utilised under the exact same network conditions as the $\rho_{min}=3$ experiments, we know that the calculated $\Delta_m$ value would have been significantly smaller.}.  
     
-    Conversely, when we increase $R$ from $0.9999$ to $0.99999$, the number of violations is reduced to one, at the expense of a greatly enlarged $\Delta_m$ (compared to $\rho_{min}=1,2,3$ when $R=0.9999$).  One would expect that this increase in $\Delta_m$ would result in the number of G4-P violations being zero, as is the case in $\rho_{min}=3$ where the average $\Delta_m$ value is much smaller.  However, this is not the case as increasing $R$ not only enlarges $\Delta_m$, but it also inflates $\eta$.  Consequently, the delay between the redundant broadcasts of a message and the maximum $\mathcal{A}_d$ value is also increased. 
+    Conversely, when we increase $R$ from $0.9999$ to $0.99999$, with $\rho_{min} = 1$, the number of violations is reduced from two to one, at the expense of a greatly enlarged $\Delta_m$ (compared to $\rho_{min}=1,2,3$ when $R=0.9999$).  
     
-     The increased delay between message broadcasts means that it will take longer for $m.copy > 0$ to reach each destination, which if the original packets of $m.copy = 0$ have been lost, then it is more likely that a copy $m$ will arrive at a destination after $\Delta_m$.  More significant is the increased  $\mathcal{A}_d$ value, as this means that if no \emph{abcast}s are ready to send, then a node will wait longer to send an explicit acknowledgement message.  Resulting in the time between a node being ready to acknowledge a message $m$, and another node receiving the acknowledgement for $m$, increasing, which increases the chances of a subsequent message $m'$ being delivered ahead of $m$ in the total order. Hence, it is more likely for the message $m$ to suffer a G4-P violation, which could have been a significant factor in why one of our experiments suffered recorded a G4-P violation when $R=0.99999$.  
+    From its initial conception, \textsf{ABcast} has been designed with pessimistic assumptions in order to minimise the chances of $\Delta_m$ being exceeded by a given \emph{abcast}.  This pessimism is reflected in our experiments, with Tables (\ref{table:crashed_node_rho1}, \ref{table:crashed_node_rho2},  \ref{table:crashed_node_rho3}, \ref{table:crashed_node_R.99999}) all showing that the experienced $R$, denoted as $R_{ex}$, is greater than the user specified $R$.  Where $R_{ex}$ for a given set of experiments is calculated as
+    
+    \begin{equation}\label{eq:afc_mu_norm}
+		     \begin{aligned}
+		         1 - R_{ex} = \frac{\sum\limits_{1}^{10} \quad \text{ Number of Order Violations}}{\sum\limits_{1}^{10} \quad \text{ Messages Delivered by Aramis}}
+		     \end{aligned}
+    \end{equation}
+    
+    \noindent unless the number of messages delivered by \textsf{Aramis} is zero, in which case $R_{ex} = 1$.  
     
     Finally, while our experiments show that a larger number of \emph{abcast}s are delivered in the interim period between node failures and detection, we believe that in the event of a \textquoteleft{}real' crash this value could be much higher.  In our experiments we crash the JVM instantly, which results in the TCP sockets utilised by the \texttt{FD\_SOCK} protocol being closed immediately.  This means that it is almost certainly the \texttt{FD\_SOCK} protocol that detects the failure of $Ns_3$ each time.  If a crash was preceded by a slowing down period where node responses become more staggered and the node was unresponsive, but still running and maintaining an open TCP socket, it is highly probable that the total number of \emph{abcast}s sent in the interim period would be much larger, as the alternative failure detection protocol \texttt{FD\_ALL} has a default timeout period of $40$ seconds.  
         
     \subsection{Summary}
-        We have found that utilising the \textsf{ABcast} protocol for \emph{abcast}s, allows for a significant number of messages ($> 10^4$) to be delivered in the interim period between a node crash and a GM protocol detecting it.  Furthermore, we have found that increasing both $\rho_{min}$ and $R$ reduces the chances of G4-P violations occuring in the presence of node crashes.  However, increasing $R$ can potentially undermine the \textsf{ABcast} protocol whilst creating a large $\Delta_m$.  Therefore, if a more conservative \textsf{ABcast} protocol is required, it is more effective to increase $\rho_{min}$ than $R$.  
-        
+        We have found that utilising the \textsf{ABcast} protocol for \emph{abcast}s allows for a significant number of messages ($> 10^4$) to be delivered in the interim period between a node crash and the GM protocol publishing a new view.  Furthermore, we have found that increasing both $\rho_{min}$ and $R$ reduces the chances of order violations occurring in the presence of node crashes.  When $\rho_{min} = 1$, $R_{ex}$ is much larger than the specified $R$, with the difference increasing as $\rho_{min}$ becomes larger.  However, a larger $\rho_{min}$ can occasionally risk \textsf{Aramis} not being able to deliver any \emph{abcast}s before the GM publishes a new view, so it is recommended to keep $\rho_{min}=1$.  
+          
 \section{Summary}
 In this chapter, we have presented a thorough performance evaluation of both the \textsf{AmaaS} model and the \textsf{ABcast} protocol.  We have shown that, as the number of nodes involved in a transaction increases, the \textsf{AmaaS} model, coupled with the \textsf{SCast} protocol, can improve the average latency and throughput of distributed transactions when compared to the existing P2P approach.  
 
-Additionally, we have shown that the \textsf{ABcast} protocol can provide comparable performance to existing deterministic protocols, such as TOA, when utilised within a \textsf{AmaaS} service.  Crucially, this performance does not come at the expense of \textsf{ABcast}'s guarantees, as we have demonstrated that these guarantees can be met when handling large numbers of \emph{abcast}s.  Furthermore, we have shown that with the correct configuration parameters, it is possible to avoid G4-P violations when node crashes occur.  Finally, we have shown that \textsf{ABcast}'s non-blocking message delivery enables a significant number of \emph{abcast} messages to be delivered in the interim period between a node crashing and a GM protocol detecting it.  
+Additionally, we have shown that the \textsf{ABcast} protocol can provide comparable performance to existing deterministic protocols, such as TOA, when utilised within a \textsf{AmaaS} service.  Crucially, this performance does not come at the expense of \textsf{ABcast}'s guarantees, as we have demonstrated that these guarantees can be met when handling large numbers of \emph{abcast}s.  Furthermore, we have shown that with the correct configuration parameters, it is possible to avoid order violations when node crashes occur.  Finally, we have shown that \textsf{ABcast}'s non-blocking message delivery enables a significant number of \emph{abcast} messages to be delivered in the interim period between a node crashing and a GM protocol detecting it.  
