@@ -850,7 +850,7 @@ Ultimately, a bespoke flow-control scheme is required by \textsf{ABcast} to ensu
         When $\gamma = 1$, no $Mp$ value has been observed so far; so, $\mu = 0$ as per Equation \ref{eq:afc_mu_under_ten} and $\lambda_2 = \lambda_1$.  Thus, $m$ will be handed over to \textsf{ABcast} at the old rate of $\lambda_1$.
     
         \item[$\bm{\gamma > 1$}]\hfill \\
-        When $\gamma > 1$, $x_{mx}$ has been observed to have been violated and hence the broadcast rate must be slowed down.  Moreover $(1 - \gamma) \geq 0$, $e^{\left(\frac{1 - \gamma}{C}\right)}$ and $\lambda_2 < \lambda_1$.                 
+        When $\gamma > 1$, $x_{mx}$ has been observed to have been violated and hence the broadcast rate must be slowed down.  Moreover $(1 - \gamma) < 0$, $e^{\left(\frac{1 - \gamma}{C}\right)}$ and $\lambda_2 < \lambda_1$.                 
                 
         Note that $e^{\bar{z}}$ decays rapidly as $\bar{z}$, $\bar{z} > 0$, decreases even by a small amount (see Figure \ref{fig:afc_e_expontential}). To control $\lambda_2$ becoming extremely small, we choose $C$ to be a large positive constant.  
         
