@@ -76,10 +76,6 @@ The mechanisms that give rise to probabilistic total order of \emph{amcasts} can
     \end{enumerate}
     
     If condition $(i)$ is true, then $N_c2$ will not know of $mc_3$ as it is not stated in $mc_4.history[]$ and if $(ii)$ is also true, then $mc_4$ will be delivered immediately.  Note, that if $N_c2$ was to receive $mc_3$, before delivering $mc_4.history[N_c2]$, then $mc_3$ will be \emph{known} by $Nc_2$ and the correct delivery order of ${mc_1 \ \llcurly_{N_c2} \ mc_3 \ \llcurly_{N_c2} \ mc_4}$ will be preserved.  
-    
-    \textbf{Node:} The probability of an order violation by \textsf{SCast} can be seen as a product of two probabilities: the probability of a order violation by \textsf{ABcast} (which is $(1-R)$) and the probability that the lateness of $m$ is so long that both $(i)$ and $(ii)$ occur.  Assuming the latter probability is $1$, we can observe that, for every \textsf{ABcast} ordering failure, say on \emph{abcast} $m$ by $Ns_i$, $|m.dst|$ \emph{amcast}s will have an incorrect history when all these \emph{amcast}s are handled by $Ns_i$.  Thus, each \textsf{ABcast} violation (which occurs with probability $(1-R)$) gives rise to $|mc.dst|$ violations of \textsf{SCast} order (each occurs with probability $(1-Rmc)$).  Thus $(1-Rmc)$ and $(1-R)$.  
-    
-    In the above example, $mc_3.dst = \{N_c1, N_c2\}$.  Assuming $Ns_i$ missed $m_3$ and is responsible for forwarding $mc_4$, $N_c2 \in mc_3.dst \cap mc_4.dst$ will have an incorrect history in $mc_4$.  Similarly, one can draw a scenario wherein $Ns_i$ is also responsible for forwarding $mc_5$, such that $N_c1 \in mc_5.dst \cap mc_3.dst$, $mc_3 \llcurly_{N_c2} mc_5$ and $m_5.o = Ns_i$.  
 
 \section{Service Node - Coping with \textsf{ABcast} Order Violations}
 We now explore how \textsf{ABcast} order violations can be handled by $s$-nodes in order to reduce the chances of \textsf{SCast} violations from occurring.  
@@ -92,7 +88,7 @@ Let $m$ and $m'$ be \emph{abcast}s such that $m \llcurly_d m'$ for all $d \in tx
         \item    $N_s$ delivers $m$ via an exception, before $m'$ is delivered.  
     \end{enumerate}
     
-    In scenario $(i)$, $N_s$ $order\_history[]$ will be missing $m$ when $m'.history[]$ is calculated, therefore it is \emph{possible} for one or more $d$ to suffer from a SCast ordering violation.  Upon delivering $m$, it is not possible for $N_s$ to update $order\_history[d]$, as $order\_history[d]$ contains a message ($m'$) which succeeds $m$ in the total order.  However, for all $d' \in tx.dst \setminus tx'.dst$, it is necessary for $order\_history[d']$ to be updated if $order\_history[d']$'s current entry precedes $m$ in the total order.  This ensures that incorrect message histories are prevented, when such actions are possible, reducing the chances of SCast ordering violations.  
+    In scenario $(i)$, $N_s$ $order\_history[]$ will be missing $m$ when $m'.history[]$ is calculated, therefore it is \emph{possible} for one or more $d$ to suffer from an SCast ordering violation.  Upon delivering $m$, it is not possible for $N_s$ to update $order\_history[d]$, as $order\_history[d]$ contains a message ($m'$) which succeeds $m$ in the total order.  However, for all $d' \in tx.dst \setminus tx'.dst$, it is necessary for $order\_history[d']$ to be updated if $order\_history[d']$'s current entry precedes $m$ in the total order.  This ensures that incorrect message histories are prevented, when such actions are possible, reducing the chances of SCast ordering violations.  
     
     Scenario $(ii)$ is handled by updating all $d'$, where possible, as $N_s$ can update $order\_history[d]$ as expected due to $m'$ not preceding $m$ in the delivery order.  
 
@@ -133,7 +129,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
 
 \section{Infinispan (Client Node) - Coping with \textsf{SCast} Order Violations}
 % Transaction manager, state all assumptions - exceptions etc.
-    In the event that one or more order violations occur, it is necessary for the client application to be able to recover from such events.  In this subsection, we present a recovery mechanism that can be employed by the Infinispan transaction manager at each $c$-node in the event of a violation occurring.  The exact methods of the recovery mechanism are determined by the isolation level chosen by the Infinispan clients before runtime; with one method required for \emph{Repeatable Read}, $RR$ and \emph{Read Committed}, $RC$ transactions, whilst an alternative method is required for $RR$ with WSC due to its dependence on a voting phase to commit/abort transactions.  Therefore, we first explored the method required for $RR$ and $RC$ before detailing the provisions for $RR$ with WSC.  
+    In the event that one or more order violations occur, it is necessary for the client application to be able to recover from such events.  In this subsection, we present a recovery mechanism that can be employed by the Infinispan transaction manager at each $c$-node in the event of a violation occurring.  The exact methods of the recovery mechanism are determined by the isolation level chosen by the Infinispan clients before runtime; with one method required for \emph{Repeatable Read}, $RR$ and \emph{Read Committed}, $RC$ transactions, whilst an alternative method is required for $RR$ with WSC due to its dependence on a voting phase to commit/abort transactions.  Therefore, we first explore the method required for $RR$ and $RC$ before detailing the provisions for $RR$ with WSC.  
     
     \subsection{Transaction Manager Assumptions}
     Our solutions for recovering from ordering violations assume that the following data structures are implemented by the Transaction Manager (TM):
@@ -152,7 +148,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
                 
                 \item    The final decision, whether to \emph{abort} or \emph{commit} the transaction. $(\bm{Tx.decision})$.
                 
-                \item    A an associative array of all $commit()$ or $abort()$ votes received for this transaction, with the source destination of a vote being used for indexing ($RR$ with $WSC$ \emph{only}).  $(Tx.votes[])$. \textbf{Note:} votes received for transactions that have not yet been processed by a TM are stored in a temporary buffer until the associated transaction becomes active; at which point the votes are \emph{received} and added to $Tx.votes[]$.  
+                \item    An associative array of all $commit()$ or $abort()$ votes received for this transaction, with the source node of a vote being used for indexing ($RR$ with $WSC$ \emph{only}).  $(Tx.votes[])$. \textbf{Note:} votes received for transactions that have not yet been processed by a TM are stored in a temporary buffer until the associated transaction becomes active; at which point the votes are \emph{received} and added to $Tx.votes[]$.  
             \end{itemize}
             
         Henceforth, all references to a transaction, or $Tx$, assumes that a $tx\_entry$ is maintained along with all of the above values.  
