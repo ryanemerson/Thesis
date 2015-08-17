@@ -93,7 +93,7 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
         
         \item    \textbf{Update Ordering Data} - Deliver $abcast(Tx_i)$ locally and update the stored ordering data to include $Tx_i$.  
     
-        \item    \textbf{Return Ordering} - Sends a response message, $rsp(Tx_i)$, to $Tx_j.c$, which contains all of the data required by $c$-nodes to order $Tx_i$.  
+        \item    \textbf{Return Ordering} - Sends a response message, $rsp(Tx_i)$, to $Tx_i.c$, which contains all of the data required by $c$-nodes to order $Tx_i$.  
     \end{enumerate}
     
     Figure \ref{fig:scast_service} illustrates the four key stages of the \textsf{SCast} protocol outlined above.  
