@@ -81,7 +81,6 @@ The remainder of this chapter is structured as follows:  First we introduce the 
 
 As the \textsf{ABcast} protocol utilises the probabilistic protocol \textsf{Aramis}, it is possible for a node to not receive an \emph{abcast} $m$ before $\Delta_m$, resulting in that node delivering a subsequent \emph{abcast} $m'$, via \textsf{Aramis}, ahead of $m$ in the total order.  However, as previously stated, \textsf{Aramis} is carefully designed to keep the probability of meeting G4 close to 1.  Furthermore, as \textsf{Aramis} is only used when \textsf{Base} is slow or node failures occur, the probability of an \emph{abcast} message $m$ being missed in the total order is the product of two very small probabilities; \textsf{Base} not being able to deliver $m$ and \textsf{Aramis} failing $m$.  Therefore, in reality the occurrence of a node not delivering  $m$ in the correct total order is rare.   
 
-\newpage
     \subsection{ABcast Guarantees}
     Below, we state the guarantees provided by the \textsf{ABcast} protocol.  
    
@@ -384,7 +383,6 @@ In this section we detail the individual components required by the \textsf{ABca
         Again, we assume exponential distribution and that $\bar{x}$ is the exponential mean of $NT_P$ observed delays.
         \end{description}
 
-        \newpage
         \subsection*{Guarantees of \emph{rbcast}}
         Let $m$ be \emph{rbcast} by $N_i$, as per its clock time $m.ts$.  Let:
         
