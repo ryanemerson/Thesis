@@ -48,11 +48,10 @@
     The research presented in this thesis makes several key contributions:
     
 	    \begin{enumerate}[label=\roman*]
-	        \item An extensive background section that provides the prerequisite information required to understand the problem domain.  Of particular significance is the detailed breakdown of the Infinispan NoSQL database and how it addresses the challenges of coordinating distributed transactions in partially replicated environments.  
 	        
-	        \item A new system model, \textsf{AmaaS}, for coordinating distributed transactions in partially replicated environments and a new fault-tolerant atomic multicast protocol that has been designed specifically for \textsf{AmaaS}.  
+	        \item A new system model, Atomic Multicast as a Service (\textsf{AmaaS}), for coordinating distributed transactions in partially replicated environments and a new fault-tolerant atomic multicast protocol that has been designed specifically for \textsf{AmaaS}.  
 	        
-	        \item A hybrid atomic broadcast protocol, \textsf{ABcast}, which is designed for providing state machine replication within the \textsf{AmaaS} model.  \textsf{ABcast} provides low-latency message delivery in the absence of node failures and non-blocking message delivery in their presence, by utilising both a deterministic and probabilistic atomic broadcast protocol to deliver messages up the network stack.  
+	        \item A hybrid atomic broadcast protocol called \textsf{ABcast}, which is designed for providing state machine replication within the \textsf{AmaaS} model.  \textsf{ABcast} provides low-latency message delivery in the absence of node failures and non-blocking message delivery in their presence, by utilising both a deterministic and probabilistic atomic broadcast protocol to deliver messages up the network stack.  
 	        
 	        \item An extensive performance evaluation of both the \textsf{AmaaS} model and the \textsf{ABcast} protocol.
 	    \end{enumerate}
