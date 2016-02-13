@@ -27,9 +27,9 @@
     In this thesis we advocate an alternative approach to coordinating distributed transactions, which unlike P2P protocols does not require ordering consensus to be reached between peers.  Our approach consists of building two key components: 
 
 	\begin{enumerate}[label=\roman*]
-		\item An external ordering service that enables atomic multicasts between Infinispan nodes.
+		\item An external ordering service that enables atomic multicasts between Infinispan nodes (\textsf{SCast}).
 		
-		\item A non-blocking atomic broadcast protocol for state machine replication within the ordering service.  
+		\item A non-blocking atomic broadcast protocol for state machine replication within the ordering service (\textsf{ABcast}).  
 	\end{enumerate}
    
    The external ordering service is an alternative to the P2P approach currently utilised by Infinispan.  This service consists of a dedicated set of nodes acting as a replicated state machine which provides a total order value for any multicasts required by Infinispan nodes.  The rationale behind this approach is that the number of nodes required to reach a consensus on a message's total order is limited to the number of nodes in the ordering service.  Therefore, as the number of nodes participating in a transaction increases, the time required to reach a consensus remains constant, hence the problems associated with P2P protocols in partially replicated environments are circumvented.
