@@ -172,7 +172,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
     
     When $m_i$ is delivered to the TM via an exception, the only course of action is for a roll-back procedure, similar to that utilised in compensating transactions \citep{Korth:1990:FAR:645916.671971}, to be initiated; with all transactions that should have been executed after $m_i$'s transaction being reversed.  Once all of the offending transactions have been reversed it is possible for $m_i$'s transaction to be executed and the previously rolled back transactions reapplied in the correct total order.  Hence, the data maintained by this $c$-node eventually becomes the same as if no ordering violation had occurred.  
     
-    For example, if the original value of a key $k$ was $v=5$, the transaction associated with $m_i$ was $put(k, 10)$ and $m_j$'s transaction was $put(k, v+1)$.  When $m_i$ is missing, the outcome of $m_j$'s transaction would be $v = 6$, however after $m_i$ is delivered via an exception and the transactions are re-executed, the result of $m_j$'s transaction will be $v = 11$.  
+    For example, if the original value of a key $k$ was $v=5$, the transaction associated with $m_i$ was $update(k, 10)$ and $m_j$'s transaction was $update(k, v+1)$.  When $m_i$ is missing, the outcome of $m_j$'s transaction would be $v = 6$, however after $m_i$ is delivered via an exception and the transactions are re-executed, the result of $m_j$'s transaction will be $v = 11$.  
     
     \subsubsection*{TM roll-back Implementation}
     Assume the same scenario as described in the previous section, with $m_j$ being incorrectly delivered to the TM ahead of $m_i$; where $m_j$ and $m_i$ are associated with transactions $Tx_j$ and $Tx_i$ respectively.  When a destination eventually receives $m_i$, it invokes $am\_deliver\_with\_exception(m_i)$ and delivers $m_i$ to the TM using the \emph{worker} thread which delivered $m_i$ to the \textsf{PSCast} layer.  Upon receiving $m_i$, and hence $Tx_i$, the TM takes the following actions:
@@ -381,7 +381,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
         \subsubsection*{\emph{Backup} TM Roll-back Required}
         Previously we stated that it was not possible to utilise the roll-back procedure utilised by RR and RC isolation when the WSC was enabled.  This is true when a TM is classified as a \emph{primary}, however in the case of a \emph{backup} TM it is possible, and sometimes required, for a roll-back mechanism to be utilised.  The roll-back mechanism detailed on lines 5-15 of Algorithm \ref{ps:tx_queue_rr_wsc} functions in much the same way as when RR or RC isolation is utilised and is required in the following scenario:
         
-        Let $m_i$ and $m_j$, contain the transactions $tx_i$ and $tx_j$ respectively, where $m_i \prec m_j$.  Assume that both $tx_i$ and $tx_j$ consist of a single write operation, $put(k1,x)$ \footnote{We assume that the value of $x$ is different for each $Tx$}, where nodes $N_c1$ and $N_c2$ host the \emph{primary} and \emph{backup} replica of $k1$, respectively.  Finally, assume that node $N_c3$ is the $Tx.c$ for $tx_i$ and $N_c4$ is the $Tx.c$ for $tx_j$. 
+        Let $m_i$ and $m_j$, contain the transactions $tx_i$ and $tx_j$ respectively, where $m_i \prec m_j$.  Assume that both $tx_i$ and $tx_j$ consist of a single write operation, $update(k1,x)$ \footnote{We assume that the value of $x$ is different for each $Tx$}, where nodes $N_c1$ and $N_c2$ host the \emph{primary} and \emph{backup} replica of $k1$, respectively.  Finally, assume that node $N_c3$ is the $Tx.c$ for $tx_i$ and $N_c4$ is the $Tx.c$ for $tx_j$. 
         
         Let $m_i$ and $m_j$ be successfully delivered at $N_c1$, resulting in the \emph{primary} TM ($N_c1$) processing $Tx_i$ and $Tx_j$ in the correct order.  Let, $N_c3$ and $N_c4$ receive $m_i$ and $m_j$ respectively, without any order violations. Now consider that $m_i$ suffers an order violation at its backup node, $N_c2$, and $m_j$ is delivered ahead of it in the total order.  This results in $N_c2$'s active transaction being $tx_j$.  
         
@@ -407,8 +407,8 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
     \begin{minipage}{\textwidth}
         \begin{lstlisting}
 	    Tx.begin();
-		    put(k1, x);
-		    put(k2, y);
+		    update(k1, x);
+		    update(k2, y);
 		Tx.commit();
         \end{lstlisting}
     \end{minipage}
