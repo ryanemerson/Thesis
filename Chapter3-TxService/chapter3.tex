@@ -287,7 +287,7 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
 %    \end{algorithm}
 		
         \litemSn{S4 - Return Ordering}
-        At this stage the local $s$-node, $N_s$, has completed the ordering process for $m$, therefore it is necessary for $m$ to be sent to $Tx_i.\tilde{c}$ as a $rsp(Tx_i)$ message in order for the \emph{amcast} process to continue.  To ensure that only one $s$-node responds to $Tx_i.\tilde{c}$, the $rsp(Tx_i)$ message is only sent by the $s$-node whose $snid = m.snid$.  
+        At this stage the local $s$-node, $N_s$, has completed the ordering process for $m$, therefore it is necessary for $m$ to be sent to $Tx_i.\tilde{c}$ as a $rsp(Tx_i)$ message in order for the \emph{amcast} process to continue; where $rsp(Tx_i)$ consists of $m.tx_id$, $m.tx\_\tilde{c}$, $m.order$, $m.dst$ and $m.history[]$.  To ensure that only one $s$-node responds to $Tx_i.\tilde{c}$, the $rsp(Tx_i)$ message is only sent by the $s$-node whose $snid = m.snid$.  
         
         \textbf{Crash-Tolerance:} Each $s$-node maintains a short history of $rsp()$ messages as past message orderings may be requested by $c$-nodes in certain circumstances \footnote{As described in section \ref{ssec:scast_fault_tolerance}.}.          
         
