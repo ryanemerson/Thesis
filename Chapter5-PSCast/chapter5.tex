@@ -143,7 +143,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
         Henceforth, all references to a transaction, or $Tx$, assumes that a $tx\_entry$ is maintained along with all of the above values.  
             
         \item[$\bm{tx\_queue}$] \hfill \\
-        The transaction queue, $tx\_queue$, is a priority queue which stores the TM's currently executing transaction, $Tx$, as its head entry; a $Tx$ is dequeued when it has finished executing and pushed onto $tx\_history$.  Subsequent entries in the queue are additional transactions, $Tx'$ that proceed $Tx$ in the total order.  \textbf{Note:} When no order violations have occurred, the $tx\_queue$ should only contain $Tx$.  
+        The transaction queue, $tx\_queue$, is a priority queue which stores the TM's currently executing transaction, $Tx$, as its head entry; a $Tx$ is dequeued when it has finished executing and pushed onto $tx\_history$.  Subsequent entries in the queue are additional transactions, $Tx'$ that succeed $Tx$ in the total order.  \textbf{Note:} When no order violations have occurred, the $tx\_queue$ should only contain $Tx$.  
         
         \item[$\bm{tx\_history}$] \hfill \\
         The transaction history, $tx\_history$, is a stack which stores the transactions which have already been committed by the TM, with the $Tx$ stored at the top of the stack representing the last transaction to have been committed by the TM.  
@@ -172,7 +172,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
         
         \item    The \emph{delivery} thread finishes executing its current transaction before processing the next $Tx$ in the $tx\_queue$; which will most likely be $Tx_i$ \footnote{Assuming only one ordering violation occurs, $Tx_i$ will always be inserted at the head of the queue.}.
         
-        \item    During the execution of $Tx_i$, past transactions stored in $tx\_history$ are \emph{popped} from $tx\_history$ and inserted into the $tx\_queue$ (in order), until no transactions exist in $tx\_history$ which precede $Tx_i$ in the total order.
+        \item    During the execution of $Tx_i$, past transactions stored in $tx\_history$ are \emph{popped} from $tx\_history$ and inserted into the $tx\_queue$ (in order), until no transactions exist in $tx\_history$ which succeed $Tx_i$ in the total order.
         
         \item    Once all of the required transactions have been (re-)inserted into $tx\_queue$, the TM will execute $Tx_i$ and then push $Tx_i$ onto $tx\_history$.  This process continues until the $tx\_queue$ becomes empty, at which point all transactions that are known by the TM will have been executed in the order dictated by \textsf{PSCast}.  
         
