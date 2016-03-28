@@ -176,7 +176,7 @@ In this section we detail the individual components required by the \textsf{ABca
     \begin{description}[leftmargin=1cm, labelindent=1cm]
         \item[$\bm{x_{mx}}$ \textnormal{and}  $\bm{q}$ - ]    As described in our assumptions.
         
-        \item[$\bm{\eta}$ - ]    The delay observed between redundant broadcasts of $m$, to ensure successive broadcasts are independent.  
+        \item[$\bm{\eta}$ - ]    The delay observed between redundant broadcasts of $m$, to ensure successive broadcasts remain independent as they are passed down the network stack.  \footnote{Utilising $\eta$ ensures that lower protocols in the network stack do not bundle $m.copy = 0$ and $m.copy = 1$ into a single network packet, as this bundling would undermine the broadcasting of redundant message copies.}
 
         \item[$\bm{\rho}$ - ]    The number of redundant wait periods to be included into $D$ for a given $m$; the larger the value of $\rho$, the closer $R$ is to $1$.  
         
