@@ -211,7 +211,7 @@ The pseudocode for receving a message and determining whether a $mcast()$ has su
                     \STATE{$revert\_commit(previous\_tx);$}
                 \ENDWHILE
                              
-                \IF{$previous\_tx \prec tx$ $\land$ $previous\_tx$ is not $null$}
+                \IF{$previous\_tx$ is not $null$ $\land$ $previous\_tx \prec tx$}
                     \STATE{$push\_to\_tx\_history(previous\_tx);$}
                 \ENDIF
                 
