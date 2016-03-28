@@ -300,7 +300,7 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
         
         \leftbar
         \litem{C4 - Order Transaction}
-        Upon receiving $mcast(Tx_i)$, a $c$-node destination, $d$, stores this $mcast()$ as $m$ in the \emph{amcast\_wait\_queue} (AWQ).  This priority queue stores all of the \emph{amcast}s received by this node until they are delivered to the application.  Messages are prioritised in the AWQ based upon their $m.order$, \emph{e.g.} $m_1 \llcurly_d m_2 \llcurly_d m_3$ as shown in Figure \ref{fig:awq}, and can only be delivered to the application when $\tilde{m}$, $\tilde{m} \llcurly_d m$, specified in $m.history[d]$, has been delivered.  
+        Upon receiving $mcast(Tx_i)$, a $c$-node destination, $d$, stores this $mcast()$ as $m$ in the \emph{amcast\_wait\_queue} (AWQ).  This priority queue stores all of the \emph{amcast}s received by this node until they are delivered to the application.  Messages are prioritised in the AWQ based upon their $m.order$, \emph{e.g.} $m_1 \llcurly_d m_2 \llcurly_d m_3$ as shown in Figure \ref{fig:awq}, and can only be delivered to the application when $\tilde{m}$, $\tilde{m} \llcurly_d m$, specified in $m.history[d]$, has been delivered.  It is necessary for the delivery of $m$ to be delayed until after $\tilde{m}$ to ensure that $m$'s, and subsequent \emph{amcast}s involving this node, total order (guarantee G4) is maintained.  
         
          \begin{figure}[H] 
         \centering    
@@ -316,7 +316,7 @@ As \textsf{SCast} defines how $c$-nodes interact with the ordering service and h
         \textbf{Crash-Tolerance:} All $c$-nodes must store a copy of a delivered $mcast(Tx)$ message, if they were the designated backup coordinator for that $Tx$.  With each $c$-node maintaining a finite list of such $mcast(Tx)$ messages; we refer to this list as $backup\_history$.  
         \endleftbar
 
-        Algorithm \ref{ps:awq} presents the pseudocode for processing the AWQ.  The variable $last\_amcast$ stores the $m.order$ of the last \emph{amcast} message that was dequeued from the AWQ; hence this is the last \emph{amcast} to be delivered by $d$.  Furthermore, the array $last\_delivered[s]$ stores the $m.order$ of the last \emph{amcast} message which was processed by the $s$-node $s$.  
+        Algorithm \ref{ps:awq} presents the pseudocode for processing the AWQ.  The variable $last\_amcast$ stores the $m.order$ of the last \emph{amcast} message that was dequeued from the AWQ; hence this is the last \emph{amcast} to have be delivered by $d$.  Furthermore, the array $last\_delivered[s]$ stores the $m.order$ of the last \emph{amcast} message which was processed by the $s$-node $s$.  
     
     \end{enumerate}
     \begin{algorithm}[H]
