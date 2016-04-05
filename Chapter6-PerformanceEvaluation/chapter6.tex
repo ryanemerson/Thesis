@@ -45,7 +45,7 @@
 	
 	Both the \textsf{SCast} and \textsf{PSCast} services utilise a modified version of the \textsf{SCast} protocol defined in section \ref{sec:scast_protocol} to dictate the interactions between $c$-nodes and $s$-nodes.  In our implementation $s$-nodes utilise message bundling to reduce the total number of \emph{abcast} messages required.  
 	
-    \textbf{\emph{Omission:}} Stage 1 of the \textsf{SCast} protocol has been omitted from this implementation because we only compare the performance of the two approaches in a crash-free scenario.  However, it is worth noting that as stage 1 only consists of a single round trip delay, its inclusion in the implementation would only have a marginal effect on the results of our experiments.  	
+    \textbf{\emph{Omission:}} Stage 1 of the \textsf{SCast} protocol has been omitted from this implementation because we only compare the performance of the two approaches in a crash-free scenario.  Our rationale for removing this stage, was that the fault-tolerance provisions described in \textsf{SCast} is only one possible solution for ensuring that the \emph{amcast} protocol can continue to execute in the event of the original coordinator crashing during a multicast and alternative solutions are not obliged to utilise this additional communication stage.  Furthermore, in our experiments we are comparing \textsf{SCast} to the \textsf{TOA} protocol which does not implement any mechanism to cope with a crashed message originator, therefore removing Stage 1 of \textsf{SCast} protocol makes for a fairer comparison of the two protocols.  
 	
 	\textbf{Experiment Workflow:} The workflow of a transaction in our experiments is as follows:
     \begin{enumerate}
