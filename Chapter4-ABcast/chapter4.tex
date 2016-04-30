@@ -627,7 +627,14 @@ Hitherto this chapter has focused on the underlying assumptions made when design
     
     Like NewTop, delivery of $m$ is blocked until each $d' \in m.dst - \{m.o\}$ has acknowledged $m$ by sending $ack_{d'}(m)$ to every $d \in m.dst$ and all $d \in m.dst$ have received $ack_{d'}(m) \forall (m.dst \setminus \{m.o,d\})$, thus C1 ($\S$ \ref{ssec:atomic_broadcast}) is met.  With each acknowledgement consisting of the id tuple that belongs to the message being acknowledged.  
     
-    The use of synchronised clocks to uniquely timestamp each message, removes the need for tentative timestamps to be shared between destinations.  Instead the ordering of a message is dictated from its inception based upon its timestamp.  However,  a message's final place in the total order is not known by a destination until it has received an acknowledgement from all other $d' \in (m.dst - \{m.o\})$.  
+    The use of synchronised clocks to uniquely timestamp each message, removes the need for tentative timestamps to be shared between destinations.  Instead the ordering of a message is dictated from its inception based upon its timestamp.  However,  a message's final place in the total order is not known by a destination until it has received an acknowledgement from all other $d' \in (m.dst - \{m.o\})$.  Figure \ref{fig:base_flow} shows the message flow required by the base protocol in order for an \emph{abcast} to be delivered.  
+    
+    \begin{figure}[!h] 
+        \centering    
+         \includegraphics[width=0.85\textwidth]{Base}
+         \caption[\textsf{Base} Atomic Broadcast protocol]{\textsf{Base} Atomic Broadcast protocol}
+         \label{fig:base_flow}
+    \end{figure}  
     
     In order to overcome C2, as described in \ref{sec:atomic_guarantees}, and ensure that G3 and G4 are respected, it is necessary for each $d \in m.dst$ to maintain a vector clock \citep{Mattern88virtualtime, fidge1988timestamps}; with each $d$'s vector clock stating the last $rbcast(m)$ sent by $d$ as well as the the latest $m$ to be $rb.delivered$, by $d$, that originated from each $d' \in (m.dst - d)$ \footnote{Where the latest $m$, is defined as the message containing the largest timestamp from a given $d'$}.  This vector clock is then included in every $m$ and $ack_{d'}(m)$ sent by a node.  
     
